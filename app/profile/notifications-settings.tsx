@@ -12,6 +12,7 @@ type NotificationPreferences = {
   meals_enabled: boolean;
   assignments_enabled: boolean;
   subscriptions_enabled: boolean;
+  chat_enabled: boolean;
 };
 
 export default function NotificationsSettingsScreen() {
@@ -22,6 +23,7 @@ export default function NotificationsSettingsScreen() {
     meals_enabled: true,
     assignments_enabled: true,
     subscriptions_enabled: true,
+    chat_enabled: true,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,6 +39,7 @@ export default function NotificationsSettingsScreen() {
         meals_enabled?: boolean;
         assignments_enabled?: boolean;
         subscriptions_enabled?: boolean;
+        chat_enabled?: boolean;
       }>('/users/notification-preferences');
 
       setPreferences({
@@ -44,6 +47,7 @@ export default function NotificationsSettingsScreen() {
         meals_enabled: response.meals_enabled ?? true,
         assignments_enabled: response.assignments_enabled ?? true,
         subscriptions_enabled: response.subscriptions_enabled ?? true,
+        chat_enabled: response.chat_enabled ?? true,
       });
     } catch (error) {
       console.error('Failed to load preferences', error);
@@ -143,6 +147,20 @@ export default function NotificationsSettingsScreen() {
               <Switch
                 value={preferences.assignments_enabled}
                 onValueChange={() => toggleSwitch('assignments_enabled')}
+                disabled={!preferences.push_enabled}
+                trackColor={{ false: theme.colors.borderStrong, true: theme.colors.primary }}
+                thumbColor={theme.colors.surface}
+              />
+            </View>
+
+            <View style={[styles.settingRow, !preferences.push_enabled ? styles.disabledRow : null]}>
+              <View style={styles.textContainer}>
+                <Text style={styles.settingTitle}>Chat</Text>
+                <Text style={styles.settingDescription}>Mensajes nuevos de tu profesional.</Text>
+              </View>
+              <Switch
+                value={preferences.chat_enabled}
+                onValueChange={() => toggleSwitch('chat_enabled')}
                 disabled={!preferences.push_enabled}
                 trackColor={{ false: theme.colors.borderStrong, true: theme.colors.primary }}
                 thumbColor={theme.colors.surface}

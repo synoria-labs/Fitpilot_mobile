@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { InteractionManager, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -430,6 +431,24 @@ export default function TabLayout() {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data ?? {};
+      const conversationId = data.conversation_id;
+
+      if (data.type === 'chat' && conversationId) {
+        router.push({
+          pathname: '/(tabs)/chat',
+          params: { conversationId: String(conversationId) },
+        });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <ProtectedRoute>
       <BottomTabBarVisibilityProvider>
@@ -512,6 +531,19 @@ export default function TabLayout() {
               tabBarIcon: ({ color, size, focused }) => (
                 <Ionicons
                   name={focused ? 'barbell' : 'barbell-outline'}
+                  size={size}
+                  color={color}
+                />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="chat"
+            options={{
+              title: 'Chat',
+              tabBarIcon: ({ color, size, focused }) => (
+                <Ionicons
+                  name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
                   size={size}
                   color={color}
                 />
