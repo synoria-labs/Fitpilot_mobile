@@ -1,0 +1,18 @@
+packages:
+  - .
+
+minimumReleaseAge: 1440
+lockfile: true
+resolutionMode: time-based
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200
+blockExoticSubdeps: true
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+sideEffectsCache: false
+engineStrict: true
+packageManagerStrict: true
+packageManagerStrictVersion: true
+ignoreScripts: true
+strictDepBuilds: true
+verifyDepsBeforeRun: error
