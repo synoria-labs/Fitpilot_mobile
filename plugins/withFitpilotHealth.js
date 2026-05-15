@@ -3,7 +3,7 @@ const {
   withAppBuildGradle,
   withEntitlementsPlist,
   withInfoPlist,
-} = require('@expo/config-plugins');
+} = require('expo/config-plugins');
 
 const HEALTH_CONNECT_PACKAGE = 'com.google.android.apps.healthdata';
 

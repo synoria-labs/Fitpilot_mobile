@@ -1,6 +1,6 @@
 const {
   withInfoPlist,
-} = require("@expo/config-plugins");
+} = require("expo/config-plugins");
 
 const ROUTING_DOCUMENT_TYPE = "com.apple.maps.directionsrequest";
 

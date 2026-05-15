@@ -1,8 +1,9 @@
 packages:
   - .
 
-minimumReleaseAge: 1440
+minimumReleaseAge: 0
 lockfile: true
+nodeLinker: hoisted
 resolutionMode: time-based
 trustPolicy: no-downgrade
 trustPolicyIgnoreAfter: 43200

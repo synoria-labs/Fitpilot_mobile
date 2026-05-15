@@ -1,4 +1,4 @@
-import { ConfigContext, ExpoConfig } from '@expo/config';
+import { ConfigContext, ExpoConfig } from 'expo/config';
 
 type PublicExtra = {
   nutritionApiUrl?: string;
