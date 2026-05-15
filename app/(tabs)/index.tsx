@@ -29,6 +29,7 @@ import {
   TodayWorkoutCard,
   UserHeader,
 } from '../../src/components/dashboard';
+import { ConnectedHealthFeedbackSummaryCard } from '../../src/components/connected-health';
 import { CareTeamSection } from '../../src/components/care-team';
 import type { ScienceTip } from '../../src/constants/scienceTips';
 import { spacing } from '../../src/constants/colors';
@@ -555,6 +556,13 @@ export default function HomeScreen() {
             </Animated.View>
 
             <Animated.View entering={getEntryAnimation(320)}>
+              <ConnectedHealthFeedbackSummaryCard
+                contentWidth={contentWidth}
+                horizontalPadding={horizontalPadding}
+              />
+            </Animated.View>
+
+            <Animated.View entering={getEntryAnimation(380)}>
               <TodayWorkoutCard
                 cardState={programTimelineView.cardState}
                 onStartPress={handleStartHighlightedSession}
@@ -567,7 +575,7 @@ export default function HomeScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={getEntryAnimation(400)}>
+            <Animated.View entering={getEntryAnimation(460)}>
               <ActivityChart
                 muscleVolume={muscleVolume}
                 isLoading={!shouldLoadDeferredContent || isLoadingVolume || (isLoading && !refreshing)}
@@ -578,7 +586,7 @@ export default function HomeScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={getEntryAnimation(480)}>
+            <Animated.View entering={getEntryAnimation(540)}>
               <ScienceTips
                 context={tipContext}
                 contentWidth={contentWidth}
@@ -588,7 +596,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {shouldLoadDeferredContent ? (
-              <Animated.View entering={getEntryAnimation(500)}>
+              <Animated.View entering={getEntryAnimation(600)}>
                 <MetricsSummary
                   onPress={handleOpenMeasurements}
                   contentWidth={contentWidth}

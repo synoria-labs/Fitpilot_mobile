@@ -1,12 +1,13 @@
-export * from './src/FitpilotHealth.types';
-export {
+import {
   getGrantedPermissions,
   isAvailable,
   openSettings,
   requestPermissions,
   syncRange,
 } from './src/FitpilotHealthModule';
-import {
+
+export * from './src/FitpilotHealth.types';
+export {
   getGrantedPermissions,
   isAvailable,
   openSettings,

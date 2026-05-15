@@ -26,6 +26,7 @@ import {
   GlucoseDetailModal,
   GlucoseFormModal,
 } from '../../src/components/health-metrics';
+import { ConnectedHealthFeedbackDetail } from '../../src/components/connected-health';
 import {
   MeasurementCreateMenuModal,
   MeasurementDetailModal,
@@ -86,13 +87,14 @@ import {
 
 const HISTORY_PAGE_SIZE = 20;
 
-type MeasurementsTab = 'summary' | 'body' | 'glucose';
+type MeasurementsTab = 'summary' | 'body' | 'glucose' | 'health';
 type MeasurementCreateAction = 'body' | 'glucose';
 
 const MEASUREMENTS_TABS = [
   { key: 'summary', label: 'Resumen' },
   { key: 'body', label: 'Corporal' },
   { key: 'glucose', label: 'Glucosa' },
+  { key: 'health', label: 'Salud' },
 ] satisfies { key: MeasurementsTab; label: string }[];
 
 const CREATE_ACTIONS = [
@@ -971,6 +973,8 @@ export default function MeasurementsScreen() {
               </Card>
             </>
           ) : null}
+
+          {activeTab === 'health' ? <ConnectedHealthFeedbackDetail /> : null}
 
           {activeTab === 'body' ? (
             <>

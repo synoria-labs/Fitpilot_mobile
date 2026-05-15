@@ -69,7 +69,7 @@ const permissionLabels: Record<string, string> = {
   lean_body_mass: 'Masa magra',
 };
 
-const healthConnectPermissionLabels: Array<[string, string]> = [
+const healthConnectPermissionLabels: [string, string][] = [
   ['READ_ACTIVE_CALORIES_BURNED', 'Kcal activas'],
   ['READ_BASAL_METABOLIC_RATE', 'Kcal basales'],
   ['READ_TOTAL_CALORIES_BURNED', 'Kcal totales'],
