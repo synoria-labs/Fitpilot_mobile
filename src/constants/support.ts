@@ -4,6 +4,7 @@ type PublicExtra = {
   termsUrl?: string;
   privacyUrl?: string;
   clientForgotPasswordUrl?: string;
+  accountDeletionUrl?: string;
 };
 
 type SupportFaqItem = {
@@ -34,6 +35,11 @@ export const supportWhatsAppDefaultMessage =
 export const clientForgotPasswordUrl = resolveOptionalUrl(
   process.env.EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL ||
     extra.clientForgotPasswordUrl,
+);
+export const accountDeletionUrl = resolveOptionalUrl(
+  process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL ||
+    extra.accountDeletionUrl ||
+    'https://app.fitpilot.fit/account-deletion',
 );
 
 export const supportFaqItems: SupportFaqItem[] = [

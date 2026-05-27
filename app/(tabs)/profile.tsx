@@ -43,6 +43,12 @@ import {
 } from '../../src/components/common';
 import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
 import { pickProfileImageFromLibrary } from '../../src/utils/profileImagePicker';
+import {
+  cancelAccountDeletion,
+  getAccountDeletionStatus,
+  requestAccountDeletion,
+  type AccountDeletionStatus,
+} from '../../src/services/account';
 
 type MenuItemProps = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -100,6 +106,20 @@ const MenuItem = ({
   );
 };
 
+const formatAccountDeletionDate = (dateValue: string | null | undefined) => {
+  if (!dateValue) {
+    return null;
+  }
+
+  try {
+    return new Intl.DateTimeFormat('es-MX', {
+      dateStyle: 'medium',
+    }).format(new Date(dateValue));
+  } catch {
+    return dateValue;
+  }
+};
+
 export default function ProfileScreen() {
   const { width, height } = useWindowDimensions();
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
@@ -125,6 +145,9 @@ export default function ProfileScreen() {
   const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileImagePreviewVisible, setIsProfileImagePreviewVisible] = useState(false);
   const [isProfileImageUploading, setIsProfileImageUploading] = useState(false);
+  const [accountDeletionStatus, setAccountDeletionStatus] =
+    useState<AccountDeletionStatus | null>(null);
+  const [isAccountDeletionLoading, setIsAccountDeletionLoading] = useState(false);
 
   useEffect(() => {
     void initializeMeasurementPreference();
@@ -133,6 +156,42 @@ export default function ProfileScreen() {
   useEffect(() => {
     setHasProfileImageError(false);
   }, [user?.profilePictureUrl]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!user?.id) {
+      setAccountDeletionStatus(null);
+      setIsAccountDeletionLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const loadAccountDeletionStatus = async () => {
+      setIsAccountDeletionLoading(true);
+      try {
+        const nextStatus = await getAccountDeletionStatus();
+        if (isMounted) {
+          setAccountDeletionStatus(nextStatus);
+        }
+      } catch {
+        if (isMounted) {
+          setAccountDeletionStatus(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsAccountDeletionLoading(false);
+        }
+      }
+    };
+
+    void loadAccountDeletionStatus();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const handleAvatarChange = async (uri: string) => {
     setIsProfileImageUploading(true);
@@ -189,6 +248,89 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleRequestAccountDeletion = async () => {
+    setIsAccountDeletionLoading(true);
+    try {
+      const nextStatus = await requestAccountDeletion();
+      setAccountDeletionStatus(nextStatus);
+      const scheduledLabel =
+        formatAccountDeletionDate(nextStatus.scheduled_deletion_at) || '30 dias';
+      Alert.alert(
+        'Eliminacion programada',
+        `Tu cuenta se eliminara automaticamente el ${scheduledLabel}. Puedes cancelar la solicitud desde Perfil antes de esa fecha.`,
+      );
+    } catch {
+      Alert.alert(
+        'No se pudo programar',
+        'Intenta de nuevo en unos minutos o contacta a soporte.',
+      );
+    } finally {
+      setIsAccountDeletionLoading(false);
+    }
+  };
+
+  const handleCancelAccountDeletion = async () => {
+    setIsAccountDeletionLoading(true);
+    try {
+      const nextStatus = await cancelAccountDeletion();
+      setAccountDeletionStatus(nextStatus);
+      Alert.alert(
+        'Solicitud cancelada',
+        'Tu cuenta seguira activa y no se eliminara automaticamente.',
+      );
+    } catch {
+      Alert.alert(
+        'No se pudo cancelar',
+        'Intenta de nuevo en unos minutos o contacta a soporte.',
+      );
+    } finally {
+      setIsAccountDeletionLoading(false);
+    }
+  };
+
+  const handleAccountDeletionPress = () => {
+    if (isAccountDeletionLoading) {
+      return;
+    }
+
+    if (accountDeletionStatus?.requested) {
+      const scheduledLabel = formatAccountDeletionDate(
+        accountDeletionStatus.scheduled_deletion_at,
+      );
+      Alert.alert(
+        'Eliminacion programada',
+        scheduledLabel
+          ? `Tu cuenta esta programada para eliminarse automaticamente el ${scheduledLabel}.`
+          : 'Tu cuenta esta programada para eliminarse automaticamente.',
+        [
+          { text: 'Cerrar', style: 'cancel' },
+          {
+            text: 'Cancelar eliminacion',
+            onPress: () => {
+              void handleCancelAccountDeletion();
+            },
+          },
+        ],
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Eliminar cuenta y datos',
+      'Tu cuenta de cliente y los datos asociados se programaran para eliminarse automaticamente en 30 dias. Podras cancelar la solicitud desde Perfil antes de esa fecha.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Programar eliminacion',
+          style: 'destructive',
+          onPress: () => {
+            void handleRequestAccountDeletion();
+          },
+        },
+      ],
+    );
+  };
+
   const handleMeasurementPreferenceSelect = async (
     nextPreference: MeasurementPreference,
   ) => {
@@ -220,6 +362,14 @@ export default function ProfileScreen() {
       ],
     );
   };
+
+  const accountDeletionValue = isAccountDeletionLoading
+    ? 'Cargando'
+    : accountDeletionStatus?.requested
+      ? accountDeletionStatus.days_until_deletion !== null
+        ? `${accountDeletionStatus.days_until_deletion} dias restantes`
+        : 'Programada'
+      : 'Automatica en 30 dias';
 
   const professionalsValue =
     !hasLoadedCareTeam && isLoadingCareTeam
@@ -309,13 +459,20 @@ export default function ProfileScreen() {
             />
             <MenuItem
               icon="lock-closed-outline"
-              label="Cambiar contrasena"
+              label="Cambiar contraseña"
               onPress={() => router.push('/profile/change-password')}
             />
             <MenuItem
               icon="notifications-outline"
               label="Notificaciones"
               onPress={() => router.push('/profile/notifications-settings')}
+            />
+            <MenuItem
+              icon="trash-outline"
+              label="Eliminar cuenta y datos"
+              value={accountDeletionValue}
+              onPress={handleAccountDeletionPress}
+              danger
             />
           </View>
 
