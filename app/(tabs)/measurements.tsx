@@ -30,6 +30,7 @@ import { ConnectedHealthFeedbackDetail } from '../../src/components/connected-he
 import {
   MeasurementCreateMenuModal,
   MeasurementDetailModal,
+  MeasurementDetailPanel,
   MeasurementFormModal,
 } from '../../src/components/measurements';
 import {
@@ -75,7 +76,10 @@ import {
   formatGlucoseRecordedAt,
   hasAdditionalHealthMetrics,
 } from '../../src/utils/healthMetrics';
-import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
+import {
+  getPrimaryScreenHorizontalPadding,
+  isTabletLayout,
+} from '../../src/utils/layout';
 import { convertMeasurementUnitValue } from '../../src/utils/measurementUnits';
 import {
   calculateMeasurementChange,
@@ -158,6 +162,9 @@ export default function MeasurementsScreen() {
   );
   const wasFocusedRef = useRef(false);
   const [activeTab, setActiveTab] = useState<MeasurementsTab>('summary');
+  const isMeasurementMasterDetail =
+    activeTab === 'body' && isTabletLayout(width, height) && width >= 720;
+  const measurementDetailPanelHeight = Math.max(560, height - 188);
   const [measurements, setMeasurements] = useState<MeasurementHistoryItem[]>([]);
   const [pagination, setPagination] = useState<MeasurementPagination | null>(null);
   const [detailCache, setDetailCache] = useState<Record<string, MeasurementDetail>>(
@@ -221,6 +228,13 @@ export default function MeasurementsScreen() {
     ? selectedMeasurementDetail?.measurement ??
       measurements.find((measurement) => measurement.id === selectedMeasurementId) ??
       null
+    : isMeasurementMasterDetail
+      ? latestMeasurement
+      : null;
+  const masterDetailMeasurementId =
+    selectedMeasurementId ?? latestMeasurement?.id ?? null;
+  const masterDetailMeasurementDetail = masterDetailMeasurementId
+    ? detailCache[masterDetailMeasurementId] ?? null
     : null;
   const editingMeasurement = editingMeasurementId
     ? detailCache[editingMeasurementId]?.measurement ??
@@ -320,6 +334,25 @@ export default function MeasurementsScreen() {
     isLoading,
     loadMeasurements,
     hasLoadedMeasurements,
+  ]);
+
+  useEffect(() => {
+    if (!isMeasurementMasterDetail || !latestMeasurement) {
+      return;
+    }
+
+    const selectedMeasurementStillExists =
+      selectedMeasurementId !== null &&
+      measurements.some((measurement) => measurement.id === selectedMeasurementId);
+
+    if (!selectedMeasurementStillExists) {
+      setSelectedMeasurementId(latestMeasurement.id);
+    }
+  }, [
+    isMeasurementMasterDetail,
+    latestMeasurement,
+    measurements,
+    selectedMeasurementId,
   ]);
 
   useEffect(() => {
@@ -483,9 +516,9 @@ export default function MeasurementsScreen() {
   );
 
   const openMeasurementDetail = useCallback(
-    async (measurementId: string) => {
+    async (measurementId: string, options: { showModal?: boolean } = {}) => {
       setSelectedMeasurementId(measurementId);
-      setIsDetailVisible(true);
+      setIsDetailVisible(options.showModal ?? true);
 
       if (detailCache[measurementId]) {
         return;
@@ -508,6 +541,15 @@ export default function MeasurementsScreen() {
       }
     },
     [closeMeasurementDetail, detailCache],
+  );
+
+  const openBodyMeasurementDetail = useCallback(
+    async (measurementId: string) => {
+      await openMeasurementDetail(measurementId, {
+        showModal: !isMeasurementMasterDetail,
+      });
+    },
+    [isMeasurementMasterDetail, openMeasurementDetail],
   );
 
   const handleEditMeasurement = useCallback(() => {
@@ -977,7 +1019,20 @@ export default function MeasurementsScreen() {
           {activeTab === 'health' ? <ConnectedHealthFeedbackDetail /> : null}
 
           {activeTab === 'body' ? (
-            <>
+            <View
+              style={
+                isMeasurementMasterDetail
+                  ? styles.measurementMasterDetailLayout
+                  : null
+              }
+            >
+              <View
+                style={
+                  isMeasurementMasterDetail
+                    ? styles.measurementMasterPane
+                    : styles.bodyContentStack
+                }
+              >
               {measurementErrorCard}
 
               {!error && !latestMeasurement ? (
@@ -1132,7 +1187,7 @@ export default function MeasurementsScreen() {
                         </View>
                         <TouchableOpacity
                           style={styles.sectionHeaderAction}
-                          onPress={() => void openMeasurementDetail(latestMeasurement.id)}
+                          onPress={() => void openBodyMeasurementDetail(latestMeasurement.id)}
                         >
                           <Text style={styles.sectionLink}>Ver detalle</Text>
                         </TouchableOpacity>
@@ -1287,12 +1342,20 @@ export default function MeasurementsScreen() {
                     </View>
 
                     <View style={styles.historyList}>
-                      {measurements.map((measurement) => (
+                      {measurements.map((measurement) => {
+                        const isSelectedMeasurement =
+                          isMeasurementMasterDetail &&
+                          masterDetailMeasurementId === measurement.id;
+
+                        return (
                         <TouchableOpacity
                           key={measurement.id}
-                          style={styles.historyCard}
+                          style={[
+                            styles.historyCard,
+                            isSelectedMeasurement ? styles.historyCardSelected : null,
+                          ]}
                           activeOpacity={0.8}
-                          onPress={() => void openMeasurementDetail(measurement.id)}
+                          onPress={() => void openBodyMeasurementDetail(measurement.id)}
                         >
                           <View style={styles.historyHeader}>
                             <Text style={styles.historyDate}>
@@ -1302,9 +1365,17 @@ export default function MeasurementsScreen() {
                               )}
                             </Text>
                             <Ionicons
-                              name="chevron-forward-outline"
+                              name={
+                                isSelectedMeasurement
+                                  ? 'radio-button-on-outline'
+                                  : 'chevron-forward-outline'
+                              }
                               size={18}
-                              color={theme.colors.iconMuted}
+                              color={
+                                isSelectedMeasurement
+                                  ? theme.colors.primary
+                                  : theme.colors.iconMuted
+                              }
                             />
                           </View>
 
@@ -1348,7 +1419,8 @@ export default function MeasurementsScreen() {
                             </Text>
                           ) : null}
                         </TouchableOpacity>
-                      ))}
+                        );
+                      })}
                     </View>
 
                     {pagination && measurements.length < pagination.total ? (
@@ -1362,7 +1434,40 @@ export default function MeasurementsScreen() {
                   </Card>
                 </>
               ) : null}
-            </>
+              </View>
+
+              {isMeasurementMasterDetail ? (
+                <View style={styles.measurementDetailPane}>
+                  {latestMeasurement ? (
+                    <MeasurementDetailPanel
+                      detail={masterDetailMeasurementDetail}
+                      isLoading={isDetailLoading}
+                      onEdit={handleEditMeasurement}
+                      style={[
+                        styles.measurementDetailPanel,
+                        { height: measurementDetailPanelHeight },
+                      ]}
+                      contentContainerStyle={styles.measurementDetailPanelContent}
+                    />
+                  ) : (
+                    <Card style={styles.measurementDetailEmptyPanel}>
+                      <Ionicons
+                        name="analytics-outline"
+                        size={44}
+                        color={theme.colors.iconMuted}
+                      />
+                      <Text style={styles.emptyTitle}>
+                        Aqui aparecera el detalle
+                      </Text>
+                      <Text style={styles.emptyText}>
+                        Cuando tengas mediciones corporales, el historial y sus
+                        indicadores se podran revisar lado a lado.
+                      </Text>
+                    </Card>
+                  )}
+                </View>
+              ) : null}
+            </View>
           ) : null}
 
           {activeTab === 'glucose' ? (
@@ -1518,12 +1623,14 @@ export default function MeasurementsScreen() {
           ) : null}
         </ScrollView>
 
-        <FloatingButton
-          accessibilityLabel="Registrar nueva medida"
-          icon={<Ionicons name="add-outline" size={28} color="#ffffff" />}
-          onPress={() => setIsCreateMenuVisible(true)}
-          bottomOffset={100}
-        />
+        {!isMeasurementMasterDetail ? (
+          <FloatingButton
+            accessibilityLabel="Registrar nueva medida"
+            icon={<Ionicons name="add-outline" size={28} color="#ffffff" />}
+            onPress={() => setIsCreateMenuVisible(true)}
+            bottomOffset={100}
+          />
+        ) : null}
 
         <MeasurementCreateMenuModal
           visible={isFocused && isCreateMenuVisible}
@@ -1533,7 +1640,7 @@ export default function MeasurementsScreen() {
         />
 
         <MeasurementDetailModal
-          visible={isFocused && isDetailVisible}
+          visible={isFocused && !isMeasurementMasterDetail && isDetailVisible}
           detail={selectedMeasurementDetail}
           isLoading={isDetailLoading}
           onClose={closeMeasurementDetail}
@@ -1611,6 +1718,42 @@ const createStyles = (theme: AppTheme) =>
     scrollContent: {
       paddingBottom: spacing.xxl,
       gap: spacing.md,
+    },
+    bodyContentStack: {
+      gap: spacing.md,
+    },
+    measurementMasterDetailLayout: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.lg,
+      width: '100%',
+    },
+    measurementMasterPane: {
+      flex: 0.92,
+      minWidth: 0,
+      gap: spacing.md,
+    },
+    measurementDetailPane: {
+      flex: 1.08,
+      minWidth: 340,
+    },
+    measurementDetailPanel: {
+      width: '100%',
+      backgroundColor: theme.isDark ? theme.colors.surface : '#fffefd',
+      borderColor: theme.isDark ? theme.colors.borderStrong : 'rgba(24, 47, 80, 0.16)',
+      ...shadows.lg,
+    },
+    measurementDetailPanelContent: {
+      padding: spacing.md,
+      paddingBottom: spacing.lg,
+    },
+    measurementDetailEmptyPanel: {
+      minHeight: 420,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.md,
+      backgroundColor: theme.isDark ? theme.colors.surface : '#fffefd',
+      borderColor: theme.isDark ? theme.colors.borderStrong : 'rgba(24, 47, 80, 0.16)',
     },
     errorCard: {
       marginBottom: spacing.sm,
@@ -2019,6 +2162,11 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.surfaceAlt,
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    historyCardSelected: {
+      backgroundColor: theme.colors.primarySoft,
+      borderColor: theme.colors.primary,
+      borderLeftWidth: 4,
     },
     historyHeader: {
       flexDirection: 'row',

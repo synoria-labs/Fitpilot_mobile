@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, LoadingSpinner } from '../common';
@@ -37,6 +39,16 @@ interface MeasurementDetailModalProps {
   isLoading: boolean;
   onClose: () => void;
   onEdit: () => void;
+}
+
+interface MeasurementDetailPanelProps {
+  detail: MeasurementDetail | null;
+  isLoading: boolean;
+  onEdit: () => void;
+  onClose?: () => void;
+  isActive?: boolean;
+  style?: StyleProp<ViewStyle>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
 }
 
 type DisplayCalculation = {
@@ -255,12 +267,14 @@ const getDeltaCopy = (
     : `${displayDelta.value} ${displayDelta.unit} por debajo de tu peso actual.`;
 };
 
-export const MeasurementDetailModal: React.FC<MeasurementDetailModalProps> = ({
-  visible,
+export const MeasurementDetailPanel: React.FC<MeasurementDetailPanelProps> = ({
   detail,
   isLoading,
-  onClose,
   onEdit,
+  onClose,
+  isActive = true,
+  style,
+  contentContainerStyle,
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -277,10 +291,14 @@ export const MeasurementDetailModal: React.FC<MeasurementDetailModalProps> = ({
   }, [initializeMeasurementPreference]);
 
   useEffect(() => {
-    if (!visible) {
+    if (!isActive) {
       setShowIdealWeightFormulas(false);
     }
-  }, [visible]);
+  }, [isActive]);
+
+  useEffect(() => {
+    setShowIdealWeightFormulas(false);
+  }, [detail?.measurement.id]);
 
   const displayCalculations = useMemo(() => {
     if (!detail) {
@@ -464,45 +482,39 @@ export const MeasurementDetailModal: React.FC<MeasurementDetailModalProps> = ({
   }, [idealWeightChart, measurementPreference]);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Detalle de medicion</Text>
-              <Text style={styles.subtitle}>{measurementDate}</Text>
-            </View>
+    <View style={[styles.panel, style]}>
+      <View style={styles.header}>
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Detalle de medicion</Text>
+          <Text style={styles.subtitle}>{measurementDate}</Text>
+        </View>
+        {onClose ? (
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Ionicons name="close-outline" size={24} color={theme.colors.icon} />
             </TouchableOpacity>
-          </View>
+        ) : null}
+      </View>
 
-          {isLoading ? (
-            <LoadingSpinner text="Cargando detalle..." />
-          ) : !detail ? (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="alert-circle-outline"
-                size={40}
-                color={theme.colors.iconMuted}
-              />
-              <Text style={styles.emptyStateText}>
-                No fue posible cargar el detalle de esta medicion.
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              style={styles.content}
-              contentContainerStyle={styles.contentContainer}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
+      {isLoading ? (
+        <LoadingSpinner text="Cargando detalle..." />
+      ) : !detail ? (
+        <View style={styles.emptyState}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={40}
+            color={theme.colors.iconMuted}
+          />
+          <Text style={styles.emptyStateText}>
+            No fue posible cargar el detalle de esta medicion.
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={[styles.contentContainer, contentContainerStyle]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
               <Card style={styles.sectionCard}>
                 <View style={styles.summaryHeader}>
                   <View style={styles.summaryHeaderText}>
@@ -799,14 +811,56 @@ export const MeasurementDetailModal: React.FC<MeasurementDetailModalProps> = ({
                   </Card>
                 );
               })}
-            </ScrollView>
-          )}
+        </ScrollView>
+      )}
 
-          <View style={styles.footer}>
-            <Button title="Cerrar" onPress={onClose} variant="secondary" />
-            <Button title="Editar" onPress={onEdit} disabled={isLoading || !detail} />
-          </View>
-        </View>
+      <View style={[styles.footer, !onClose ? styles.footerSingleAction : null]}>
+        {onClose ? (
+          <Button
+            title="Cerrar"
+            onPress={onClose}
+            variant="secondary"
+            style={styles.footerButton}
+          />
+        ) : null}
+        <Button
+          title="Editar"
+          onPress={onEdit}
+          disabled={isLoading || !detail}
+          style={styles.footerButton}
+          fullWidth={!onClose}
+        />
+      </View>
+    </View>
+  );
+};
+
+export const MeasurementDetailModal: React.FC<MeasurementDetailModalProps> = ({
+  visible,
+  detail,
+  isLoading,
+  onClose,
+  onEdit,
+}) => {
+  const styles = useThemedStyles(createStyles);
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View style={styles.overlay}>
+        <MeasurementDetailPanel
+          detail={detail}
+          isLoading={isLoading}
+          onClose={onClose}
+          onEdit={onEdit}
+          isActive={visible}
+          style={styles.modalPanel}
+        />
       </View>
     </Modal>
   );
@@ -821,17 +875,19 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       padding: spacing.md,
     },
-    container: {
-      width: '100%',
-      height: '88%',
-      maxWidth: 440,
-      maxHeight: 760,
-      minHeight: 520,
+    panel: {
       backgroundColor: theme.colors.background,
       borderRadius: borderRadius.xl,
       overflow: 'hidden',
       borderWidth: 1,
       borderColor: theme.colors.border,
+    },
+    modalPanel: {
+      width: '100%',
+      height: '88%',
+      maxWidth: 440,
+      maxHeight: 760,
+      minHeight: 520,
     },
     header: {
       flexDirection: 'row',
@@ -1137,5 +1193,11 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.surface,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
+    },
+    footerSingleAction: {
+      justifyContent: 'flex-end',
+    },
+    footerButton: {
+      flex: 1,
     },
   });
