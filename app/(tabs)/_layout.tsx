@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { InteractionManager, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { BottomTabBar, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { InteractionManager, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -21,10 +21,11 @@ import { ProtectedRoute } from '../../src/components/common';
 import { useAuthStore } from '../../src/store/authStore';
 import { registerDevicePushTokenForUser } from '../../src/services/notifications';
 
-const TABLET_EXPANDED_WIDTH = 164;
+const TABLET_EXPANDED_WIDTH = 152;
 const TABLET_COLLAPSED_WIDTH = 84;
-const TABLET_TOP_PADDING = 72;
+const TABLET_TOP_PADDING = 88;
 const TABLET_BOTTOM_PADDING = 18;
+const TABLET_TOGGLE_TOP = 44;
 const PHONE_TAB_BAR_HEIGHT = 60;
 const PHONE_TAB_BAR_VERTICAL_PADDING = 8;
 const HIDDEN_CONTENT_BOTTOM_INSET = 12;
@@ -56,14 +57,19 @@ const TabletTabBar: React.FC<TabletTabBarProps> = ({
   onHoverOut,
   onToggle,
 }) => {
+  const { state, descriptors, navigation } = props;
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const toggleIconColor = theme.isDark ? theme.colors.textPrimary : theme.colors.tabBarActiveTint;
 
   return (
     <Pressable
       onHoverIn={onHoverIn}
       onHoverOut={onHoverOut}
-      style={styles.tabletRailContainer}
+      style={[
+        styles.tabletRailContainer,
+        isExpanded ? styles.tabletRailContainerExpanded : styles.tabletRailContainerCollapsed,
+      ]}
     >
       <View
         style={[
@@ -74,19 +80,102 @@ const TabletTabBar: React.FC<TabletTabBarProps> = ({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isExpanded ? 'Contraer navegacion' : 'Expandir navegacion'}
+          accessibilityHint="Cambia el ancho de la barra lateral"
+          hitSlop={8}
           onPress={onToggle}
           style={({ pressed }) => [
             styles.tabletRailToggle,
+            !isExpanded ? styles.tabletRailToggleCollapsed : null,
             pressed ? styles.tabletRailTogglePressed : null,
           ]}
         >
           <Ionicons
             name={isExpanded ? 'chevron-back' : 'chevron-forward'}
-            size={18}
-            color={theme.colors.tabBarActiveTint}
+            size={20}
+            color={toggleIconColor}
           />
         </Pressable>
-        <BottomTabBar {...props} />
+        <View
+          style={[
+            styles.tabletTabBar,
+            isExpanded ? styles.tabletTabBarExpanded : styles.tabletTabBarCollapsed,
+          ]}
+        >
+          {state.routes.map((route, index) => {
+            const { options } = descriptors[route.key];
+            const isFocused = state.index === index;
+            const color = isFocused
+              ? theme.colors.tabBarActiveTint
+              : theme.colors.tabBarInactiveTint;
+            const rawLabel =
+              typeof options.tabBarLabel === 'string'
+                ? options.tabBarLabel
+                : options.title || route.name;
+            const label = rawLabel === 'index' ? 'Inicio' : rawLabel;
+            const icon = options.tabBarIcon as TabBarIconRenderer | undefined;
+
+            const onPress = () => {
+              const event = navigation.emit({
+                type: 'tabPress',
+                target: route.key,
+                canPreventDefault: true,
+              });
+
+              if (!isFocused && !event.defaultPrevented) {
+                navigation.navigate(route.name, route.params);
+              }
+            };
+
+            const onLongPress = () => {
+              navigation.emit({
+                type: 'tabLongPress',
+                target: route.key,
+              });
+            };
+
+            return (
+              <Pressable
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                onLongPress={onLongPress}
+                onPress={onPress}
+                style={({ pressed }) => [
+                  styles.tabletTabBarItem,
+                  isExpanded ? styles.tabletTabBarItemExpanded : styles.tabletTabBarItemCollapsed,
+                  isFocused ? styles.tabletTabBarItemActive : null,
+                  pressed ? styles.tabletTabBarItemPressed : null,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.tabletTabBarIconSlot,
+                    !isExpanded ? styles.tabletTabBarIconSlotCollapsed : null,
+                  ]}
+                >
+                  {icon?.({
+                    focused: isFocused,
+                    color,
+                    size: 24,
+                  })}
+                </View>
+                {isExpanded ? (
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.tabletTabBarLabel,
+                      isFocused ? styles.tabletTabBarLabelActive : null,
+                      { color },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     </Pressable>
   );
@@ -156,8 +245,14 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
       ]}
     >
       <BlurView
-        intensity={Platform.OS === 'ios' ? (theme.isDark ? 45 : 60) : 90}
-        tint={theme.colors.phoneNavShellBlurTint}
+        intensity={Platform.OS === 'ios' ? (theme.isDark ? 45 : 60) : 42}
+        experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+        blurReductionFactor={Platform.OS === 'android' ? 2 : undefined}
+        tint={
+          Platform.OS === 'android' && theme.isDark
+            ? 'systemUltraThinMaterialDark'
+            : theme.colors.phoneNavShellBlurTint
+        }
         style={styles.customTabBarBlur}
       >
         <View style={styles.customTabBarContainer}>
@@ -308,7 +403,7 @@ export default function TabLayout() {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { user } = useAuthStore();
-  const [isRailPinnedExpanded, setIsRailPinnedExpanded] = useState(false);
+  const [isRailPinnedExpanded, setIsRailPinnedExpanded] = useState(true);
   const [isRailHovered, setIsRailHovered] = useState(false);
 
   const isRailExpanded = useMemo(
@@ -317,10 +412,8 @@ export default function TabLayout() {
   );
 
   useEffect(() => {
-    if (!isTablet) {
-      setIsRailPinnedExpanded(false);
-      setIsRailHovered(false);
-    }
+    setIsRailPinnedExpanded(isTablet);
+    setIsRailHovered(false);
   }, [isTablet]);
 
   useEffect(() => {
@@ -481,14 +574,34 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     customTabBarBlur: {
       borderRadius: 35,
       overflow: 'hidden',
-      backgroundColor: theme.colors.phoneNavShellBackground,
+      backgroundColor:
+        Platform.OS === 'android'
+          ? theme.isDark
+            ? 'rgba(13, 37, 72, 0.76)'
+            : 'rgba(239, 248, 255, 0.74)'
+          : theme.colors.phoneNavShellBackground,
       borderWidth: 1,
-      borderColor: theme.colors.phoneNavShellBorder,
-      shadowColor: theme.colors.phoneNavIconActive,
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: theme.isDark ? 0.18 : 0.12,
-      shadowRadius: theme.isDark ? 20 : 18,
-      elevation: theme.isDark ? 12 : 10,
+      borderColor:
+        Platform.OS === 'android'
+          ? theme.isDark
+            ? 'rgba(103, 182, 223, 0.22)'
+            : 'rgba(103, 182, 223, 0.20)'
+          : theme.colors.phoneNavShellBorder,
+      ...(Platform.OS === 'android'
+        ? {
+            shadowColor: 'transparent',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0,
+            shadowRadius: 0,
+            elevation: 0,
+          }
+        : {
+            shadowColor: theme.isDark ? '#000000' : theme.colors.phoneNavIconActive,
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: theme.isDark ? 0.22 : 0.12,
+            shadowRadius: theme.isDark ? 20 : 18,
+            elevation: theme.isDark ? 12 : 10,
+          }),
     },
     customTabBarContainer: {
       flexDirection: 'row',
@@ -531,9 +644,18 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     tabletRailContainer: {
       alignSelf: 'stretch',
+      flexShrink: 0,
+    },
+    tabletRailContainerExpanded: {
+      width: TABLET_EXPANDED_WIDTH,
+    },
+    tabletRailContainerCollapsed: {
+      width: TABLET_COLLAPSED_WIDTH,
     },
     tabletRailInner: {
+      flex: 1,
       position: 'relative',
+      width: '100%',
     },
     tabletRailInnerExpanded: {
       width: TABLET_EXPANDED_WIDTH,
@@ -546,6 +668,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderTopWidth: 0,
       borderRightColor: theme.colors.tabBarBorder,
       borderRightWidth: 1,
+      flex: 1,
       paddingTop: TABLET_TOP_PADDING,
       paddingBottom: TABLET_BOTTOM_PADDING,
       width: '100%',
@@ -557,20 +680,51 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       width: TABLET_COLLAPSED_WIDTH,
     },
     tabletTabBarItem: {
-      borderRadius: 18,
-      marginHorizontal: 10,
-      marginVertical: 4,
-      minHeight: 64,
+      alignItems: 'center',
+      borderColor: 'transparent',
+      borderRadius: 12,
+      borderWidth: 1,
+      flexDirection: 'row',
+      height: 48,
+      marginHorizontal: 12,
+      marginVertical: 6,
+      minHeight: 48,
     },
     tabletTabBarItemExpanded: {
-      paddingHorizontal: 10,
+      justifyContent: 'flex-start',
+      paddingHorizontal: 12,
     },
     tabletTabBarItemCollapsed: {
+      alignSelf: 'center',
+      width: 48,
+      marginHorizontal: 0,
       paddingHorizontal: 0,
       justifyContent: 'center',
     },
+    tabletTabBarItemActive: {
+      backgroundColor: theme.colors.tabBarActiveBg,
+      borderColor: theme.colors.primaryBorder,
+      borderLeftColor: theme.colors.tabBarActiveTint,
+      borderLeftWidth: 2,
+    },
+    tabletTabBarItemPressed: {
+      opacity: 0.82,
+    },
+    tabletTabBarIconSlot: {
+      alignItems: 'center',
+      height: 24,
+      justifyContent: 'center',
+      marginRight: 12,
+      width: 24,
+    },
+    tabletTabBarIconSlotCollapsed: {
+      marginRight: 0,
+    },
     tabletTabBarLabel: {
       fontSize: 12,
+      fontWeight: '500',
+    },
+    tabletTabBarLabelActive: {
       fontWeight: '600',
     },
     tabletTabBarIcon: {
@@ -578,19 +732,28 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     tabletRailToggle: {
       position: 'absolute',
-      top: 18,
-      right: 12,
-      zIndex: 2,
-      width: 32,
-      height: 32,
-      borderRadius: 16,
+      top: TABLET_TOGGLE_TOP,
+      right: 22,
+      zIndex: 20,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.tabBarActiveBg,
+      backgroundColor: theme.isDark ? theme.colors.surfaceAlt : theme.colors.surface,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: theme.colors.primaryBorder,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: theme.isDark ? 0.28 : 0.14,
+      shadowRadius: 10,
+      elevation: 8,
     },
     tabletRailTogglePressed: {
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: theme.colors.tabBarActiveBg,
+      transform: [{ scale: 0.96 }],
+    },
+    tabletRailToggleCollapsed: {
+      right: 24,
     },
   });

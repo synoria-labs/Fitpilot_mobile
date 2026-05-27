@@ -324,7 +324,8 @@ export const MeasurementFormModal: React.FC<MeasurementFormModalProps> = ({
     >
       <KeyboardAvoidingView
         style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
       >
         <View style={styles.container}>
           <View style={styles.header}>

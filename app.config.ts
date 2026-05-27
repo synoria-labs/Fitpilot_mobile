@@ -7,6 +7,7 @@ type PublicExtra = {
   termsUrl?: string;
   privacyUrl?: string;
   clientForgotPasswordUrl?: string;
+  accountDeletionUrl?: string;
 };
 
 const resolveRequiredUrl = (
@@ -58,6 +59,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     process.env.EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL,
     extra.clientForgotPasswordUrl,
   );
+  const accountDeletionUrl = resolveOptionalValue(
+    process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL,
+    extra.accountDeletionUrl,
+  );
   const turnstileBridgeUrl = resolveOptionalValue(
     process.env.EXPO_PUBLIC_TURNSTILE_BRIDGE_URL,
     extra.turnstileBridgeUrl,
@@ -106,6 +111,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       './plugins/withDisableRoutingCapability',
       './plugins/withFitpilotHealth',
+      './plugins/withReactNativeWorkletsGradlePath',
       'expo-dev-client',
       'expo-router',
       'expo-secure-store',
@@ -132,6 +138,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       termsUrl,
       privacyUrl,
       clientForgotPasswordUrl,
+      accountDeletionUrl,
       appEnv,
     },
   };

@@ -95,3 +95,20 @@ export const changePassword = async (
     },
   );
 };
+
+export type AccountDeletionStatus = {
+  requested: boolean;
+  requested_at: string | null;
+  scheduled_deletion_at: string | null;
+  grace_period_days: number;
+  days_until_deletion: number | null;
+};
+
+export const getAccountDeletionStatus = async (): Promise<AccountDeletionStatus> =>
+  nutritionClient.get<AccountDeletionStatus>('/users/me/account-deletion');
+
+export const requestAccountDeletion = async (): Promise<AccountDeletionStatus> =>
+  nutritionClient.post<AccountDeletionStatus>('/users/me/account-deletion');
+
+export const cancelAccountDeletion = async (): Promise<AccountDeletionStatus> =>
+  nutritionClient.delete<AccountDeletionStatus>('/users/me/account-deletion');

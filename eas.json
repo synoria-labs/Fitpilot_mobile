@@ -14,7 +14,8 @@
         "EXPO_PUBLIC_TURNSTILE_BRIDGE_URL": "https://pro.fitpilot.fit/turnstile/mobile",
         "EXPO_PUBLIC_TERMS_URL": "https://pro.fitpilot.fit/es/terms",
         "EXPO_PUBLIC_PRIVACY_URL": "https://pro.fitpilot.fit/es/privacy",
-        "EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL": "https://app.fitpilot.fit/auth/forgot-password"
+        "EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL": "https://app.fitpilot.fit/auth/forgot-password",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://app.fitpilot.fit/account-deletion"
       }
     },
     "development-simulator": {
@@ -31,7 +32,8 @@
         "EXPO_PUBLIC_TURNSTILE_BRIDGE_URL": "https://pro.fitpilot.fit/turnstile/mobile",
         "EXPO_PUBLIC_TERMS_URL": "https://pro.fitpilot.fit/es/terms",
         "EXPO_PUBLIC_PRIVACY_URL": "https://pro.fitpilot.fit/es/privacy",
-        "EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL": "https://app.fitpilot.fit/auth/forgot-password"
+        "EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL": "https://app.fitpilot.fit/auth/forgot-password",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://app.fitpilot.fit/account-deletion"
       }
     },
     "production": {
@@ -46,7 +48,8 @@
         "EXPO_PUBLIC_TURNSTILE_BRIDGE_URL": "https://pro.fitpilot.fit/turnstile/mobile",
         "EXPO_PUBLIC_TERMS_URL": "https://pro.fitpilot.fit/es/terms",
         "EXPO_PUBLIC_PRIVACY_URL": "https://pro.fitpilot.fit/es/privacy",
-        "EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL": "https://app.fitpilot.fit/auth/forgot-password"
+        "EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL": "https://app.fitpilot.fit/auth/forgot-password",
+        "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://app.fitpilot.fit/account-deletion"
       }
     }
   },
