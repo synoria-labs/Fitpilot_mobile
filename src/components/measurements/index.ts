@@ -1,6 +1,3 @@
-export {
-  MeasurementDetailModal,
-  MeasurementDetailPanel,
-} from './MeasurementDetailModal';
+export { MeasurementDetailModal } from './MeasurementDetailModal';
 export { MeasurementCreateMenuModal } from './MeasurementCreateMenuModal';
 export { MeasurementFormModal } from './MeasurementFormModal';
