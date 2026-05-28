@@ -91,6 +91,8 @@ export default function RootLayout() {
 
           {/* Login screen outside of tabs */}
           <Stack.Screen name="login" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name="onboarding" />
 
           <Stack.Screen
             name="profile"

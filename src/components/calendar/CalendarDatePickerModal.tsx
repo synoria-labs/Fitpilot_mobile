@@ -3,11 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { borderRadius, fontSize, spacing } from '../../constants/colors';
+import { borderRadius, colors, fontSize, spacing } from '../../constants/colors';
 import {
   formatLocalDate,
   parseLocalDate,
@@ -22,6 +23,7 @@ interface CalendarDatePickerModalProps {
   title: string;
   subtitle?: string | null;
   selectedDate?: CalendarDateInput;
+  initialVisibleDate?: CalendarDateInput;
   minDate?: CalendarDateInput;
   maxDate?: CalendarDateInput;
   onClose: () => void;
@@ -36,7 +38,19 @@ type CalendarDay = {
   disabled: boolean;
 };
 
+type CalendarSelectorMode = 'month' | 'year' | null;
+
 const WEEKDAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+const YEAR_GRID_COLUMNS = 4;
+const YEAR_ROW_HEIGHT = 44;
+const DEFAULT_YEAR_RANGE = 120;
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, monthIndex) => ({
+  label: formatLocalDate(new Date(2020, monthIndex, 1, 12, 0, 0, 0), {
+    month: 'short',
+  }).replace('.', ''),
+  value: monthIndex,
+}));
 
 const startOfMonth = (value: Date) => {
   const nextDate = new Date(value);
@@ -80,6 +94,7 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   title,
   subtitle,
   selectedDate,
+  initialVisibleDate,
   minDate,
   maxDate,
   onClose,
@@ -88,29 +103,87 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const parsedSelectedDate = parseLocalDate(selectedDate) ?? null;
+  const initialVisibleDateKey = toLocalDateKey(initialVisibleDate);
+  const parsedInitialVisibleDate = parseLocalDate(initialVisibleDateKey) ?? null;
   const parsedMinDate = parseLocalDate(minDate) ?? null;
   const parsedMaxDate = parseLocalDate(maxDate) ?? null;
   const selectedDateKey = toLocalDateKey(parsedSelectedDate);
+  const yearScrollRef = React.useRef<ScrollView>(null);
   const [calendarMonth, setCalendarMonth] = useState(() =>
-    startOfMonth(parsedSelectedDate ?? new Date()),
+    startOfMonth(parsedSelectedDate ?? parsedInitialVisibleDate ?? new Date()),
   );
+  const [selectorMode, setSelectorMode] = useState<CalendarSelectorMode>(null);
+
+  const clampMonthToBounds = (value: Date) => {
+    const nextMonth = startOfMonth(value);
+
+    if (parsedMinDate && compareMonths(nextMonth, startOfMonth(parsedMinDate)) < 0) {
+      return startOfMonth(parsedMinDate);
+    }
+
+    if (parsedMaxDate && compareMonths(nextMonth, startOfMonth(parsedMaxDate)) > 0) {
+      return startOfMonth(parsedMaxDate);
+    }
+
+    return nextMonth;
+  };
 
   useEffect(() => {
     if (!visible) {
+      setSelectorMode(null);
       return;
     }
 
     const nextSelectedDate = selectedDateKey
       ? parseLocalDate(selectedDateKey)
       : null;
-    const nextMonth = startOfMonth(nextSelectedDate ?? new Date());
+    const nextInitialVisibleDate = parseLocalDate(initialVisibleDateKey) ?? null;
+    const nextMonth = startOfMonth(nextSelectedDate ?? nextInitialVisibleDate ?? new Date());
 
     setCalendarMonth((currentMonth) => (
       compareMonths(currentMonth, nextMonth) === 0
         ? currentMonth
         : nextMonth
     ));
-  }, [selectedDateKey, visible]);
+  }, [initialVisibleDateKey, selectedDateKey, visible]);
+
+  const yearOptions = useMemo(() => {
+    const currentYear = calendarMonth.getFullYear();
+    const minYear = parsedMinDate?.getFullYear();
+    const maxYear = parsedMaxDate?.getFullYear();
+    const startYear = minYear ?? (
+      maxYear !== undefined ? maxYear - DEFAULT_YEAR_RANGE : currentYear - 10
+    );
+    const endYear = maxYear ?? (
+      minYear !== undefined ? minYear + DEFAULT_YEAR_RANGE : currentYear + 10
+    );
+
+    return Array.from(
+      { length: Math.max(0, endYear - startYear + 1) },
+      (_, index) => startYear + index,
+    );
+  }, [calendarMonth, parsedMaxDate, parsedMinDate]);
+
+  useEffect(() => {
+    if (selectorMode !== 'year') {
+      return undefined;
+    }
+
+    const selectedYearIndex = yearOptions.indexOf(calendarMonth.getFullYear());
+    if (selectedYearIndex < 0) {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      const rowIndex = Math.floor(selectedYearIndex / YEAR_GRID_COLUMNS);
+      yearScrollRef.current?.scrollTo({
+        y: Math.max(0, (rowIndex - 2) * YEAR_ROW_HEIGHT),
+        animated: false,
+      });
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [calendarMonth, selectorMode, yearOptions]);
 
   const calendarDays = useMemo<CalendarDay[]>(() => {
     const monthStart = startOfMonth(calendarMonth);
@@ -147,6 +220,37 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
     compareMonths(calendarMonth, startOfMonth(parsedMinDate)) > 0;
   const canGoToNextMonth = !parsedMaxDate ||
     compareMonths(calendarMonth, startOfMonth(parsedMaxDate)) < 0;
+  const currentMonthLabel = formatLocalDate(calendarMonth, { month: 'long' });
+  const currentYearLabel = `${calendarMonth.getFullYear()}`;
+
+  const toggleSelectorMode = (nextMode: Exclude<CalendarSelectorMode, null>) => {
+    setSelectorMode((currentMode) => currentMode === nextMode ? null : nextMode);
+  };
+
+  const isMonthDisabled = (monthIndex: number) => {
+    const candidateMonth = startOfMonth(
+      new Date(calendarMonth.getFullYear(), monthIndex, 1, 12, 0, 0, 0),
+    );
+
+    return Boolean(
+      (parsedMinDate && compareMonths(candidateMonth, startOfMonth(parsedMinDate)) < 0) ||
+      (parsedMaxDate && compareMonths(candidateMonth, startOfMonth(parsedMaxDate)) > 0),
+    );
+  };
+
+  const handleMonthSelect = (monthIndex: number) => {
+    setCalendarMonth(clampMonthToBounds(
+      new Date(calendarMonth.getFullYear(), monthIndex, 1, 12, 0, 0, 0),
+    ));
+    setSelectorMode(null);
+  };
+
+  const handleYearSelect = (year: number) => {
+    setCalendarMonth(clampMonthToBounds(
+      new Date(year, calendarMonth.getMonth(), 1, 12, 0, 0, 0),
+    ));
+    setSelectorMode('month');
+  };
 
   return (
     <Modal
@@ -172,7 +276,10 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
 
           <View style={styles.monthHeader}>
             <Pressable
-              onPress={() => setCalendarMonth((currentDate) => addMonths(currentDate, -1))}
+              onPress={() => {
+                setSelectorMode(null);
+                setCalendarMonth((currentDate) => addMonths(currentDate, -1));
+              }}
               disabled={!canGoToPreviousMonth}
               style={[
                 styles.monthNav,
@@ -182,12 +289,61 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
               <Ionicons name="chevron-back-outline" size={20} color={theme.colors.textSecondary} />
             </Pressable>
 
-            <Text style={styles.monthTitle}>
-              {formatLocalDate(calendarMonth, { month: 'long', year: 'numeric' })}
-            </Text>
+            <View style={styles.monthSelectorGroup}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Seleccionar mes"
+                onPress={() => toggleSelectorMode('month')}
+                style={[
+                  styles.monthSelectorButton,
+                  selectorMode === 'month' ? styles.monthSelectorButtonActive : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.monthSelectorText,
+                    selectorMode === 'month' ? styles.monthSelectorTextActive : null,
+                  ]}
+                >
+                  {currentMonthLabel}
+                </Text>
+                <Ionicons
+                  name={selectorMode === 'month' ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={16}
+                  color={selectorMode === 'month' ? colors.white : theme.colors.textSecondary}
+                />
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Seleccionar año"
+                onPress={() => toggleSelectorMode('year')}
+                style={[
+                  styles.yearSelectorButton,
+                  selectorMode === 'year' ? styles.monthSelectorButtonActive : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.yearSelectorText,
+                    selectorMode === 'year' ? styles.monthSelectorTextActive : null,
+                  ]}
+                >
+                  {currentYearLabel}
+                </Text>
+                <Ionicons
+                  name={selectorMode === 'year' ? 'chevron-up-outline' : 'chevron-down-outline'}
+                  size={16}
+                  color={selectorMode === 'year' ? colors.white : theme.colors.textSecondary}
+                />
+              </Pressable>
+            </View>
 
             <Pressable
-              onPress={() => setCalendarMonth((currentDate) => addMonths(currentDate, 1))}
+              onPress={() => {
+                setSelectorMode(null);
+                setCalendarMonth((currentDate) => addMonths(currentDate, 1));
+              }}
               disabled={!canGoToNextMonth}
               style={[
                 styles.monthNav,
@@ -198,50 +354,119 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
             </Pressable>
           </View>
 
-          <View style={styles.weekdaysRow}>
-            {WEEKDAY_LABELS.map((weekday) => (
-              <Text key={weekday} style={styles.weekday}>
-                {weekday}
-              </Text>
-            ))}
-          </View>
+          {selectorMode ? (
+            <View style={styles.selectorPanel}>
+              {selectorMode === 'month' ? (
+                <View style={styles.monthGrid}>
+                  {MONTH_OPTIONS.map((month) => {
+                    const isSelected = month.value === calendarMonth.getMonth();
+                    const disabled = isMonthDisabled(month.value);
 
-          <View style={styles.grid}>
-            {calendarDays.map((day) => {
-              const isSelected = selectedDateKey === toLocalDateKey(day.date);
-
-              return (
-                <Pressable
-                  key={day.key}
-                  disabled={day.disabled}
-                  onPress={() => onSelect(day.date)}
-                  style={[
-                    styles.day,
-                    day.disabled ? styles.dayDisabled : null,
-                  ]}
+                    return (
+                      <Pressable
+                        key={month.value}
+                        disabled={disabled}
+                        onPress={() => handleMonthSelect(month.value)}
+                        style={[
+                          styles.monthOption,
+                          isSelected ? styles.selectorOptionActive : null,
+                          disabled ? styles.selectorOptionDisabled : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.monthOptionText,
+                            isSelected ? styles.selectorOptionTextActive : null,
+                            disabled ? styles.selectorOptionTextDisabled : null,
+                          ]}
+                        >
+                          {month.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <ScrollView
+                  ref={yearScrollRef}
+                  style={styles.yearScroll}
+                  contentContainerStyle={styles.yearGrid}
+                  showsVerticalScrollIndicator
                 >
-                  <View
-                    style={[
-                      styles.dayInner,
-                      !day.inCurrentMonth ? styles.dayOutsideMonth : null,
-                      isSelected ? styles.daySelected : null,
-                    ]}
-                  >
-                    <Text
+                  {yearOptions.map((year) => {
+                    const isSelected = year === calendarMonth.getFullYear();
+
+                    return (
+                      <Pressable
+                        key={year}
+                        onPress={() => handleYearSelect(year)}
+                        style={[
+                          styles.yearOption,
+                          isSelected ? styles.selectorOptionActive : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.yearOptionText,
+                            isSelected ? styles.selectorOptionTextActive : null,
+                          ]}
+                        >
+                          {year}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          ) : (
+            <>
+              <View style={styles.weekdaysRow}>
+                {WEEKDAY_LABELS.map((weekday) => (
+                  <Text key={weekday} style={styles.weekday}>
+                    {weekday}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.grid}>
+                {calendarDays.map((day) => {
+                  const isSelected = selectedDateKey === toLocalDateKey(day.date);
+
+                  return (
+                    <Pressable
+                      key={day.key}
+                      disabled={day.disabled}
+                      onPress={() => onSelect(day.date)}
                       style={[
-                        styles.dayText,
-                        !day.inCurrentMonth ? styles.dayTextOutsideMonth : null,
-                        day.disabled ? styles.dayTextDisabled : null,
-                        isSelected ? styles.dayTextSelected : null,
+                        styles.day,
+                        day.disabled ? styles.dayDisabled : null,
                       ]}
                     >
-                      {day.label}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
+                      <View
+                        style={[
+                          styles.dayInner,
+                          !day.inCurrentMonth ? styles.dayOutsideMonth : null,
+                          isSelected ? styles.daySelected : null,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayText,
+                            !day.inCurrentMonth ? styles.dayTextOutsideMonth : null,
+                            day.disabled ? styles.dayTextDisabled : null,
+                            isSelected ? styles.dayTextSelected : null,
+                          ]}
+                        >
+                          {day.label}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           <View style={styles.footer}>
             <Pressable onPress={onClose} style={styles.doneButton}>
@@ -324,13 +549,126 @@ const createStyles = (theme: AppTheme) =>
     monthNavDisabled: {
       opacity: 0.35,
     },
-    monthTitle: {
+    monthSelectorGroup: {
       flex: 1,
-      textAlign: 'center',
-      fontSize: fontSize.base,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+    },
+    monthSelectorButton: {
+      flex: 1,
+      minHeight: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceAlt,
+    },
+    yearSelectorButton: {
+      minWidth: 86,
+      minHeight: 38,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceAlt,
+    },
+    monthSelectorButtonActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
+    },
+    monthSelectorText: {
+      flexShrink: 1,
+      fontSize: fontSize.sm,
+      lineHeight: 18,
       fontWeight: '700',
       color: theme.colors.textPrimary,
       textTransform: 'capitalize',
+    },
+    yearSelectorText: {
+      fontSize: fontSize.sm,
+      lineHeight: 18,
+      fontWeight: '700',
+      color: theme.colors.textPrimary,
+    },
+    monthSelectorTextActive: {
+      color: colors.white,
+    },
+    selectorPanel: {
+      minHeight: 294,
+      justifyContent: 'center',
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.inputBackground,
+      padding: spacing.sm,
+    },
+    monthGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+    },
+    monthOption: {
+      width: '30.9%',
+      minHeight: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    monthOptionText: {
+      fontSize: fontSize.sm,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+      textTransform: 'capitalize',
+    },
+    yearScroll: {
+      maxHeight: 264,
+    },
+    yearGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    yearOption: {
+      width: '22.5%',
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    yearOptionText: {
+      fontSize: fontSize.sm,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+    },
+    selectorOptionActive: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
+    },
+    selectorOptionDisabled: {
+      opacity: 0.35,
+    },
+    selectorOptionTextActive: {
+      color: colors.white,
+    },
+    selectorOptionTextDisabled: {
+      color: theme.colors.iconMuted,
     },
     weekdaysRow: {
       flexDirection: 'row',
@@ -384,7 +722,7 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.iconMuted,
     },
     dayTextSelected: {
-      color: theme.colors.surface,
+      color: colors.white,
     },
     footer: {
       marginTop: spacing.md,
@@ -399,7 +737,7 @@ const createStyles = (theme: AppTheme) =>
     doneButtonText: {
       fontSize: fontSize.sm,
       fontWeight: '700',
-      color: theme.colors.surface,
+      color: colors.white,
     },
   });
 
