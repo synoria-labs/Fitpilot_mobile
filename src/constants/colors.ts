@@ -5,6 +5,13 @@ export const brandColors = {
   accent: '#6bb7e1',    // Azul acento (circulo)
 };
 
+export const buttonGradients = {
+  primary: {
+    light: ['#2b628d', '#53abd5', '#8bd8ee'],
+    dark: ['#1f3d62', '#3e88b8', '#67b6df'],
+  },
+} as const;
+
 // Paleta verde especifica para Nutricion
 export const nutritionTheme = {
   heroGradientStart: '#14532D',

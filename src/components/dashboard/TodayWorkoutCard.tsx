@@ -107,6 +107,7 @@ interface TodayWorkoutCardProps {
   contentWidth?: number;
   horizontalPadding?: number;
   isTabletPortrait?: boolean;
+  compact?: boolean;
 }
 
 const getEmptyIconName = (
@@ -137,6 +138,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   contentWidth,
   horizontalPadding = spacing.md,
   isTabletPortrait = false,
+  compact = false,
 }) => {
   const scale = useSharedValue(1);
   const [bodyMapView, setBodyMapView] = useState<BodyMapView>('anterior');
@@ -144,12 +146,22 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   const styles = useThemedStyles(createStyles);
   const availableWidth = Math.max(320, (contentWidth ?? 0) - horizontalPadding * 2);
   const cardWidth = availableWidth;
-  const cardHeight = isTabletPortrait ? 280 : BASE_CARD_HEIGHT;
+  const cardHeight = isTabletPortrait ? 280 : compact ? 228 : BASE_CARD_HEIGHT;
   const cardShape = getCardShape(cardWidth, cardHeight);
   const chamferHorizontal = cardShape.chamferHorizontal;
   const currentTrainingDayId =
     cardState.kind === 'session' ? cardState.trainingDay.id : null;
   const bodyMapLayout = useMemo(() => {
+    if (compact && !isTabletPortrait) {
+      return {
+        panelWidth: cardWidth < 350 ? 88 : 102,
+        panelHeight: cardWidth < 350 ? 130 : 138,
+        canvasWidth: cardWidth < 350 ? 64 : 76,
+        canvasHeight: cardWidth < 350 ? 108 : 120,
+        canvasShellHeight: cardWidth < 350 ? 108 : 120,
+      };
+    }
+
     if (isTabletPortrait) {
       return {
         panelWidth: 116,
@@ -177,7 +189,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
       canvasHeight: 128,
       canvasShellHeight: 132,
     };
-  }, [cardWidth, isTabletPortrait]);
+  }, [cardWidth, compact, isTabletPortrait]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -226,7 +238,9 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   const durationText = hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
   const sessionCaption = `Sesion ${trainingDay.session_index}`;
   const isOverdueRecommendation = cardState.recommendation === 'overdue';
-  const durationContainerWidth = Math.max(chamferHorizontal - spacing.xs, 84);
+  const durationContainerWidth = compact
+    ? Math.max(70, chamferHorizontal - spacing.md)
+    : Math.max(chamferHorizontal - spacing.xs, 84);
   const currentMuscleVolume =
     muscleVolume?.training_day_id === trainingDay.id ? muscleVolume : null;
   const bodyMapMuscles = currentMuscleVolume?.muscles ?? [];
@@ -234,7 +248,12 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
 
   return (
     <AnimatedPressable
-      style={[styles.container, { marginHorizontal: horizontalPadding }, animatedStyle]}
+      style={[
+        styles.container,
+        compact ? styles.containerCompact : null,
+        { marginHorizontal: horizontalPadding },
+        animatedStyle,
+      ]}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onStartPress}
@@ -256,30 +275,40 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
             cardHeight={cardHeight}
             shapePath={cardShape.path}
           />
-          <View style={styles.content}>
+          <View style={[styles.content, compact ? styles.contentCompact : null]}>
             <View style={styles.heroTopContent}>
-              <View style={styles.headerMeta}>
+              <View style={[styles.headerMeta, compact ? styles.headerMetaCompact : null]}>
                 <View style={styles.dayBadge}>
-                  <BlurView intensity={50} tint={theme.colors.blurTint} style={styles.dayBadgeBlur}>
+                  <BlurView
+                    intensity={50}
+                    tint={theme.colors.blurTint}
+                    style={[styles.dayBadgeBlur, compact ? styles.dayBadgeBlurCompact : null]}
+                  >
                     <Text style={styles.dayBadgeText}>{cardState.dateLabel}</Text>
                   </BlurView>
                 </View>
               </View>
 
-              <View style={styles.heroBody}>
-                <View style={styles.titleArea}>
+              <View style={[styles.heroBody, compact ? styles.heroBodyCompact : null]}>
+                <View style={[styles.titleArea, compact ? styles.titleAreaCompact : null]}>
                   {isOverdueRecommendation ? (
-                    <View style={styles.overduePill}>
+                    <View style={[styles.overduePill, compact ? styles.metaPillCompact : null]}>
                       <Text style={styles.overduePillText}>Entrenamiento atrasado</Text>
                     </View>
                   ) : null}
-                  <View style={styles.sessionPill}>
+                  <View style={[styles.sessionPill, compact ? styles.metaPillCompact : null]}>
                     <Text style={styles.sessionPillText}>{sessionCaption}</Text>
                   </View>
-                  <Text style={styles.title}>{trainingDay.name}</Text>
-                  {trainingDay.focus ? <Text style={styles.focusText}>{trainingDay.focus}</Text> : null}
+                  <Text style={[styles.title, compact ? styles.titleCompact : null]} numberOfLines={compact ? 1 : undefined}>
+                    {trainingDay.name}
+                  </Text>
+                  {trainingDay.focus ? (
+                    <Text style={styles.focusText} numberOfLines={compact ? 1 : undefined}>
+                      {trainingDay.focus}
+                    </Text>
+                  ) : null}
                   {isOverdueRecommendation ? (
-                    <Text style={styles.recommendationText}>
+                    <Text style={styles.recommendationText} numberOfLines={compact ? 1 : undefined}>
                       Completa esta sesion primero.
                     </Text>
                   ) : null}
@@ -291,6 +320,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                 <View
                   style={[
                     styles.bodyMapPanel,
+                    compact ? styles.bodyMapPanelCompact : null,
                     {
                       width: bodyMapLayout.panelWidth,
                       height: bodyMapLayout.panelHeight,
@@ -300,6 +330,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                   <View
                     style={[
                       styles.bodyMapCanvasShell,
+                      compact ? styles.bodyMapCanvasShellCompact : null,
                       { height: bodyMapLayout.canvasShellHeight },
                     ]}
                   >
@@ -309,7 +340,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                         showNeutralBodyMapLoadingState ? styles.bodyMapCanvasLoading : null,
                       ]}
                     >
-                      <View style={styles.bodyMapFigure}>
+                      <View style={[styles.bodyMapFigure, compact ? styles.bodyMapFigureCompact : null]}>
                         <MiniBodyMap
                           muscles={bodyMapMuscles}
                           view={bodyMapView}
@@ -320,12 +351,13 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                     </View>
                   </View>
 
-                  <View style={styles.bodyMapToggle}>
+                  <View style={[styles.bodyMapToggle, compact ? styles.bodyMapToggleCompact : null]}>
                     <TouchableOpacity
                       activeOpacity={0.86}
                       onPress={() => setBodyMapView('anterior')}
                       style={[
                         styles.bodyMapToggleButton,
+                        compact ? styles.bodyMapToggleButtonCompact : null,
                         bodyMapView === 'anterior' ? styles.bodyMapToggleButtonActive : null,
                       ]}
                     >
@@ -344,6 +376,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                       onPress={() => setBodyMapView('posterior')}
                       style={[
                         styles.bodyMapToggleButton,
+                        compact ? styles.bodyMapToggleButtonCompact : null,
                         bodyMapView === 'posterior' ? styles.bodyMapToggleButtonActive : null,
                       ]}
                     >
@@ -361,16 +394,20 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
               </View>
             </View>
 
-            <View style={styles.actionsRow}>
+            <View style={[styles.actionsRow, compact ? styles.actionsRowCompact : null]}>
               <TouchableOpacity
                 style={styles.startButton}
                 onPress={onStartPress}
                 activeOpacity={0.9}
               >
-                <BlurView intensity={80} tint={theme.colors.blurTint} style={styles.startButtonBlur}>
+                <BlurView
+                  intensity={80}
+                  tint={theme.colors.blurTint}
+                  style={[styles.startButtonBlur, compact ? styles.startButtonBlurCompact : null]}
+                >
                   <Text style={styles.startButtonText}>{cardState.actionLabel}</Text>
-                  <View style={styles.arrowCircle}>
-                    <Ionicons name="arrow-forward" size={18} color={theme.colors.primary} />
+                  <View style={[styles.arrowCircle, compact ? styles.arrowCircleCompact : null]}>
+                    <Ionicons name="arrow-forward" size={compact ? 16 : 18} color={theme.colors.primary} />
                   </View>
                 </BlurView>
               </TouchableOpacity>
@@ -396,13 +433,24 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
         pointerEvents="none"
         style={[
           styles.durationContainer,
+          compact ? styles.durationContainerCompact : null,
           {
             width: durationContainerWidth,
           },
         ]}
       >
-        <Text style={styles.durationLabel}>Duracion</Text>
-        <Text style={styles.durationValue}>{durationText}</Text>
+        <Text
+          style={[styles.durationLabel, compact ? styles.durationLabelCompact : null]}
+          numberOfLines={1}
+        >
+          Duracion
+        </Text>
+        <Text
+          style={[styles.durationValue, compact ? styles.durationValueCompact : null]}
+          numberOfLines={1}
+        >
+          {durationText}
+        </Text>
       </View>
     </AnimatedPressable>
   );
@@ -414,6 +462,9 @@ const createStyles = (theme: AppTheme) =>
       marginVertical: spacing.md,
       position: 'relative',
     },
+    containerCompact: {
+      marginVertical: spacing.sm,
+    },
     skeletonWrapper: {
       marginVertical: spacing.md,
     },
@@ -424,11 +475,19 @@ const createStyles = (theme: AppTheme) =>
       zIndex: 20,
       alignItems: 'flex-end',
     },
+    durationContainerCompact: {
+      top: 3,
+      right: 2,
+    },
     durationLabel: {
       fontSize: fontSize.xs,
       color: theme.colors.textMuted,
       fontWeight: '600',
       textAlign: 'right',
+    },
+    durationLabelCompact: {
+      fontSize: 11,
+      lineHeight: 13,
     },
     durationValue: {
       fontSize: fontSize.sm,
@@ -436,6 +495,11 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '700',
       marginTop: 2,
       textAlign: 'right',
+    },
+    durationValueCompact: {
+      fontSize: 12,
+      lineHeight: 15,
+      marginTop: 0,
     },
     cardContainer: {
       overflow: 'hidden',
@@ -452,10 +516,18 @@ const createStyles = (theme: AppTheme) =>
       paddingBottom: 36,
       justifyContent: 'flex-start',
     },
+    contentCompact: {
+      padding: spacing.md,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
+    },
     headerMeta: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       minHeight: 28,
+    },
+    headerMetaCompact: {
+      minHeight: 24,
     },
     heroTopContent: {
       minWidth: 0,
@@ -469,6 +541,10 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: 5,
     },
+    dayBadgeBlurCompact: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+    },
     dayBadgeText: {
       fontSize: fontSize.xs,
       fontWeight: '600',
@@ -479,12 +555,19 @@ const createStyles = (theme: AppTheme) =>
       minWidth: 0,
       marginTop: 4,
     },
+    titleAreaCompact: {
+      marginTop: 0,
+    },
     heroBody: {
       width: '100%',
       marginTop: spacing.xs,
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: spacing.sm,
+    },
+    heroBodyCompact: {
+      marginTop: 2,
+      gap: spacing.xs,
     },
     bodyMapPanel: {
       marginLeft: 'auto',
@@ -503,6 +586,12 @@ const createStyles = (theme: AppTheme) =>
       shadowRadius: 12,
       elevation: 4,
     },
+    bodyMapPanelCompact: {
+      paddingTop: 5,
+      paddingHorizontal: 4,
+      paddingBottom: 5,
+      borderRadius: borderRadius.md,
+    },
     bodyMapCanvasShell: {
       width: '100%',
       paddingTop: 6,
@@ -510,6 +599,9 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'center',
       overflow: 'hidden',
       borderRadius: borderRadius.md,
+    },
+    bodyMapCanvasShellCompact: {
+      paddingTop: 0,
     },
     bodyMapCanvas: {
       flex: 1,
@@ -523,6 +615,9 @@ const createStyles = (theme: AppTheme) =>
     bodyMapFigure: {
       transform: [{ translateY: 6 }],
     },
+    bodyMapFigureCompact: {
+      transform: [{ translateY: 0 }],
+    },
     bodyMapToggle: {
       flexDirection: 'row',
       marginTop: spacing.xs,
@@ -532,12 +627,19 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.1)',
     },
+    bodyMapToggleCompact: {
+      marginTop: 4,
+      padding: 2,
+    },
     bodyMapToggleButton: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 6,
       borderRadius: borderRadius.full,
+    },
+    bodyMapToggleButtonCompact: {
+      paddingVertical: 5,
     },
     bodyMapToggleButtonActive: {
       backgroundColor: 'rgba(255,255,255,0.16)',
@@ -561,6 +663,11 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: 'rgba(255,255,255,0.18)',
       borderWidth: 1,
       borderColor: 'rgba(255,255,255,0.24)',
+    },
+    metaPillCompact: {
+      marginBottom: 4,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 4,
     },
     sessionPillText: {
       fontSize: fontSize.xs,
@@ -593,6 +700,10 @@ const createStyles = (theme: AppTheme) =>
       textShadowOffset: { width: 1, height: 1 },
       textShadowRadius: 3,
     },
+    titleCompact: {
+      fontSize: fontSize.xl,
+      lineHeight: 26,
+    },
     focusText: {
       fontSize: fontSize.sm,
       color: 'rgba(255,255,255,0.8)',
@@ -621,6 +732,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.sm,
       flexWrap: 'wrap',
     },
+    actionsRowCompact: {
+      paddingTop: spacing.xs,
+      paddingBottom: 0,
+      gap: spacing.xs,
+    },
     startButton: {
       alignSelf: 'flex-start',
       borderRadius: borderRadius.full,
@@ -633,6 +749,10 @@ const createStyles = (theme: AppTheme) =>
       paddingRight: 6,
       paddingVertical: 6,
       backgroundColor: theme.isDark ? 'rgba(8,17,31,0.84)' : 'rgba(255,255,255,0.9)',
+    },
+    startButtonBlurCompact: {
+      paddingLeft: spacing.md,
+      paddingVertical: 5,
     },
     startButtonText: {
       fontSize: fontSize.sm,
@@ -648,6 +768,11 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.colors.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    arrowCircleCompact: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
     },
     secondaryButton: {
       alignSelf: 'flex-start',

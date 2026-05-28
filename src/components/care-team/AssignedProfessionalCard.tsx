@@ -26,6 +26,7 @@ type AssignedProfessionalCardProps = {
   summary?: AssignedProfessionalSummary | null;
   errorMessage?: string | null;
   compact?: boolean;
+  variant?: 'full' | 'summary';
 };
 
 const DOMAIN_LABELS: Record<AssignedProfessionalDomain, string> = {
@@ -47,10 +48,12 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
   summary,
   errorMessage,
   compact = false,
+  variant = 'full',
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [hasImageError, setHasImageError] = useState(false);
+  const isSummary = variant === 'summary';
 
   useEffect(() => {
     setHasImageError(false);
@@ -75,14 +78,28 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
 
   if (state === 'loading') {
     return (
-      <View style={[styles.card, compact ? styles.cardCompact : styles.cardExpanded]}>
-        <View style={styles.badgeRow}>
-          {domains.map((domain) => (
-            <DomainBadge key={domain} domain={domain} />
-          ))}
-        </View>
-        <View style={styles.loadingRow}>
-          <View style={[styles.avatarBase, compact ? styles.avatarCompact : styles.avatarExpanded]} />
+      <View
+        style={[
+          styles.card,
+          compact || isSummary ? styles.cardCompact : styles.cardExpanded,
+          isSummary ? styles.cardSummary : null,
+        ]}
+      >
+        {!isSummary ? (
+          <View style={styles.badgeRow}>
+            {domains.map((domain) => (
+              <DomainBadge key={domain} domain={domain} />
+            ))}
+          </View>
+        ) : null}
+        <View style={[styles.loadingRow, isSummary ? styles.loadingRowSummary : null]}>
+          <View
+            style={[
+              styles.avatarBase,
+              compact || isSummary ? styles.avatarCompact : styles.avatarExpanded,
+              isSummary ? styles.avatarSummary : null,
+            ]}
+          />
           <View style={styles.loadingTextGroup}>
             <Skeleton width="62%" height={18} />
             <Skeleton width="44%" height={14} style={styles.loadingLine} />
@@ -105,20 +122,33 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
       : state === 'error'
         ? errorMessage ?? 'No fue posible cargar esta asignacion.'
         : emptyMessage;
+  const contextParts = contextLabel
+    ?.split(' / ')
+    .map((part) => part.trim())
+    .filter(Boolean) ?? [];
 
   return (
-    <View style={[styles.card, compact ? styles.cardCompact : styles.cardExpanded]}>
-      <View style={styles.badgeRow}>
-        {domains.map((domain) => (
-          <DomainBadge key={domain} domain={domain} />
-        ))}
-      </View>
+    <View
+      style={[
+        styles.card,
+        compact || isSummary ? styles.cardCompact : styles.cardExpanded,
+        isSummary ? styles.cardSummary : null,
+      ]}
+    >
+      {!isSummary ? (
+        <View style={styles.badgeRow}>
+          {domains.map((domain) => (
+            <DomainBadge key={domain} domain={domain} />
+          ))}
+        </View>
+      ) : null}
 
-      <View style={styles.bodyRow}>
+      <View style={[styles.bodyRow, isSummary ? styles.bodyRowSummary : null]}>
         <View
           style={[
             styles.avatarBase,
-            compact ? styles.avatarCompact : styles.avatarExpanded,
+            compact || isSummary ? styles.avatarCompact : styles.avatarExpanded,
+            isSummary ? styles.avatarSummary : null,
             state === 'error'
               ? styles.avatarError
               : state === 'unassigned'
@@ -133,26 +163,58 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
               onError={() => setHasImageError(true)}
             />
           ) : state === 'error' ? (
-            <Ionicons name="alert-circle-outline" size={compact ? 22 : 24} color={theme.colors.error} />
+            <Ionicons name="alert-circle-outline" size={compact || isSummary ? 22 : 24} color={theme.colors.error} />
           ) : state === 'unassigned' ? (
-            <Ionicons name="person-outline" size={compact ? 20 : 22} color={theme.colors.icon} />
+            <Ionicons name="person-outline" size={compact || isSummary ? 20 : 22} color={theme.colors.icon} />
           ) : (
             <Text style={styles.avatarText}>{initials}</Text>
           )}
         </View>
 
         <View style={styles.copyColumn}>
-          <Text style={styles.headline}>{headline}</Text>
-          {roleLabel ? <Text style={styles.roleLabel}>{roleLabel}</Text> : null}
-          {contextLabel ? <Text style={styles.contextLabel}>{contextLabel}</Text> : null}
+          <View style={isSummary ? styles.summaryTopRow : null}>
+            <View style={styles.summaryNameRole}>
+              <Text style={[styles.headline, isSummary ? styles.headlineSummary : null]} numberOfLines={1}>
+                {headline}
+              </Text>
+              {roleLabel ? (
+                <Text style={[styles.roleLabel, isSummary ? styles.roleLabelSummary : null]} numberOfLines={1}>
+                  {roleLabel}
+                </Text>
+              ) : null}
+            </View>
+
+            {isSummary ? (
+              <View style={styles.badgeRowSummary}>
+                {domains.map((domain) => (
+                  <DomainBadge key={domain} domain={domain} compact />
+                ))}
+              </View>
+            ) : null}
+          </View>
+
+          {contextParts.length ? (
+            isSummary ? (
+              <View style={styles.contextListSummary}>
+                {contextParts.map((part) => (
+                  <Text key={part} style={styles.contextLabelSummary} numberOfLines={1}>
+                    {part}
+                  </Text>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.contextLabel}>{contextLabel}</Text>
+            )
+          ) : null}
         </View>
       </View>
     </View>
   );
 };
 
-const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain }> = ({
+const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain; compact?: boolean }> = ({
   domain,
+  compact = false,
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -176,6 +238,7 @@ const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain }> = ({
     <View
       style={[
         styles.badge,
+        compact ? styles.badgeCompact : null,
         {
           backgroundColor: palette.backgroundColor,
           borderColor: palette.borderColor,
@@ -202,6 +265,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     cardCompact: {
       padding: spacing.md,
     },
+    cardSummary: {
+      padding: spacing.sm,
+      borderRadius: borderRadius.lg,
+    },
     cardExpanded: {
       padding: spacing.lg,
     },
@@ -219,6 +286,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
     },
+    badgeCompact: {
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 4,
+    },
     badgeText: {
       fontSize: fontSize.xs,
       fontWeight: '600',
@@ -228,10 +299,17 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       marginTop: spacing.md,
     },
+    bodyRowSummary: {
+      alignItems: 'flex-start',
+      marginTop: 0,
+    },
     loadingRow: {
       flexDirection: 'row',
       alignItems: 'center',
       marginTop: spacing.md,
+    },
+    loadingRowSummary: {
+      marginTop: 0,
     },
     avatarBase: {
       borderRadius: borderRadius.full,
@@ -245,6 +323,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     avatarCompact: {
       width: 52,
       height: 52,
+    },
+    avatarSummary: {
+      width: 44,
+      height: 44,
     },
     avatarExpanded: {
       width: 64,
@@ -270,11 +352,33 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     copyColumn: {
       flex: 1,
       marginLeft: spacing.md,
+      minWidth: 0,
+    },
+    summaryTopRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    summaryNameRole: {
+      flex: 1,
+      minWidth: 0,
+    },
+    badgeRowSummary: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-end',
+      gap: 4,
+      maxWidth: '48%',
     },
     headline: {
       fontSize: fontSize.base,
       fontWeight: '700',
       color: theme.colors.textPrimary,
+    },
+    headlineSummary: {
+      fontSize: fontSize.sm,
+      fontWeight: '800',
     },
     roleLabel: {
       marginTop: 2,
@@ -282,11 +386,23 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       fontWeight: '600',
       color: theme.colors.textSecondary,
     },
+    roleLabelSummary: {
+      fontSize: fontSize.xs,
+    },
     contextLabel: {
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
       color: theme.colors.textMuted,
       lineHeight: 20,
+    },
+    contextListSummary: {
+      marginTop: spacing.xs,
+      gap: 2,
+    },
+    contextLabelSummary: {
+      fontSize: fontSize.xs,
+      color: theme.colors.textMuted,
+      lineHeight: 16,
     },
     loadingTextGroup: {
       flex: 1,

@@ -16,7 +16,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import Svg, { Path } from 'react-native-svg';
-import { borderRadius, brandColors, colors, fontSize, shadows, spacing } from '../../constants/colors';
+import { borderRadius, brandColors, buttonGradients, colors, fontSize, shadows, spacing } from '../../constants/colors';
 import { getWorkoutSetTypeDefinition, usesSegmentedWorkoutCapture } from '../../constants/workoutSetTypes';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 import type { DayExercise, ExerciseProgress, WorkoutScreenMode } from '../../types';
@@ -59,6 +59,8 @@ const CARD_HEIGHT = 312;
 const INTERACTIVE_CARD_HEIGHT = 356;
 const IMAGE_WIDTH_RATIO = 0.5;
 const DIAGONAL_WIDTH = 80;
+
+type PrimaryButtonGradientColors = readonly [string, string, string];
 
 type StrengthMetricField = 'reps' | 'weight' | 'effort';
 type CardioMetricField = 'duration' | 'calories' | 'distance' | 'effort';
@@ -533,6 +535,7 @@ const StrengthExerciseBody = ({
   styles,
   accentColor,
   placeholderColor,
+  primaryGradientColors,
   onStrengthMetricChange,
   onStrengthMetricCommit,
   onAdvance,
@@ -546,6 +549,7 @@ const StrengthExerciseBody = ({
   styles: ReturnType<typeof createStyles>;
   accentColor: string;
   placeholderColor: string;
+  primaryGradientColors: PrimaryButtonGradientColors;
   onStrengthMetricChange: StrengthExerciseCardProps['onStrengthMetricChange'];
   onStrengthMetricCommit: StrengthExerciseCardProps['onStrengthMetricCommit'];
   onAdvance?: () => void;
@@ -655,7 +659,12 @@ const StrengthExerciseBody = ({
             onPress={onAdvance}
             activeOpacity={0.84}
           >
-            <LinearGradient colors={[brandColors.navy, brandColors.sky]} style={styles.primaryButtonGradient}>
+            <LinearGradient
+              colors={primaryGradientColors}
+              start={{ x: 0, y: 0.15 }}
+              end={{ x: 1, y: 0.85 }}
+              style={styles.primaryButtonGradient}
+            >
               <Text style={styles.primaryButtonText}>{actionLabel}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -809,6 +818,7 @@ const CardioExerciseBody = ({
   styles,
   accentColor,
   placeholderColor,
+  primaryGradientColors,
   onCardioMetricChange,
   onCardioMetricCommit,
   onAdvance,
@@ -822,6 +832,7 @@ const CardioExerciseBody = ({
   styles: ReturnType<typeof createStyles>;
   accentColor: string;
   placeholderColor: string;
+  primaryGradientColors: PrimaryButtonGradientColors;
   onCardioMetricChange: CardioExerciseCardProps['onCardioMetricChange'];
   onCardioMetricCommit: CardioExerciseCardProps['onCardioMetricCommit'];
   onAdvance?: () => void;
@@ -910,7 +921,12 @@ const CardioExerciseBody = ({
             onPress={onAdvance}
             activeOpacity={0.84}
           >
-            <LinearGradient colors={[brandColors.navy, brandColors.sky]} style={styles.primaryButtonGradient}>
+            <LinearGradient
+              colors={primaryGradientColors}
+              start={{ x: 0, y: 0.15 }}
+              end={{ x: 1, y: 0.85 }}
+              style={styles.primaryButtonGradient}
+            >
               <Text style={styles.primaryButtonText}>{actionLabel}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -928,6 +944,7 @@ const MovementExerciseBody = ({
   styles,
   accentColor,
   placeholderColor,
+  primaryGradientColors,
   onMovementMetricChange,
   onMovementMetricCommit,
   onAdvance,
@@ -941,6 +958,7 @@ const MovementExerciseBody = ({
   styles: ReturnType<typeof createStyles>;
   accentColor: string;
   placeholderColor: string;
+  primaryGradientColors: PrimaryButtonGradientColors;
   onMovementMetricChange: MovementExerciseCardProps['onMovementMetricChange'];
   onMovementMetricCommit: MovementExerciseCardProps['onMovementMetricCommit'];
   onAdvance?: () => void;
@@ -1046,7 +1064,12 @@ const MovementExerciseBody = ({
             onPress={onAdvance}
             activeOpacity={0.84}
           >
-            <LinearGradient colors={[brandColors.navy, brandColors.sky]} style={styles.primaryButtonGradient}>
+            <LinearGradient
+              colors={primaryGradientColors}
+              start={{ x: 0, y: 0.15 }}
+              end={{ x: 1, y: 0.85 }}
+              style={styles.primaryButtonGradient}
+            >
               <Text style={styles.primaryButtonText}>{actionLabel}</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -1059,6 +1082,9 @@ const MovementExerciseBody = ({
 export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const primaryGradientColors: PrimaryButtonGradientColors = theme.isDark
+    ? buttonGradients.primary.dark
+    : buttonGradients.primary.light;
   const [isEditing, setIsEditing] = useState(false);
   const [showGifModal, setShowGifModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -1274,6 +1300,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   styles={styles}
                   accentColor={accentColor}
                   placeholderColor={theme.colors.textMuted}
+                  primaryGradientColors={primaryGradientColors}
                   onStrengthMetricChange={props.onStrengthMetricChange}
                   onStrengthMetricCommit={props.onStrengthMetricCommit}
                   actionLabel={
@@ -1295,6 +1322,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   styles={styles}
                   accentColor={accentColor}
                   placeholderColor={theme.colors.textMuted}
+                  primaryGradientColors={primaryGradientColors}
                   onCardioMetricChange={props.onCardioMetricChange}
                   onCardioMetricCommit={props.onCardioMetricCommit}
                   actionLabel={
@@ -1316,6 +1344,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   styles={styles}
                   accentColor={accentColor}
                   placeholderColor={theme.colors.textMuted}
+                  primaryGradientColors={primaryGradientColors}
                   onMovementMetricChange={props.onMovementMetricChange}
                   onMovementMetricCommit={props.onMovementMetricCommit}
                   actionLabel={
@@ -1794,7 +1823,7 @@ const createStyles = (theme: AppTheme) =>
       textAlign: 'center',
     },
     primaryButton: {
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.full,
       overflow: 'hidden',
     },
     inlineActionDock: {
@@ -1805,10 +1834,10 @@ const createStyles = (theme: AppTheme) =>
       width: '100%',
     },
     primaryButtonGradient: {
-      minHeight: 40,
+      minHeight: 38,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: spacing.md,
     },
     primaryButtonText: {
       fontSize: fontSize.xs,

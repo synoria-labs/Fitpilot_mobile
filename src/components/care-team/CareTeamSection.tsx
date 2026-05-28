@@ -21,6 +21,7 @@ type CareTeamSectionProps = {
   errors: Record<AssignedProfessionalDomain, string | null>;
   isLoading: boolean;
   compact?: boolean;
+  variant?: 'full' | 'summary';
   title?: string;
   subtitle?: string;
   horizontalPadding?: number;
@@ -115,6 +116,7 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
   errors,
   isLoading,
   compact = false,
+  variant = 'full',
   title = 'Tus profesionales',
   subtitle,
   horizontalPadding = 0,
@@ -124,15 +126,28 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
     () => buildCareTeamCards(summaries, errors, isLoading),
     [errors, isLoading, summaries],
   );
+  const isSummary = variant === 'summary';
 
   return (
-    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-      </View>
+    <View
+      style={[
+        styles.container,
+        isSummary ? styles.containerSummary : null,
+        { paddingHorizontal: horizontalPadding },
+      ]}
+    >
+      {isSummary ? (
+        <View style={styles.summaryHeader}>
+          <Text style={styles.summaryTitle}>{title}</Text>
+        </View>
+      ) : (
+        <View style={styles.header}>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
+      )}
 
-      <View style={styles.cardsColumn}>
+      <View style={[styles.cardsColumn, isSummary ? styles.cardsColumnSummary : null]}>
         {cards.map((card) => (
           <AssignedProfessionalCard
             key={card.key}
@@ -141,6 +156,7 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
             summary={card.summary}
             errorMessage={card.errorMessage}
             compact={compact}
+            variant={isSummary ? 'summary' : 'full'}
           />
         ))}
       </View>
@@ -153,12 +169,23 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     container: {
       width: '100%',
     },
+    containerSummary: {
+      marginTop: spacing.sm,
+    },
     header: {
       marginBottom: spacing.md,
+    },
+    summaryHeader: {
+      marginBottom: spacing.xs,
     },
     title: {
       fontSize: fontSize.xl,
       fontWeight: '700',
+      color: theme.colors.textPrimary,
+    },
+    summaryTitle: {
+      fontSize: fontSize.base,
+      fontWeight: '800',
       color: theme.colors.textPrimary,
     },
     subtitle: {
@@ -171,6 +198,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       gap: spacing.sm,
       padding: spacing.xs,
       borderRadius: borderRadius.xl,
+    },
+    cardsColumnSummary: {
+      gap: spacing.xs,
+      padding: 0,
     },
   });
 

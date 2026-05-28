@@ -44,6 +44,8 @@ import {
 import type { TipContext } from '../../src/utils/contextualTips';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
 import type {
+  AssignedProfessionalDomain,
+  AssignedProfessionalSummary,
   MicrocycleMode,
   MicrocycleSessionProgress,
   MuscleVolumeResponse,
@@ -61,6 +63,68 @@ import {
   getProgramTimelineWeekLabel,
   shiftProgramTimelineFocusByWeek,
 } from '../../src/utils/programTimeline';
+
+const stripExistingClientContextPrefix = (value: string) =>
+  value
+    .trim()
+    .replace(/^tu\s+(plan|promedio semanal|nutricion):\s*/i, '')
+    .replace(/^promedio semanal:\s*/i, '')
+    .trim();
+
+const getClientContextPrefix = (
+  domain: AssignedProfessionalDomain,
+  contextLabel: string,
+) => {
+  if (domain === 'training') {
+    return 'Tu plan';
+  }
+
+  return /kcal|promedio/i.test(contextLabel)
+    ? 'Tu promedio semanal'
+    : 'Tu nutricion';
+};
+
+const formatClientContextLabel = (
+  contextLabel: string | null,
+  domain: AssignedProfessionalDomain,
+) => {
+  const trimmedContext = contextLabel?.trim();
+
+  if (!trimmedContext) {
+    return null;
+  }
+
+  if (/^tu\s+(plan|promedio semanal|nutricion):/i.test(trimmedContext)) {
+    return trimmedContext;
+  }
+
+  const value = stripExistingClientContextPrefix(trimmedContext);
+  return `${getClientContextPrefix(domain, trimmedContext)}: ${value}`;
+};
+
+const formatHomeCareTeamSummary = (
+  summary: AssignedProfessionalSummary | null,
+  domain: AssignedProfessionalDomain,
+  contextOverride?: string | null,
+) => {
+  if (!summary || summary.status !== 'assigned') {
+    return summary;
+  }
+
+  const contextLabel = formatClientContextLabel(
+    contextOverride ?? summary.contextLabel,
+    domain,
+  );
+
+  if (summary.contextLabel === contextLabel) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    contextLabel,
+  };
+};
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
@@ -439,31 +503,21 @@ export default function HomeScreen() {
     () => (
       currentWeekDietCaloriesAverage === null
         ? null
-        : `Promedio semanal: ${currentWeekDietCaloriesAverage} kcal/dia`
+        : `Tu promedio semanal: ${currentWeekDietCaloriesAverage} kcal/dia`
     ),
     [currentWeekDietCaloriesAverage],
   );
   const homeCareTeamSummaries = useMemo(() => {
-    const nutritionSummary = careTeamSummaries.nutrition;
-
-    if (
-      !nutritionSummary ||
-      nutritionSummary.status !== 'assigned' ||
-      !nutritionContextOverride
-    ) {
-      return careTeamSummaries;
-    }
-
-    if (nutritionSummary.contextLabel === nutritionContextOverride) {
-      return careTeamSummaries;
-    }
-
     return {
-      ...careTeamSummaries,
-      nutrition: {
-        ...nutritionSummary,
-        contextLabel: nutritionContextOverride,
-      },
+      training: formatHomeCareTeamSummary(
+        careTeamSummaries.training,
+        'training',
+      ),
+      nutrition: formatHomeCareTeamSummary(
+        careTeamSummaries.nutrition,
+        'nutrition',
+        nutritionContextOverride,
+      ),
     };
   }, [careTeamSummaries, nutritionContextOverride]);
   const handleOpenScienceTip = useCallback((tip: ScienceTip) => {
@@ -534,35 +588,6 @@ export default function HomeScreen() {
             </Animated.View>
 
             <Animated.View entering={getEntryAnimation(160)}>
-              <CareTeamSection
-                summaries={homeCareTeamSummaries}
-                errors={careTeamErrors}
-                isLoading={isLoadingCareTeam}
-                compact
-                subtitle="Quienes elaboran tus planes actuales."
-                horizontalPadding={horizontalPadding}
-              />
-            </Animated.View>
-
-            <Animated.View entering={getEntryAnimation(240)}>
-              <MicrocycleStats
-                microcycleProgress={microcycleProgress}
-                actualAdherenceMetrics={programTimelineModel.actualAdherenceMetrics}
-                mode={microcycleMode}
-                onModeChange={setMicrocycleMode}
-                isLoading={isLoading && !refreshing}
-                horizontalPadding={horizontalPadding}
-              />
-            </Animated.View>
-
-            <Animated.View entering={getEntryAnimation(320)}>
-              <ConnectedHealthFeedbackSummaryCard
-                contentWidth={contentWidth}
-                horizontalPadding={horizontalPadding}
-              />
-            </Animated.View>
-
-            <Animated.View entering={getEntryAnimation(380)}>
               <TodayWorkoutCard
                 cardState={programTimelineView.cardState}
                 onStartPress={handleStartHighlightedSession}
@@ -572,10 +597,31 @@ export default function HomeScreen() {
                 isMuscleVolumeLoading={!shouldLoadDeferredContent || isLoadingVolume}
                 contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
+                compact={!isTablet}
               />
             </Animated.View>
 
-            <Animated.View entering={getEntryAnimation(460)}>
+            <Animated.View entering={getEntryAnimation(220)}>
+              <MicrocycleStats
+                microcycleProgress={microcycleProgress}
+                actualAdherenceMetrics={programTimelineModel.actualAdherenceMetrics}
+                mode={microcycleMode}
+                onModeChange={setMicrocycleMode}
+                isLoading={isLoading && !refreshing}
+                horizontalPadding={horizontalPadding}
+                variant="strip"
+              />
+            </Animated.View>
+
+            <Animated.View entering={getEntryAnimation(280)}>
+              <ConnectedHealthFeedbackSummaryCard
+                contentWidth={contentWidth}
+                horizontalPadding={horizontalPadding}
+                variant="compact"
+              />
+            </Animated.View>
+
+            <Animated.View entering={getEntryAnimation(340)}>
               <ActivityChart
                 muscleVolume={muscleVolume}
                 isLoading={!shouldLoadDeferredContent || isLoadingVolume || (isLoading && !refreshing)}
@@ -583,10 +629,24 @@ export default function HomeScreen() {
                 onToggleSecondary={setCountSecondaryMuscles}
                 contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
+                maxRows={2}
+                collapsible
+                compact
               />
             </Animated.View>
 
-            <Animated.View entering={getEntryAnimation(540)}>
+            <Animated.View entering={getEntryAnimation(400)}>
+              <CareTeamSection
+                summaries={homeCareTeamSummaries}
+                errors={careTeamErrors}
+                isLoading={isLoadingCareTeam}
+                compact
+                variant="summary"
+                horizontalPadding={horizontalPadding}
+              />
+            </Animated.View>
+
+            <Animated.View entering={getEntryAnimation(460)}>
               <ScienceTips
                 context={tipContext}
                 contentWidth={contentWidth}
@@ -596,7 +656,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {shouldLoadDeferredContent ? (
-              <Animated.View entering={getEntryAnimation(600)}>
+              <Animated.View entering={getEntryAnimation(520)}>
                 <MetricsSummary
                   onPress={handleOpenMeasurements}
                   contentWidth={contentWidth}

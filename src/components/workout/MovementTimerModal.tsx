@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { borderRadius, brandColors, colors, fontSize, spacing } from '../../constants/colors';
+import { borderRadius, buttonGradients, colors, fontSize, spacing } from '../../constants/colors';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 import { formatTime } from '../../utils/formatters';
 
@@ -27,6 +27,9 @@ export const MovementTimerModal: React.FC<MovementTimerModalProps> = ({
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const primaryGradientColors = theme.isDark
+    ? buttonGradients.primary.dark
+    : buttonGradients.primary.light;
   const progressRatio =
     plannedDurationSeconds > 0
       ? Math.min(elapsedSeconds / plannedDurationSeconds, 1)
@@ -76,7 +79,12 @@ export const MovementTimerModal: React.FC<MovementTimerModalProps> = ({
           </View>
 
           <TouchableOpacity style={styles.finishButton} onPress={onFinish} activeOpacity={0.84}>
-            <LinearGradient colors={[brandColors.navy, brandColors.sky]} style={styles.finishButtonGradient}>
+            <LinearGradient
+              colors={primaryGradientColors}
+              start={{ x: 0, y: 0.15 }}
+              end={{ x: 1, y: 0.85 }}
+              style={styles.finishButtonGradient}
+            >
               <Text style={styles.finishButtonText}>Finalizar bloque</Text>
             </LinearGradient>
           </TouchableOpacity>
@@ -186,15 +194,15 @@ const createStyles = (theme: AppTheme) =>
     },
     finishButton: {
       width: '100%',
-      borderRadius: borderRadius.lg,
+      borderRadius: borderRadius.full,
       overflow: 'hidden',
       marginTop: spacing.xl,
     },
     finishButtonGradient: {
-      minHeight: 48,
+      minHeight: 46,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: spacing.lg,
     },
     finishButtonText: {
       fontSize: fontSize.base,

@@ -13,6 +13,7 @@ interface MicrocycleStatsProps {
   onModeChange: (mode: MicrocycleMode) => void;
   isLoading?: boolean;
   horizontalPadding?: number;
+  variant?: 'cards' | 'strip';
 }
 
 type StatCard = {
@@ -30,6 +31,7 @@ export const MicrocycleStats: React.FC<MicrocycleStatsProps> = ({
   onModeChange,
   isLoading = false,
   horizontalPadding = spacing.md,
+  variant = 'cards',
 }) => {
   const styles = useThemedStyles(createStyles);
   const plannedMetrics = microcycleProgress?.planned_metrics;
@@ -87,27 +89,72 @@ export const MicrocycleStats: React.FC<MicrocycleStatsProps> = ({
   ];
 
   const stats = mode === 'planned' ? plannedStats : actualStats;
+  const renderModeToggle = (compact = false) => (
+    <View style={[styles.toggleWrap, compact ? styles.toggleWrapCompact : null]}>
+      <Pressable
+        onPress={() => onModeChange('planned')}
+        style={[
+          styles.toggleButton,
+          compact ? styles.toggleButtonCompact : null,
+          mode === 'planned' && styles.toggleButtonActive,
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          style={[styles.toggleLabel, mode === 'planned' && styles.toggleLabelActive]}
+        >
+          Planificacion
+        </Text>
+      </Pressable>
+      <Pressable
+        onPress={() => onModeChange('actual')}
+        style={[
+          styles.toggleButton,
+          compact ? styles.toggleButtonCompact : null,
+          mode === 'actual' && styles.toggleButtonActive,
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          style={[styles.toggleLabel, mode === 'actual' && styles.toggleLabelActive]}
+        >
+          Ejecucion real
+        </Text>
+      </Pressable>
+    </View>
+  );
+
+  if (variant === 'strip') {
+    return (
+      <View style={[styles.container, styles.stripContainer, { paddingHorizontal: horizontalPadding }]}>
+        <View style={styles.stripSurface}>
+          {renderModeToggle(true)}
+
+          <View style={styles.stripStatsRow}>
+            {stats.map((stat) => (
+              <View key={stat.key} style={styles.stripStatItem}>
+                <View style={[styles.stripIconWrap, { backgroundColor: `${stat.tint}18` }]}>
+                  <Ionicons name={stat.icon} size={15} color={stat.tint} />
+                </View>
+                <View style={styles.stripStatCopy}>
+                  <Text style={styles.stripValue} numberOfLines={1}>
+                    {isLoading ? '...' : stat.value}
+                  </Text>
+                  <Text style={styles.stripLabel} numberOfLines={1}>
+                    {stat.label}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
-      <View style={styles.toggleWrap}>
-        <Pressable
-          onPress={() => onModeChange('planned')}
-          style={[styles.toggleButton, mode === 'planned' && styles.toggleButtonActive]}
-        >
-          <Text style={[styles.toggleLabel, mode === 'planned' && styles.toggleLabelActive]}>
-            Planificacion
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => onModeChange('actual')}
-          style={[styles.toggleButton, mode === 'actual' && styles.toggleButtonActive]}
-        >
-          <Text style={[styles.toggleLabel, mode === 'actual' && styles.toggleLabelActive]}>
-            Ejecucion real
-          </Text>
-        </Pressable>
-      </View>
+      {renderModeToggle()}
 
       <View style={styles.row}>
         {stats.map((stat) => (
@@ -129,6 +176,18 @@ const createStyles = (theme: AppTheme) =>
     container: {
       marginTop: spacing.sm,
     },
+    stripContainer: {
+      marginTop: spacing.sm,
+    },
+    stripSurface: {
+      padding: spacing.sm,
+      borderRadius: borderRadius.lg,
+      backgroundColor: theme.colors.card,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      gap: spacing.sm,
+      ...shadows.sm,
+    },
     toggleWrap: {
       flexDirection: 'row',
       alignSelf: 'center',
@@ -140,10 +199,21 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.colors.border,
       ...shadows.sm,
     },
+    toggleWrapCompact: {
+      alignSelf: 'stretch',
+      marginBottom: 0,
+      padding: 3,
+    },
     toggleButton: {
       borderRadius: borderRadius.full,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
+    },
+    toggleButtonCompact: {
+      flex: 1,
+      alignItems: 'center',
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 7,
     },
     toggleButtonActive: {
       backgroundColor: theme.isDark ? theme.colors.primarySoft : brandColors.navy,
@@ -189,6 +259,43 @@ const createStyles = (theme: AppTheme) =>
       fontSize: fontSize.xs,
       color: theme.colors.textMuted,
       textAlign: 'center',
+    },
+    stripStatsRow: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+    },
+    stripStatItem: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.surfaceAlt,
+    },
+    stripIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stripStatCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+    stripValue: {
+      fontSize: fontSize.base,
+      fontWeight: '800',
+      color: theme.colors.textPrimary,
+      fontVariant: ['tabular-nums'],
+    },
+    stripLabel: {
+      marginTop: 1,
+      fontSize: 11,
+      color: theme.colors.textMuted,
     },
   });
 

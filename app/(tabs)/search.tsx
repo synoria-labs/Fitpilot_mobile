@@ -40,33 +40,33 @@ type PriceFilter = 'all' | 'under_500' | '500_1000' | '1000_plus';
 
 const ROLE_OPTIONS = [
   { key: 'all', label: 'Todos' },
-  { key: 'nutritionist', label: 'Nutrición' },
+  { key: 'nutritionist', label: 'Nutricion' },
   { key: 'trainer', label: 'Entreno' },
 ] satisfies { key: RoleFilter; label: string }[];
 
 const SERVICE_MODE_OPTIONS = [
   { key: 'all', label: 'Todo' },
-  { key: 'online', label: 'En línea' },
+  { key: 'online', label: 'En linea' },
   { key: 'in_person', label: 'Presencial' },
-  { key: 'hybrid', label: 'Híbrido' },
+  { key: 'hybrid', label: 'Hibrido' },
 ] satisfies { key: ServiceModeFilter; label: string }[];
 
 const PRICE_OPTIONS = [
-  { key: 'all', label: 'Cualquier precio' },
+  { key: 'all', label: 'Cualquiera' },
   { key: 'under_500', label: '< $500' },
   { key: '500_1000', label: '$500-$1,000' },
   { key: '1000_plus', label: '$1,000+' },
 ] satisfies { key: PriceFilter; label: string }[];
 
 const ROLE_LABELS: Record<PublicProfessionalRole, string> = {
-  nutritionist: 'Nutriólogo',
+  nutritionist: 'Nutriologo',
   trainer: 'Entrenador',
 };
 
 const SERVICE_MODE_LABELS: Record<PublicProfessionalServiceMode, string> = {
-  online: 'En línea',
+  online: 'En linea',
   in_person: 'Presencial',
-  hybrid: 'Híbrido',
+  hybrid: 'Hibrido',
 };
 
 const getInitials = (profile: PublicProfessionalCard) =>
@@ -91,6 +91,9 @@ const getPriceRange = (priceFilter: PriceFilter) => {
   return {};
 };
 
+const getOptionLabel = <T extends string>(options: { key: T; label: string }[], value: T) =>
+  options.find((option) => option.key === value)?.label ?? '';
+
 export default function SearchProfessionalsScreen() {
   const { width, height } = useWindowDimensions();
   const contentInsetBottom = useBottomTabBarContentInset();
@@ -101,10 +104,29 @@ export default function SearchProfessionalsScreen() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [serviceModeFilter, setServiceModeFilter] = useState<ServiceModeFilter>('all');
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [professionals, setProfessionals] = useState<PublicProfessionalCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasActiveFilters =
+    searchQuery.trim().length > 0 ||
+    roleFilter !== 'all' ||
+    serviceModeFilter !== 'all' ||
+    priceFilter !== 'all';
+  const resultCountLabel = isLoading
+    ? 'Buscando...'
+    : error
+      ? 'Catalogo no disponible'
+      : `${professionals.length} resultado${professionals.length === 1 ? '' : 's'}`;
+  const secondaryFilterCount = Number(serviceModeFilter !== 'all') + Number(priceFilter !== 'all');
+  const serviceModeLabel = getOptionLabel(SERVICE_MODE_OPTIONS, serviceModeFilter);
+  const priceLabel = getOptionLabel(PRICE_OPTIONS, priceFilter);
+  const filterSummary = secondaryFilterCount > 0
+    ? [serviceModeFilter !== 'all' ? serviceModeLabel : null, priceFilter !== 'all' ? priceLabel : null]
+        .filter(Boolean)
+        .join(' - ')
+    : 'Modalidad y precio';
 
   const requestParams = useMemo(
     () => ({
@@ -153,6 +175,14 @@ export default function SearchProfessionalsScreen() {
     return () => clearTimeout(timeout);
   }, [loadProfessionals]);
 
+  const clearFilters = useCallback(() => {
+    setSearchQuery('');
+    setRoleFilter('all');
+    setServiceModeFilter('all');
+    setPriceFilter('all');
+    setIsFiltersExpanded(false);
+  }, []);
+
   const openProfessional = (profile: PublicProfessionalCard) => {
     const requestedRole =
       roleFilter !== 'all'
@@ -191,17 +221,25 @@ export default function SearchProfessionalsScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerCopy}>
               <Text style={styles.eyebrow}>Buscar</Text>
               <Text style={styles.title}>Profesionales</Text>
+              <Text style={styles.headerSubtitle}>{resultCountLabel}</Text>
             </View>
-            <View style={styles.headerIcon}>
-              <Ionicons name="search" size={24} color={theme.colors.primary} />
-            </View>
+            {hasActiveFilters ? (
+              <Pressable style={styles.clearButton} onPress={clearFilters}>
+                <Ionicons name="close-circle-outline" size={15} color={theme.colors.primary} />
+                <Text style={styles.clearButtonText}>Limpiar</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.headerIcon}>
+                <Ionicons name="search" size={20} color={theme.colors.primary} />
+              </View>
+            )}
           </View>
 
           <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={20} color={theme.colors.iconMuted} />
+            <Ionicons name="search-outline" size={18} color={theme.colors.iconMuted} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -212,27 +250,61 @@ export default function SearchProfessionalsScreen() {
             />
             {searchQuery ? (
               <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Ionicons name="close-circle" size={20} color={theme.colors.iconMuted} />
+                <Ionicons name="close-circle" size={18} color={theme.colors.iconMuted} />
               </Pressable>
             ) : null}
           </View>
 
-          <SegmentedControl
-            options={ROLE_OPTIONS}
-            value={roleFilter}
-            onChange={setRoleFilter}
-          />
+          <View style={styles.filterGroup}>
+            <SegmentedControl
+              options={ROLE_OPTIONS}
+              value={roleFilter}
+              onChange={setRoleFilter}
+              size="compact"
+            />
 
-          <FilterRow
-            options={SERVICE_MODE_OPTIONS}
-            value={serviceModeFilter}
-            onChange={setServiceModeFilter}
-          />
-          <FilterRow
-            options={PRICE_OPTIONS}
-            value={priceFilter}
-            onChange={setPriceFilter}
-          />
+            <Pressable
+              style={styles.filterSummaryBar}
+              onPress={() => setIsFiltersExpanded((currentValue) => !currentValue)}
+            >
+              <View style={styles.filterSummaryIcon}>
+                <Ionicons name="options-outline" size={16} color={theme.colors.primary} />
+              </View>
+              <View style={styles.filterSummaryCopy}>
+                <Text style={styles.filterSummaryTitle}>Filtros</Text>
+                <Text style={styles.filterSummaryText} numberOfLines={1}>
+                  {filterSummary}
+                </Text>
+              </View>
+              {secondaryFilterCount > 0 ? (
+                <View style={styles.filterCountPill}>
+                  <Text style={styles.filterCountText}>{secondaryFilterCount}</Text>
+                </View>
+              ) : null}
+              <Ionicons
+                name={isFiltersExpanded ? 'chevron-up-outline' : 'chevron-down-outline'}
+                size={16}
+                color={theme.colors.iconMuted}
+              />
+            </Pressable>
+
+            {isFiltersExpanded ? (
+              <View style={styles.filterPanel}>
+                <Text style={styles.filterPanelLabel}>Modalidad</Text>
+                <FilterRow
+                  options={SERVICE_MODE_OPTIONS}
+                  value={serviceModeFilter}
+                  onChange={setServiceModeFilter}
+                />
+                <Text style={styles.filterPanelLabel}>Precio</Text>
+                <FilterRow
+                  options={PRICE_OPTIONS}
+                  value={priceFilter}
+                  onChange={setPriceFilter}
+                />
+              </View>
+            ) : null}
+          </View>
 
           {isLoading ? (
             <View style={styles.centerState}>
@@ -241,7 +313,7 @@ export default function SearchProfessionalsScreen() {
           ) : error ? (
             <View style={styles.emptyState}>
               <Ionicons name="alert-circle-outline" size={28} color={theme.colors.error} />
-              <Text style={styles.emptyTitle}>No pudimos cargar el catálogo</Text>
+              <Text style={styles.emptyTitle}>No pudimos cargar el catalogo</Text>
               <Text style={styles.emptyText}>{error}</Text>
             </View>
           ) : professionals.length === 0 ? (
@@ -309,12 +381,21 @@ interface ProfessionalCardProps {
 }
 
 function ProfessionalCard({ profile, onPress }: ProfessionalCardProps) {
+  const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const price = formatPrice(profile);
   const location = [profile.public_city, profile.public_state].filter(Boolean).join(', ');
+  const roleSummary = profile.roles.map((role) => ROLE_LABELS[role]).join(' / ');
+  const serviceModeSummary = profile.public_service_mode
+    ? SERVICE_MODE_LABELS[profile.public_service_mode]
+    : null;
+  const professionalMeta = [roleSummary, serviceModeSummary].filter(Boolean).join(' - ');
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
+      onPress={onPress}
+    >
       <View style={styles.cardTop}>
         {profile.profile_picture ? (
           <Image source={{ uri: profile.profile_picture }} style={styles.avatar} />
@@ -324,43 +405,41 @@ function ProfessionalCard({ profile, onPress }: ProfessionalCardProps) {
           </View>
         )}
         <View style={styles.cardIdentity}>
-          <Text style={styles.cardName} numberOfLines={1}>
-            {getFullName(profile)}
-          </Text>
+          <View style={styles.cardNameRow}>
+            <Text style={styles.cardName} numberOfLines={1}>
+              {getFullName(profile)}
+            </Text>
+            {price ? (
+              <View style={styles.pricePill}>
+                <Text style={styles.price} numberOfLines={1}>{price}</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={styles.cardTitle} numberOfLines={2}>
             {profile.title ?? 'Profesional FitPilot'}
           </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-      </View>
-
-      <View style={styles.badgeRow}>
-        {profile.roles.map((role) => (
-          <View key={role} style={styles.badge}>
-            <Text style={styles.badgeText}>{ROLE_LABELS[role]}</Text>
-          </View>
-        ))}
-        {profile.public_service_mode ? (
-          <View style={styles.badgeMuted}>
-            <Text style={styles.badgeMutedText}>
-              {SERVICE_MODE_LABELS[profile.public_service_mode]}
+          {professionalMeta ? (
+            <Text style={styles.professionalMeta} numberOfLines={1}>
+              {professionalMeta}
+            </Text>
+          ) : null}
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={13} color={theme.colors.iconMuted} />
+            <Text style={styles.location} numberOfLines={1}>
+              {location || 'Ubicacion no disponible'}
             </Text>
           </View>
-        ) : null}
+        </View>
+        <View style={styles.chevronBubble}>
+          <Ionicons name="chevron-forward" size={17} color={theme.colors.primary} />
+        </View>
       </View>
 
       {profile.specialties.length > 0 ? (
-        <Text style={styles.specialties} numberOfLines={2}>
-          {profile.specialties.slice(0, 4).join(' · ')}
+        <Text style={styles.specialties} numberOfLines={1}>
+          {profile.specialties.slice(0, 4).join(' - ')}
         </Text>
       ) : null}
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.location} numberOfLines={1}>
-          {location || 'Ubicación no disponible'}
-        </Text>
-        {price ? <Text style={styles.price}>{price}</Text> : null}
-      </View>
     </Pressable>
   );
 }
@@ -373,13 +452,18 @@ const createStyles = (theme: AppTheme) =>
     },
     content: {
       flexGrow: 1,
-      paddingTop: spacing.md,
-      gap: spacing.md,
+      paddingTop: spacing.sm,
+      gap: spacing.sm,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    headerCopy: {
+      flex: 1,
+      minWidth: 0,
     },
     eyebrow: {
       fontSize: fontSize.xs,
@@ -390,13 +474,18 @@ const createStyles = (theme: AppTheme) =>
     },
     title: {
       marginTop: 2,
-      fontSize: 30,
+      fontSize: 28,
       fontWeight: '800',
       color: theme.colors.textPrimary,
     },
+    headerSubtitle: {
+      marginTop: 2,
+      fontSize: fontSize.sm,
+      color: theme.colors.textMuted,
+    },
     headerIcon: {
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
@@ -404,31 +493,116 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       borderColor: theme.colors.primaryBorder,
     },
+    clearButton: {
+      minHeight: 34,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 11,
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    clearButtonText: {
+      fontSize: fontSize.xs,
+      fontWeight: '800',
+      color: theme.colors.primary,
+    },
     searchBox: {
-      minHeight: 52,
+      minHeight: 46,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      borderRadius: borderRadius.lg,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.full,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     searchInput: {
       flex: 1,
-      fontSize: fontSize.base,
+      fontSize: fontSize.sm,
       color: theme.colors.textPrimary,
-      paddingVertical: spacing.md,
+      paddingVertical: 10,
+    },
+    filterGroup: {
+      gap: spacing.xs,
+    },
+    filterSummaryBar: {
+      minHeight: 42,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.lg,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    filterSummaryIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: borderRadius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    filterSummaryCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+    filterSummaryTitle: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: theme.colors.textPrimary,
+      textTransform: 'uppercase',
+    },
+    filterSummaryText: {
+      marginTop: 1,
+      fontSize: fontSize.xs,
+      color: theme.colors.textMuted,
+    },
+    filterCountPill: {
+      minWidth: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    filterCountText: {
+      fontSize: 11,
+      fontWeight: '900',
+      color: theme.colors.primary,
+    },
+    filterPanel: {
+      gap: spacing.xs,
+      padding: spacing.sm,
+      borderRadius: borderRadius.lg,
+      backgroundColor: theme.colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    filterPanelLabel: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: theme.colors.textMuted,
+      textTransform: 'uppercase',
     },
     filterRow: {
-      gap: spacing.sm,
+      gap: spacing.xs,
       paddingRight: spacing.md,
     },
     filterChip: {
-      minHeight: 38,
+      minHeight: 32,
       justifyContent: 'center',
-      paddingHorizontal: spacing.md,
+      paddingHorizontal: 12,
       borderRadius: borderRadius.full,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
@@ -439,7 +613,7 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.colors.primaryBorder,
     },
     filterChipText: {
-      fontSize: fontSize.sm,
+      fontSize: fontSize.xs,
       fontWeight: '700',
       color: theme.colors.textMuted,
     },
@@ -447,12 +621,12 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.primary,
     },
     centerState: {
-      minHeight: 260,
+      minHeight: 220,
       alignItems: 'center',
       justifyContent: 'center',
     },
     emptyState: {
-      minHeight: 260,
+      minHeight: 220,
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.sm,
@@ -470,31 +644,34 @@ const createStyles = (theme: AppTheme) =>
       color: theme.colors.textMuted,
     },
     results: {
-      gap: spacing.md,
+      gap: spacing.sm,
     },
     card: {
-      gap: spacing.md,
-      padding: spacing.md,
+      gap: spacing.sm,
+      padding: 12,
       borderRadius: borderRadius.lg,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
       borderColor: theme.colors.border,
       ...shadows.sm,
     },
+    cardPressed: {
+      opacity: 0.88,
+    },
     cardTop: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
+      alignItems: 'flex-start',
+      gap: spacing.sm,
     },
     avatar: {
-      width: 58,
-      height: 58,
+      width: 48,
+      height: 48,
       borderRadius: borderRadius.full,
       backgroundColor: theme.colors.surfaceAlt,
     },
     avatarFallback: {
-      width: 58,
-      height: 58,
+      width: 48,
+      height: 48,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
@@ -510,66 +687,70 @@ const createStyles = (theme: AppTheme) =>
     cardIdentity: {
       minWidth: 0,
       flex: 1,
+      gap: 3,
+    },
+    cardNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
     },
     cardName: {
-      fontSize: fontSize.lg,
+      flex: 1,
+      minWidth: 0,
+      fontSize: fontSize.base,
       fontWeight: '800',
       color: theme.colors.textPrimary,
     },
     cardTitle: {
       marginTop: 2,
       fontSize: fontSize.sm,
-      lineHeight: 20,
+      lineHeight: 18,
       color: theme.colors.textMuted,
     },
-    badgeRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    badge: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 6,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
-    },
-    badgeText: {
+    professionalMeta: {
       fontSize: fontSize.xs,
       fontWeight: '800',
       color: theme.colors.primary,
+      lineHeight: 16,
     },
-    badgeMuted: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 6,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    badgeMutedText: {
-      fontSize: fontSize.xs,
-      fontWeight: '800',
-      color: theme.colors.textSecondary,
-    },
-    specialties: {
-      fontSize: fontSize.sm,
-      lineHeight: 20,
-      color: theme.colors.textSecondary,
-    },
-    cardFooter: {
+    locationRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.md,
+      gap: 3,
+    },
+    chevronBubble: {
+      width: 28,
+      height: 28,
+      borderRadius: borderRadius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    specialties: {
+      fontSize: fontSize.xs,
+      lineHeight: 16,
+      color: theme.colors.textSecondary,
     },
     location: {
       minWidth: 0,
       flex: 1,
-      fontSize: fontSize.sm,
+      fontSize: fontSize.xs,
       color: theme.colors.textMuted,
     },
+    pricePill: {
+      maxWidth: 116,
+      minHeight: 24,
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      paddingHorizontal: 8,
+      backgroundColor: theme.colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
     price: {
-      fontSize: fontSize.base,
+      fontSize: fontSize.xs,
       fontWeight: '900',
       color: theme.colors.textPrimary,
     },

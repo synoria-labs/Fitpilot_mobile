@@ -22,15 +22,18 @@ import {
 interface ConnectedHealthFeedbackSummaryCardProps {
   contentWidth?: number;
   horizontalPadding?: number;
+  variant?: 'card' | 'compact';
 }
 
 const SUMMARY_METRICS = ['recovery', 'sleep', 'active_energy', 'steps'];
 
 export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbackSummaryCardProps> = ({
   horizontalPadding = spacing.md,
+  variant = 'card',
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const isCompact = variant === 'compact';
   const {
     feedback,
     isLoading,
@@ -53,16 +56,18 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
   };
 
   return (
-    <View style={[styles.outer, { paddingHorizontal: horizontalPadding }]}>
-      <Card style={styles.card} padding="lg">
+    <View style={[styles.outer, isCompact ? styles.outerCompact : null, { paddingHorizontal: horizontalPadding }]}>
+      <Card style={[styles.card, isCompact ? styles.cardCompact : null]} padding={isCompact ? 'md' : 'lg'}>
         <View style={styles.header}>
           <View style={styles.titleWrap}>
-            <View style={styles.iconBubble}>
-              <Ionicons name="pulse-outline" size={18} color={theme.colors.primary} />
+            <View style={[styles.iconBubble, isCompact ? styles.iconBubbleCompact : null]}>
+              <Ionicons name="pulse-outline" size={isCompact ? 16 : 18} color={theme.colors.primary} />
             </View>
             <View style={styles.titleCopy}>
               <Text style={styles.eyebrow}>Salud conectada</Text>
-              <Text style={styles.title}>Preparacion de hoy</Text>
+              <Text style={[styles.title, isCompact ? styles.titleCompact : null]}>
+                Preparacion de hoy
+              </Text>
             </View>
           </View>
           <ConnectedHealthFreshnessBadge feedback={feedback} isSyncing={isSyncing} />
@@ -71,16 +76,21 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
         {showLoading ? (
           <ConnectedHealthCardSkeleton compact />
         ) : feedback.hasData ? (
-          <View style={styles.body}>
-            <View style={styles.readinessBlock}>
-              <Text style={styles.readinessValue}>
+          <View style={[styles.body, isCompact ? styles.bodyCompact : null]}>
+            <View style={[styles.readinessBlock, isCompact ? styles.readinessBlockCompact : null]}>
+              <Text style={[styles.readinessValue, isCompact ? styles.readinessValueCompact : null]}>
                 {feedback.readiness.score == null
                   ? '--'
                   : Math.round(feedback.readiness.score)}
               </Text>
               <View style={styles.readinessCopy}>
-                <Text style={styles.readinessTitle}>{feedback.readiness.title}</Text>
-                <Text style={styles.readinessMessage}>
+                <Text style={[styles.readinessTitle, isCompact ? styles.readinessTitleCompact : null]}>
+                  {feedback.readiness.title}
+                </Text>
+                <Text
+                  style={styles.readinessMessage}
+                  numberOfLines={isCompact ? 1 : undefined}
+                >
                   {feedback.readiness.message}
                 </Text>
               </View>
@@ -97,7 +107,7 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
             </View>
 
             {primaryInsight ? (
-              <View style={styles.insightPreview}>
+              <View style={[styles.insightPreview, isCompact ? styles.insightPreviewCompact : null]}>
                 <Ionicons
                   name={primaryInsight.tone === 'warning' ? 'alert-circle-outline' : 'sparkles-outline'}
                   size={16}
@@ -107,7 +117,7 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
                       : theme.colors.primary
                   }
                 />
-                <Text style={styles.insightPreviewText} numberOfLines={2}>
+                <Text style={styles.insightPreviewText} numberOfLines={isCompact ? 1 : 2}>
                   {primaryInsight.title}: {primaryInsight.message}
                 </Text>
               </View>
@@ -161,8 +171,14 @@ const createStyles = (theme: AppTheme) =>
     outer: {
       marginVertical: spacing.md,
     },
+    outerCompact: {
+      marginVertical: spacing.sm,
+    },
     card: {
       gap: spacing.md,
+    },
+    cardCompact: {
+      gap: spacing.sm,
     },
     header: {
       flexDirection: 'row',
@@ -186,6 +202,11 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       borderColor: theme.colors.primaryBorder,
     },
+    iconBubbleCompact: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+    },
     titleCopy: {
       flex: 1,
       gap: 2,
@@ -202,8 +223,14 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
       color: theme.colors.textPrimary,
     },
+    titleCompact: {
+      fontSize: fontSize.base,
+    },
     body: {
       gap: spacing.md,
+    },
+    bodyCompact: {
+      gap: spacing.sm,
     },
     readinessBlock: {
       flexDirection: 'row',
@@ -215,6 +242,10 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
+    readinessBlockCompact: {
+      gap: spacing.sm,
+      padding: spacing.sm,
+    },
     readinessValue: {
       width: 54,
       textAlign: 'center',
@@ -222,6 +253,10 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '900',
       color: theme.colors.primary,
       fontVariant: ['tabular-nums'],
+    },
+    readinessValueCompact: {
+      width: 44,
+      fontSize: fontSize.xl,
     },
     readinessCopy: {
       flex: 1,
@@ -231,6 +266,9 @@ const createStyles = (theme: AppTheme) =>
       fontSize: fontSize.base,
       fontWeight: '800',
       color: theme.colors.textPrimary,
+    },
+    readinessTitleCompact: {
+      fontSize: fontSize.sm,
     },
     readinessMessage: {
       fontSize: fontSize.sm,
@@ -249,6 +287,9 @@ const createStyles = (theme: AppTheme) =>
       padding: spacing.sm,
       borderRadius: borderRadius.md,
       backgroundColor: theme.colors.primarySoft,
+    },
+    insightPreviewCompact: {
+      paddingVertical: spacing.xs,
     },
     insightPreviewText: {
       flex: 1,
