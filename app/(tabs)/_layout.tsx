@@ -508,7 +508,7 @@ export default function TabLayout() {
           <Tabs.Screen
             name="workouts"
             options={{
-              title: isTablet ? 'Entreno' : 'Entrenamientos',
+              title: 'Entreno',
               tabBarIcon: ({ color, size, focused }) => (
                 <Ionicons
                   name={focused ? 'barbell' : 'barbell-outline'}
@@ -525,6 +525,19 @@ export default function TabLayout() {
               tabBarIcon: ({ color, size, focused }) => (
                 <Ionicons
                   name={focused ? 'body' : 'body-outline'}
+                  size={size}
+                  color={color}
+                />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="search"
+            options={{
+              title: 'Buscar',
+              tabBarIcon: ({ color, size, focused }) => (
+                <Ionicons
+                  name={focused ? 'search' : 'search-outline'}
                   size={size}
                   color={color}
                 />

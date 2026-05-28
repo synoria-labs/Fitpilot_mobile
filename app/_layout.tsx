@@ -109,6 +109,13 @@ export default function RootLayout() {
             }}
           />
           <Stack.Screen
+            name="professionals"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
             name="recipes"
             options={{
               headerShown: false,
