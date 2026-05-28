@@ -18,8 +18,11 @@ import {
 type UseConnectedHealthFeedbackOptions = {
   days?: ConnectedHealthFeedbackRange;
   autoSync?: boolean;
+  autoSyncThrottleMs?: number;
   enabled?: boolean;
 };
+
+const DEFAULT_SYNC_THROTTLE_MS = 60_000;
 
 type LoadOptions = {
   allowAutoSync?: boolean;
@@ -35,6 +38,7 @@ const getErrorMessage = (error: unknown, fallback: string) =>
 export function useConnectedHealthFeedback({
   days = 7,
   autoSync = false,
+  autoSyncThrottleMs = DEFAULT_SYNC_THROTTLE_MS,
   enabled = true,
 }: UseConnectedHealthFeedbackOptions = {}) {
   const [summary, setSummary] = useState<ConnectedHealthSummaryResponse | null>(null);
@@ -47,6 +51,7 @@ export function useConnectedHealthFeedback({
   const [syncError, setSyncError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
   const summaryRef = useRef<ConnectedHealthSummaryResponse | null>(null);
+  const lastSyncAttemptRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -167,6 +172,7 @@ export function useConnectedHealthFeedback({
       return;
     }
 
+    lastSyncAttemptRef.current = Date.now();
     setIsSyncing(true);
     setSyncError(null);
 
@@ -189,6 +195,16 @@ export function useConnectedHealthFeedback({
       }
     }
   }, [days, enabled]);
+
+  const syncIfStale = useCallback(async () => {
+    if (!enabled) {
+      return;
+    }
+    if (Date.now() - lastSyncAttemptRef.current < autoSyncThrottleMs) {
+      return;
+    }
+    await sync();
+  }, [autoSyncThrottleMs, enabled, sync]);
 
   useEffect(() => {
     if (!enabled) {
@@ -224,5 +240,6 @@ export function useConnectedHealthFeedback({
     needsPermissionCta,
     refresh,
     sync,
+    syncIfStale,
   };
 }
