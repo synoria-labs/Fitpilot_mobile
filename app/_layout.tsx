@@ -9,6 +9,7 @@ import { useAuthStore } from '../src/store/authStore';
 import { StartupBrandIntro } from '../src/components/common';
 import { buildNavigationTheme, useAppTheme, useThemedStyles } from '../src/theme';
 import { useSystemNavigationBarTheme } from '../src/hooks/useSystemNavigationBarTheme';
+import { useNotificationListeners } from '../src/services/notificationListeners';
 
 // Configurar Reanimated logger para suprimir mensajes de strict mode
 configureReanimatedLogger({
@@ -25,6 +26,7 @@ export default function RootLayout() {
   const [isNativeSplashHidden, setIsNativeSplashHidden] = useState(false);
   const isReady = isInitialized && isHydrated;
 
+  useNotificationListeners();
   useSystemNavigationBarTheme(theme, isReady && !showStartupIntro);
 
   useEffect(() => {

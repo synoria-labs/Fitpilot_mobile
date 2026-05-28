@@ -126,6 +126,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             'Allow $(PRODUCT_NAME) to access your camera to let you set your profile picture.',
         },
       ],
+      [
+        'expo-notifications',
+        {
+          color: '#10b981',
+          defaultChannel: 'default',
+        },
+      ],
     ],
     experiments: {
       typedRoutes: true,
