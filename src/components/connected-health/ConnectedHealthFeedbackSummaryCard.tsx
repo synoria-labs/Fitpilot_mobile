@@ -44,11 +44,6 @@ const COMPACT_CHIP_ORDER: ConnectedHealthMetricKey[] = [
   'active_energy',
 ];
 
-const SHORT_METRIC_LABELS: Partial<Record<ConnectedHealthMetricKey, string>> = {
-  recovery: 'Recup.',
-  active_energy: 'Kcal',
-};
-
 const resolveMetricTint = (
   theme: AppTheme,
   tone: ConnectedHealthMetricCard['tone'],
@@ -62,19 +57,18 @@ const MetricStatTile: React.FC<{ metric: ConnectedHealthMetricCard }> = ({ metri
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const tint = resolveMetricTint(theme, metric.tone);
-  const label = SHORT_METRIC_LABELS[metric.key] ?? metric.label;
 
   return (
     <View style={styles.statTile}>
       <View style={[styles.statIcon, { backgroundColor: `${tint}1F` }]}>
-        <Ionicons name={metric.icon} size={15} color={tint} />
+        <Ionicons name={metric.icon} size={16} color={tint} />
       </View>
       <View style={styles.statCopy}>
         <Text style={styles.statValue} numberOfLines={1}>
           {metric.value}
         </Text>
         <Text style={styles.statLabel} numberOfLines={1}>
-          {label}
+          {metric.label}
         </Text>
       </View>
     </View>
@@ -452,15 +446,17 @@ const createStyles = (theme: AppTheme) =>
     },
     statsRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: spacing.xs,
     },
     statTile: {
-      flex: 1,
+      flexBasis: '48%',
+      flexGrow: 1,
       minWidth: 0,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      paddingHorizontal: spacing.xs,
+      paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
       borderRadius: borderRadius.md,
       backgroundColor: theme.colors.surfaceAlt,
