@@ -44,19 +44,39 @@ const COMPACT_CHIP_ORDER: ConnectedHealthMetricKey[] = [
   'active_energy',
 ];
 
-const MetricChip: React.FC<{ metric: ConnectedHealthMetricCard }> = ({ metric }) => {
+const SHORT_METRIC_LABELS: Partial<Record<ConnectedHealthMetricKey, string>> = {
+  recovery: 'Recup.',
+  active_energy: 'Kcal',
+};
+
+const resolveMetricTint = (
+  theme: AppTheme,
+  tone: ConnectedHealthMetricCard['tone'],
+): string => {
+  if (tone === 'positive') return theme.colors.success;
+  if (tone === 'warning') return theme.colors.warning;
+  return theme.colors.primary;
+};
+
+const MetricStatTile: React.FC<{ metric: ConnectedHealthMetricCard }> = ({ metric }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const tint = resolveMetricTint(theme, metric.tone);
+  const label = SHORT_METRIC_LABELS[metric.key] ?? metric.label;
 
   return (
-    <View style={styles.chip}>
-      <Ionicons name={metric.icon} size={14} color={theme.colors.primary} />
-      <Text style={styles.chipValue} numberOfLines={1}>
-        {metric.value}
-      </Text>
-      <Text style={styles.chipLabel} numberOfLines={1}>
-        {metric.label}
-      </Text>
+    <View style={styles.statTile}>
+      <View style={[styles.statIcon, { backgroundColor: `${tint}1F` }]}>
+        <Ionicons name={metric.icon} size={15} color={tint} />
+      </View>
+      <View style={styles.statCopy}>
+        <Text style={styles.statValue} numberOfLines={1}>
+          {metric.value}
+        </Text>
+        <Text style={styles.statLabel} numberOfLines={1}>
+          {label}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -189,9 +209,9 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
               </Text>
             </Text>
             {chipMetrics.length > 0 ? (
-              <View style={styles.chipsRow}>
+              <View style={styles.statsRow}>
                 {chipMetrics.map((metric) => (
-                  <MetricChip key={metric.key} metric={metric} />
+                  <MetricStatTile key={metric.key} metric={metric} />
                 ))}
               </View>
             ) : null}
@@ -430,30 +450,41 @@ const createStyles = (theme: AppTheme) =>
       flexWrap: 'wrap',
       gap: spacing.sm,
     },
-    chipsRow: {
+    statsRow: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
       gap: spacing.xs,
     },
-    chip: {
+    statTile: {
+      flex: 1,
+      minWidth: 0,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 6,
-      borderRadius: borderRadius.full,
+      gap: spacing.xs,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.md,
       backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
-    chipValue: {
-      fontSize: fontSize.sm,
+    statIcon: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    statCopy: {
+      flex: 1,
+      minWidth: 0,
+    },
+    statValue: {
+      fontSize: fontSize.base,
       fontWeight: '800',
       color: theme.colors.textPrimary,
       fontVariant: ['tabular-nums'],
     },
-    chipLabel: {
-      fontSize: fontSize.xs,
+    statLabel: {
+      marginTop: 1,
+      fontSize: 11,
       color: theme.colors.textMuted,
     },
     insightPreview: {
