@@ -15,12 +15,14 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  compact?: boolean;
 }
 
 export const Input: React.FC<InputProps> = ({
   label,
   error,
   icon,
+  compact = false,
   secureTextEntry,
   style,
   ...props
@@ -33,11 +35,12 @@ export const Input: React.FC<InputProps> = ({
   const isPassword = secureTextEntry !== undefined;
 
   return (
-    <View style={styles.container}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+    <View style={[styles.container, compact ? styles.containerCompact : null]}>
+      {label ? <Text style={[styles.label, compact ? styles.labelCompact : null]}>{label}</Text> : null}
       <View
         style={[
           styles.inputContainer,
+          compact ? styles.inputContainerCompact : null,
           isFocused ? styles.inputFocused : null,
           error ? styles.inputError : null,
         ]}
@@ -45,13 +48,13 @@ export const Input: React.FC<InputProps> = ({
         {icon ? (
           <Ionicons
             name={icon}
-            size={20}
+            size={compact ? 18 : 20}
             color={isFocused ? theme.colors.primary : theme.colors.iconMuted}
             style={styles.icon}
           />
         ) : null}
         <TextInput
-          style={[styles.input, style]}
+          style={[styles.input, compact ? styles.inputCompact : null, style]}
           placeholderTextColor={theme.colors.textMuted}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -65,7 +68,7 @@ export const Input: React.FC<InputProps> = ({
           >
             <Ionicons
               name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-              size={20}
+              size={compact ? 18 : 20}
               color={theme.colors.iconMuted}
             />
           </TouchableOpacity>
@@ -81,11 +84,18 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     container: {
       marginBottom: spacing.md,
     },
+    containerCompact: {
+      marginBottom: 10,
+    },
     label: {
       fontSize: fontSize.sm,
       fontWeight: '500',
       color: theme.colors.textSecondary,
       marginBottom: spacing.xs,
+    },
+    labelCompact: {
+      fontSize: fontSize.xs,
+      marginBottom: 3,
     },
     inputContainer: {
       flexDirection: 'row',
@@ -95,6 +105,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderWidth: 1,
       borderColor: theme.colors.inputBorder,
       paddingHorizontal: spacing.md,
+    },
+    inputContainerCompact: {
+      paddingHorizontal: 12,
     },
     inputFocused: {
       borderColor: theme.colors.primary,
@@ -111,6 +124,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingVertical: spacing.md,
       fontSize: fontSize.base,
       color: theme.colors.textPrimary,
+    },
+    inputCompact: {
+      paddingVertical: 10,
+      fontSize: fontSize.sm,
     },
     eyeButton: {
       padding: spacing.xs,

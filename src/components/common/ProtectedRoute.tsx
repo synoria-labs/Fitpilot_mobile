@@ -14,6 +14,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 }) => {
   const isInitialized = useAuthStore((state) => state.isInitialized);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const onboardingStatus = useAuthStore((state) => state.user?.onboardingStatus);
 
   if (!isInitialized) {
     return <LoadingSpinner fullScreen text={loadingText} />;
@@ -21,6 +22,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (!isAuthenticated) {
     return <Redirect href="/login" />;
+  }
+
+  if (onboardingStatus !== 'completed') {
+    return <Redirect href="/onboarding" />;
   }
 
   return <>{children}</>;

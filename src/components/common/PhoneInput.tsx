@@ -18,6 +18,7 @@ interface PhoneInputProps {
   error?: string;
   helperText?: string;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export const PhoneInput: React.FC<PhoneInputProps> = ({
@@ -27,6 +28,7 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   error,
   helperText,
   disabled = false,
+  compact = false,
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -57,23 +59,35 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
   const helperMessage = error || helperText;
 
   return (
-    <View style={styles.container}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+    <View style={[styles.container, compact ? styles.containerCompact : null]}>
+      {label ? <Text style={[styles.label, compact ? styles.labelCompact : null]}>{label}</Text> : null}
 
-      <View style={[styles.fieldContainer, error ? styles.fieldContainerError : null]}>
+      <View
+        style={[
+          styles.fieldContainer,
+          compact ? styles.fieldContainerCompact : null,
+          error ? styles.fieldContainerError : null,
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.countryButton, disabled ? styles.countryButtonDisabled : null]}
+          style={[
+            styles.countryButton,
+            compact ? styles.countryButtonCompact : null,
+            disabled ? styles.countryButtonDisabled : null,
+          ]}
           activeOpacity={0.7}
           disabled={disabled}
           onPress={() => setIsPickerVisible(true)}
         >
-          <Text style={styles.flag}>{selectedCountry.flag}</Text>
-          <Text style={styles.dialCode}>{selectedCountry.dial_code}</Text>
-          <Ionicons name="chevron-down" size={16} color={theme.colors.icon} />
+          <Text style={[styles.flag, compact ? styles.flagCompact : null]}>{selectedCountry.flag}</Text>
+          <Text style={[styles.dialCode, compact ? styles.dialCodeCompact : null]}>
+            {selectedCountry.dial_code}
+          </Text>
+          <Ionicons name="chevron-down" size={compact ? 14 : 16} color={theme.colors.icon} />
         </TouchableOpacity>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, compact ? styles.inputCompact : null]}
           value={nationalNumber}
           onChangeText={handleNumberChange}
           editable={!disabled}
@@ -84,7 +98,15 @@ export const PhoneInput: React.FC<PhoneInputProps> = ({
       </View>
 
       {helperMessage ? (
-        <Text style={[styles.helperText, error ? styles.errorText : null]}>{helperMessage}</Text>
+        <Text
+          style={[
+            styles.helperText,
+            compact ? styles.helperTextCompact : null,
+            error ? styles.errorText : null,
+          ]}
+        >
+          {helperMessage}
+        </Text>
       ) : null}
 
       <CountryPicker
@@ -112,11 +134,18 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     container: {
       marginBottom: spacing.md,
     },
+    containerCompact: {
+      marginBottom: 10,
+    },
     label: {
       fontSize: fontSize.sm,
       fontWeight: '500',
       color: theme.colors.textSecondary,
       marginBottom: spacing.xs,
+    },
+    labelCompact: {
+      fontSize: fontSize.xs,
+      marginBottom: 3,
     },
     fieldContainer: {
       flexDirection: 'row',
@@ -126,6 +155,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderWidth: 1,
       borderColor: theme.colors.inputBorder,
       overflow: 'hidden',
+    },
+    fieldContainerCompact: {
+      borderRadius: borderRadius.sm,
     },
     fieldContainerError: {
       borderColor: theme.colors.error,
@@ -140,16 +172,27 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderRightColor: theme.colors.inputBorder,
       backgroundColor: theme.colors.surface,
     },
+    countryButtonCompact: {
+      gap: 3,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
     countryButtonDisabled: {
       opacity: 0.6,
     },
     flag: {
       fontSize: fontSize.lg,
     },
+    flagCompact: {
+      fontSize: fontSize.base,
+    },
     dialCode: {
       fontSize: fontSize.base,
       fontWeight: '600',
       color: theme.colors.textSecondary,
+    },
+    dialCodeCompact: {
+      fontSize: fontSize.sm,
     },
     input: {
       flex: 1,
@@ -158,10 +201,18 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       fontSize: fontSize.base,
       color: theme.colors.textPrimary,
     },
+    inputCompact: {
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: fontSize.sm,
+    },
     helperText: {
       fontSize: fontSize.xs,
       color: theme.colors.textMuted,
       marginTop: spacing.xs,
+    },
+    helperTextCompact: {
+      marginTop: 3,
     },
     errorText: {
       color: theme.colors.error,

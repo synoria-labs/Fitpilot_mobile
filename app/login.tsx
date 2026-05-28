@@ -32,14 +32,19 @@ export default function LoginScreen() {
   const [isCaptchaVisible, setIsCaptchaVisible] = useState(false);
   const [captchaSessionKey, setCaptchaSessionKey] = useState(0);
   const [pendingCredentials, setPendingCredentials] = useState<LoginCredentials | null>(null);
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
+  const { login, isLoading, error, clearError, isAuthenticated, user } = useAuthStore();
   const styles = useThemedStyles(createStyles);
 
   useEffect(() => {
     if (isAuthenticated) {
+      if (user?.onboardingStatus !== 'completed') {
+        router.replace('/onboarding');
+        return;
+      }
+
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.onboardingStatus]);
 
   const handleChangeEmail = (value: string) => {
     if (error) {
@@ -166,7 +171,7 @@ export default function LoginScreen() {
       >
         <Text style={styles.welcomeTitle}>Bienvenido</Text>
         <Text style={styles.welcomeSubtitle}>
-          Inicia sesion para acceder a tu programa de entrenamiento
+          Inicia sesion o crea tu cuenta para comenzar tu programa
         </Text>
 
         {error ? (
@@ -212,17 +217,21 @@ export default function LoginScreen() {
           style={styles.loginButton}
         />
 
+        <Pressable onPress={() => router.push('/register')} style={styles.createAccountButton}>
+          <Text style={styles.createAccountText}>Crear cuenta nueva</Text>
+        </Pressable>
+
         <View style={styles.infoCard}>
           <View style={styles.infoCardHeader}>
             <Ionicons name="information-circle-outline" size={20} color={brandColors.sky} />
-            <Text style={styles.infoCardTitle}>No tienes cuenta?</Text>
+            <Text style={styles.infoCardTitle}>Empieza en FitPilot</Text>
           </View>
           <Text style={styles.infoCardText}>
-            Esta aplicacion es exclusiva para clientes. Tu entrenador o nutriologo debe
-            darte de alta para que puedas acceder.
+            Crea tu cuenta desde la app y completa el onboarding para que podamos
+            personalizar tu experiencia.
           </Text>
           <Text style={styles.infoCardTextSecondary}>
-            Los profesionales deben usar la aplicacion web.
+            Si ya trabajas con un profesional, usa el mismo correo que compartiste con el.
           </Text>
         </View>
       </ScrollView>
@@ -323,6 +332,16 @@ const createStyles = (theme: AppTheme) =>
     },
     loginButton: {
       marginTop: spacing.md,
+    },
+    createAccountButton: {
+      alignItems: 'center',
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    createAccountText: {
+      color: brandColors.sky,
+      fontSize: fontSize.sm,
+      fontWeight: '700',
     },
     forgotPasswordLink: {
       alignSelf: 'flex-end',

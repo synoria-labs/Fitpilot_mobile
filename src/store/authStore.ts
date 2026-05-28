@@ -21,6 +21,7 @@ interface AuthState {
   error: string | null;
   initialize: () => Promise<void>;
   login: (credentials: LoginCredentials) => Promise<LoginResult>;
+  completeSignupSession: (tokens: LoginResponse) => Promise<LoginResult>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<User | null>;
   uploadAvatar: (uri: string) => Promise<void>;
@@ -59,14 +60,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
     if (status === 401) {
       return (
         'Correo o contrasena incorrectos. Verifica tus datos e intenta de nuevo.\n\n' +
-        'Si aun no tienes cuenta, solicita a tu entrenador o nutriologo que te de de alta.'
+        'Si aun no tienes cuenta, puedes crearla desde la app.'
       );
     }
 
     if (status === 404) {
       return (
         'No se encontro una cuenta con ese correo.\n\n' +
-        'Pide a tu entrenador o nutriologo que te registre en la plataforma.'
+        'Crea una cuenta nueva para comenzar tu onboarding.'
       );
     }
 
@@ -194,6 +195,44 @@ export const useAuthStore = create<AuthState>((set, get) => {
           isLoading: false,
           error: buildLoginErrorMessage(apiError),
         });
+
+        return { status: 'failure' };
+      }
+    },
+
+    completeSignupSession: async (tokens: LoginResponse) => {
+      set({ isLoading: true, error: null });
+
+      try {
+        await setSessionTokens({
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+        });
+
+        const user = await ensureClientUser(await getCurrentUser());
+        if (!user) {
+          return { status: 'failure' };
+        }
+
+        set({
+          user,
+          isAuthenticated: true,
+          isLoading: false,
+          isInitialized: true,
+          error: null,
+        });
+
+        return { status: 'success' };
+      } catch (error) {
+        const apiError = error as ApiError;
+
+        if (__DEV__) {
+          console.warn('[Auth] completeSignupSession error', apiError?.message || apiError);
+        }
+
+        await clearAuthenticatedState(
+          apiError.message || 'No fue posible iniciar sesion despues del registro.',
+        );
 
         return { status: 'failure' };
       }
