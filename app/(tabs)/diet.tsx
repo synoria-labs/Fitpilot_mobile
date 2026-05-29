@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Card, LoadingSpinner, TabScreenWrapper } from '../../src/components/common';
@@ -953,6 +954,30 @@ export default function DietScreen() {
                 />
               </Animated.View>
 
+              <Animated.View
+                entering={getEntryAnimation(110)}
+                style={[styles.weeklyPlanCtaSection, { paddingHorizontal: horizontalPadding }]}
+              >
+                <TouchableOpacity
+                  style={styles.weeklyPlanCta}
+                  onPress={() => router.push('/diet/weekly-plan')}
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Plan semanal y lista del super"
+                >
+                  <View style={styles.weeklyPlanCtaIcon}>
+                    <Ionicons name="list-outline" size={20} color={nutritionTheme.accentStrong} />
+                  </View>
+                  <View style={styles.weeklyPlanCtaCopy}>
+                    <Text style={styles.weeklyPlanCtaTitle}>Plan semanal y lista del super</Text>
+                    <Text style={styles.weeklyPlanCtaSubtitle} numberOfLines={2}>
+                      Elige los menus de la semana y genera tu lista de compras.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.iconMuted} />
+                </TouchableOpacity>
+              </Animated.View>
+
               {visibleMenu ? (
                 <Animated.View
                   entering={getEntryAnimation(140)}
@@ -1253,6 +1278,45 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     selectorCardShell: {
       borderRadius: borderRadius.md,
+    },
+    weeklyPlanCtaSection: {
+      marginTop: spacing.md,
+    },
+    weeklyPlanCta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    weeklyPlanCtaIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.isDark
+        ? 'rgba(56, 189, 248, 0.16)'
+        : `${nutritionTheme.accentStrong}1A`,
+    },
+    weeklyPlanCtaCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    weeklyPlanCtaTitle: {
+      fontSize: fontSize.base,
+      fontWeight: '800',
+      color: theme.colors.textPrimary,
+    },
+    weeklyPlanCtaSubtitle: {
+      fontSize: fontSize.xs,
+      color: theme.colors.textMuted,
+      lineHeight: 16,
     },
     selectorCard: {
       flexDirection: 'row',
