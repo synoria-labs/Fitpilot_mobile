@@ -1,4 +1,4 @@
-import * as Print from 'expo-print';
+import { Share } from 'react-native';
 import {
   groupShoppingListItemsByCategory,
   type ShoppingList,
@@ -30,6 +30,16 @@ const renderItem = (item: ShoppingListItem): string => {
     </li>
   `;
 };
+
+const renderPlainTextItem = (item: ShoppingListItem): string => {
+  const quantity = item.quantity_label?.trim() ? ` - ${item.quantity_label.trim()}` : '';
+  const note = item.note?.trim() ? ` (${item.note.trim()})` : '';
+  return `- [ ] ${item.name}${quantity}${note}`;
+};
+
+const isExpoPrintUnavailableError = (error: unknown): boolean =>
+  error instanceof Error &&
+  /ExpoPrint|native module|Cannot find native module/i.test(error.message);
 
 export const buildShoppingListHtml = (list: ShoppingList): string => {
   const grouped = groupShoppingListItemsByCategory(list.items);
@@ -134,7 +144,40 @@ export const buildShoppingListHtml = (list: ShoppingList): string => {
   </html>`;
 };
 
+export const buildShoppingListPlainText = (list: ShoppingList): string => {
+  const grouped = groupShoppingListItemsByCategory(list.items);
+  const start = formatLocalDate(list.start_date, { day: 'numeric', month: 'long', year: 'numeric' });
+  const end = formatLocalDate(list.end_date, { day: 'numeric', month: 'long', year: 'numeric' });
+  const sections = grouped
+    .map((section) => [
+      section.category.toUpperCase(),
+      ...section.items.map(renderPlainTextItem),
+    ].join('\n'))
+    .join('\n\n');
+
+  return [
+    'Lista del super',
+    `${start} - ${end}`,
+    '',
+    sections || 'Tu lista no tiene items todavia.',
+  ].join('\n');
+};
+
 export const printShoppingList = async (list: ShoppingList): Promise<void> => {
   const html = buildShoppingListHtml(list);
-  await Print.printAsync({ html });
+
+  try {
+    const Print = await import('expo-print');
+    await Print.printAsync({ html });
+    return;
+  } catch (error) {
+    if (!isExpoPrintUnavailableError(error)) {
+      throw error;
+    }
+  }
+
+  await Share.share({
+    title: 'Lista del super',
+    message: buildShoppingListPlainText(list),
+  });
 };

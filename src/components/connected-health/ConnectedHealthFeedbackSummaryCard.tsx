@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect } from 'react';
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  AppState,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -155,7 +163,7 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
 
   const cardContent = (
     <Card
-      style={[styles.card, isCompact ? styles.cardCompact : null]}
+      style={[styles.card, isCompact ? styles.cardCompact : null] as StyleProp<ViewStyle>}
       padding={isCompact ? 'md' : 'lg'}
     >
       <View style={styles.header}>
