@@ -1176,7 +1176,9 @@ export default function DietScreen() {
             <View style={styles.previewActionCard}>
               <View style={styles.previewActionCopy}>
                 <Text style={styles.previewActionEyebrow}>Previsualizacion</Text>
-                <Text style={styles.previewActionTitle}>{previewMenu.title}</Text>
+                <Text style={styles.previewActionTitle}>
+                  {menuLabelsById.get(previewMenu.menuId) ?? 'Menu seleccionado'}
+                </Text>
                 <Text style={styles.previewActionText}>
                   Revisa lo que comerias el {previewBannerDateLabel} y confirma si quieres cambiar a este menu.
                 </Text>

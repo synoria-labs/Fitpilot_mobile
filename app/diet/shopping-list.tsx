@@ -418,6 +418,11 @@ export default function ShoppingListScreen() {
                               {item.quantity_label}
                             </Text>
                           ) : null}
+                          {item.raw_quantity_label ? (
+                            <Text style={styles.itemRawMeta} numberOfLines={1}>
+                              Crudo: {item.raw_quantity_label}
+                            </Text>
+                          ) : null}
                           {item.note ? (
                             <Text style={styles.itemNote} numberOfLines={2}>
                               {item.note}
@@ -781,6 +786,11 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     itemMeta: {
       fontSize: fontSize.xs,
       color: theme.colors.textMuted,
+    },
+    itemRawMeta: {
+      fontSize: fontSize.xs,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
     },
     itemNote: {
       fontSize: fontSize.xs,

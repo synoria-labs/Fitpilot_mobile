@@ -241,6 +241,12 @@ export default function WeeklyPlanScreen() {
                 primaryId != null
                   ? options.find((option) => option.menuId === primaryId) ?? null
                   : null;
+              const selectedMenuIndex = selectedMenu
+                ? options.findIndex((option) => option.menuId === selectedMenu.menuId)
+                : -1;
+              const selectedMenuLabel = selectedMenuIndex >= 0
+                ? `Opcion ${selectedMenuIndex + 1}`
+                : 'Seleccion confirmada';
               const isPersisting = isPersistingDate === date;
 
               return (
@@ -267,7 +273,7 @@ export default function WeeklyPlanScreen() {
                     {selectedMenu ? (
                       <>
                         <Text style={styles.menuName} numberOfLines={1}>
-                          {selectedMenu.title}
+                          {selectedMenuLabel}
                         </Text>
                         {selectedMenu.totalCalories != null ? (
                           <Text style={styles.menuMeta}>
@@ -311,7 +317,7 @@ export default function WeeklyPlanScreen() {
             : ''
         }
         menus={selectorDay?.options ?? []}
-        getMenuLabel={(_menu, index) => `Opción ${index + 1}`}
+        getMenuLabel={(_menu, index) => `Opcion ${index + 1}`}
         visibleMenuId={selectorDay?.persistedMenuId ?? null}
         persistedMenuId={selectorDay?.persistedMenuId ?? null}
         suggestedMenuId={null}

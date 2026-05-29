@@ -24,6 +24,9 @@ const renderItem = (item: ShoppingListItem): string => {
   const quantity = item.quantity_label?.trim()
     ? `<span class="quantity"> &middot; ${escapeHtml(item.quantity_label)}</span>`
     : '';
+  const rawQuantity = item.raw_quantity_label?.trim()
+    ? `<div class="raw">Crudo: ${escapeHtml(item.raw_quantity_label)}</div>`
+    : '';
   const note = item.note?.trim()
     ? `<div class="note">${escapeHtml(item.note)}</div>`
     : '';
@@ -31,6 +34,7 @@ const renderItem = (item: ShoppingListItem): string => {
     <li class="item">
       <span class="checkbox">&#9744;</span>
       <span class="name"><strong>${name}</strong>${quantity}</span>
+      ${rawQuantity}
       ${note}
     </li>
   `;
@@ -38,8 +42,9 @@ const renderItem = (item: ShoppingListItem): string => {
 
 const renderPlainTextItem = (item: ShoppingListItem): string => {
   const quantity = item.quantity_label?.trim() ? ` - ${item.quantity_label.trim()}` : '';
+  const rawQuantity = item.raw_quantity_label?.trim() ? ` | Crudo: ${item.raw_quantity_label.trim()}` : '';
   const note = item.note?.trim() ? ` (${item.note.trim()})` : '';
-  return `- [ ] ${item.name}${quantity}${note}`;
+  return `- [ ] ${item.name}${quantity}${rawQuantity}${note}`;
 };
 
 export const buildShoppingListHtml = (list: ShoppingList): string => {
@@ -126,6 +131,14 @@ export const buildShoppingListHtml = (list: ShoppingList): string => {
       .quantity {
         color: #6b7280;
         font-weight: 400;
+      }
+      .raw {
+        width: 100%;
+        margin-top: 2px;
+        margin-left: 28px;
+        color: #475569;
+        font-size: 12px;
+        font-weight: 600;
       }
       .note {
         width: 100%;

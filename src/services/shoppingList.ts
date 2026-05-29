@@ -11,6 +11,8 @@ export interface ShoppingListItem {
   category: string | null;
   quantity_label: string | null;
   grams: number | null;
+  raw_grams: number | null;
+  raw_quantity_label: string | null;
   checked: boolean;
   checked_at: string | null;
   note: string | null;
