@@ -160,10 +160,28 @@ const getPlatformLabel = (connection: ConnectedHealthConnection | null) => {
 
 const getLatestSyncAt = (summary: ConnectedHealthSummaryResponse | null) => {
   const connection = getConnection(summary);
-  return connection?.last_sync_at ?? summary?.latest_sync?.completed_at ?? null;
+  const connectionLastSyncAt = connection?.last_sync_at ?? null;
+  const latestCompletedAt =
+    summary?.latest_sync?.status === 'completed'
+      ? summary.latest_sync.completed_at
+      : null;
+  const connectionSyncDate = parseDate(connectionLastSyncAt);
+  const latestSyncDate = parseDate(latestCompletedAt);
+
+  if (!connectionSyncDate) {
+    return latestSyncDate ? latestCompletedAt : null;
+  }
+
+  if (!latestSyncDate) {
+    return connectionLastSyncAt;
+  }
+
+  return latestSyncDate.getTime() > connectionSyncDate.getTime()
+    ? latestCompletedAt
+    : connectionLastSyncAt;
 };
 
-const getFreshness = (latestSyncAt: string | null) => {
+const getFreshness = (latestSyncAt: string | null, nowMs = Date.now()) => {
   const parsed = parseDate(latestSyncAt);
 
   if (!parsed) {
@@ -173,7 +191,7 @@ const getFreshness = (latestSyncAt: string | null) => {
     };
   }
 
-  const diffMs = Date.now() - parsed.getTime();
+  const diffMs = Math.max(0, nowMs - parsed.getTime());
 
   if (diffMs <= 60_000) {
     return {
@@ -182,7 +200,7 @@ const getFreshness = (latestSyncAt: string | null) => {
     };
   }
 
-  const minutes = Math.round(diffMs / 60_000);
+  const minutes = Math.floor(diffMs / 60_000);
 
   if (minutes < 60) {
     return {
@@ -191,12 +209,12 @@ const getFreshness = (latestSyncAt: string | null) => {
     };
   }
 
-  const hours = Math.round(minutes / 60);
+  const hours = Math.floor(minutes / 60);
 
   if (hours < 24) {
     return {
       label: `Hace ${hours} h`,
-      isStale: diffMs > STALE_SYNC_THRESHOLD_MS,
+      isStale: diffMs >= STALE_SYNC_THRESHOLD_MS,
     };
   }
 
@@ -511,6 +529,7 @@ const buildMetrics = (
 export const buildConnectedHealthFeedback = (
   summary: ConnectedHealthSummaryResponse | null,
   range: ConnectedHealthFeedbackRange,
+  nowMs = Date.now(),
 ): ConnectedHealthFeedbackModel => {
   const connection = getConnection(summary);
   const sourceLabel = getPlatformLabel(connection);
@@ -519,7 +538,7 @@ export const buildConnectedHealthFeedback = (
     .slice(0, range);
   const latest = summaries[0] ?? null;
   const latestSyncAt = getLatestSyncAt(summary);
-  const freshness = getFreshness(latestSyncAt);
+  const freshness = getFreshness(latestSyncAt, nowMs);
   const readiness = buildReadiness(latest, summaries);
   const readinessTone = getToneFromStatus(readiness.status);
 
@@ -539,6 +558,7 @@ export const buildConnectedHealthFeedback = (
 
 export const shouldAutoSyncConnectedHealth = (
   summary: ConnectedHealthSummaryResponse | null,
+  nowMs = Date.now(),
 ) => {
   const hasData = (summary?.summaries ?? []).some(hasMetricValue);
   const latestSyncAt = getLatestSyncAt(summary);
@@ -547,7 +567,7 @@ export const shouldAutoSyncConnectedHealth = (
     return true;
   }
 
-  return getFreshness(latestSyncAt).isStale;
+  return getFreshness(latestSyncAt, nowMs).isStale;
 };
 
 export const CONNECTED_HEALTH_AUTO_SYNC_STALE_MS = STALE_SYNC_THRESHOLD_MS;

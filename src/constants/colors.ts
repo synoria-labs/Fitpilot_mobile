@@ -12,11 +12,14 @@ export const buttonGradients = {
   },
 } as const;
 
+const nutritionAccentLight = '#6EE7B7';
+
 // Paleta verde especifica para Nutricion
 export const nutritionTheme = {
   heroGradientStart: '#14532D',
   heroGradientMiddle: '#15803D',
-  heroGradientEnd: '#6EE7B7',
+  heroGradientEnd: nutritionAccentLight,
+  accentLight: nutritionAccentLight,
   accentStrong: '#166534',
   accentSoft: '#DCFCE7',
   accentSurface: '#ECFDF5',
