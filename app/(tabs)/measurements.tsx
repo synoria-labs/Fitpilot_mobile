@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import {
   Alert,
@@ -157,7 +157,22 @@ export default function MeasurementsScreen() {
     (state) => state.initialize,
   );
   const wasFocusedRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<MeasurementsTab>('summary');
+  const params = useLocalSearchParams<{ initialTab?: string }>();
+  const resolveTabParam = (value: string | undefined): MeasurementsTab | null => {
+    if (value === 'summary' || value === 'body' || value === 'glucose' || value === 'health') {
+      return value;
+    }
+    return null;
+  };
+  const [activeTab, setActiveTab] = useState<MeasurementsTab>(
+    resolveTabParam(params.initialTab) ?? 'summary',
+  );
+  useEffect(() => {
+    const nextTab = resolveTabParam(params.initialTab);
+    if (nextTab && nextTab !== activeTab) {
+      setActiveTab(nextTab);
+    }
+  }, [activeTab, params.initialTab]);
   const [measurements, setMeasurements] = useState<MeasurementHistoryItem[]>([]);
   const [pagination, setPagination] = useState<MeasurementPagination | null>(null);
   const [detailCache, setDetailCache] = useState<Record<string, MeasurementDetail>>(
