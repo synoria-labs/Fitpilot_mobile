@@ -71,7 +71,7 @@ export const DietHero: React.FC<DietHeroProps> = ({
   const gradientColors = theme.isDark
     ? (['rgba(20, 83, 45, 0.34)', 'rgba(21, 128, 61, 0.18)'] as const)
     : (['#F7FEFB', '#ECFDF5'] as const);
-  const accentColor = theme.isDark ? '#6EE7B7' : nutritionTheme.accentStrong;
+  const accentColor = theme.isDark ? nutritionTheme.accentLight : nutritionTheme.accentStrong;
   const textPrimary = theme.isDark ? colors.white : theme.colors.textPrimary;
   const textSecondary = theme.isDark ? 'rgba(255,255,255,0.72)' : theme.colors.textMuted;
   const borderColor = theme.isDark ? 'rgba(110, 231, 183, 0.18)' : '#BBF7D0';

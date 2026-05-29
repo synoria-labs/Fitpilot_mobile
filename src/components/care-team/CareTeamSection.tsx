@@ -14,7 +14,10 @@ import {
   areSameAssignedProfessionals,
   mergeAssignedProfessionalSummaries,
 } from '../../utils/careTeam';
+import { HomePlanSetupCard } from '../dashboard/HomePlanSetupCard';
 import { AssignedProfessionalCard } from './AssignedProfessionalCard';
+
+type EmptyPresentation = 'cards' | 'combined-summary';
 
 type CareTeamSectionProps = {
   summaries: Record<AssignedProfessionalDomain, AssignedProfessionalSummary | null>;
@@ -22,6 +25,7 @@ type CareTeamSectionProps = {
   isLoading: boolean;
   compact?: boolean;
   variant?: 'full' | 'summary';
+  emptyPresentation?: EmptyPresentation;
   title?: string;
   subtitle?: string;
   horizontalPadding?: number;
@@ -117,6 +121,7 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
   isLoading,
   compact = false,
   variant = 'full',
+  emptyPresentation = 'cards',
   title = 'Tus profesionales',
   subtitle,
   horizontalPadding = 0,
@@ -127,6 +132,14 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
     [errors, isLoading, summaries],
   );
   const isSummary = variant === 'summary';
+  const shouldShowCombinedEmptySummary =
+    isSummary &&
+    emptyPresentation === 'combined-summary' &&
+    !isLoading &&
+    !errors.training &&
+    !errors.nutrition &&
+    cards.length === 2 &&
+    cards.every((card) => card.state === 'unassigned');
 
   return (
     <View
@@ -148,17 +161,21 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
       )}
 
       <View style={[styles.cardsColumn, isSummary ? styles.cardsColumnSummary : null]}>
-        {cards.map((card) => (
-          <AssignedProfessionalCard
-            key={card.key}
-            domains={card.domains}
-            state={card.state}
-            summary={card.summary}
-            errorMessage={card.errorMessage}
-            compact={compact}
-            variant={isSummary ? 'summary' : 'full'}
-          />
-        ))}
+        {shouldShowCombinedEmptySummary ? (
+          <HomePlanSetupCard />
+        ) : (
+          cards.map((card) => (
+            <AssignedProfessionalCard
+              key={card.key}
+              domains={card.domains}
+              state={card.state}
+              summary={card.summary}
+              errorMessage={card.errorMessage}
+              compact={compact}
+              variant={isSummary ? 'summary' : 'full'}
+            />
+          ))
+        )}
       </View>
     </View>
   );

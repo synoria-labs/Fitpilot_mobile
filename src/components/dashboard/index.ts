@@ -6,3 +6,4 @@ export { ActivityChart } from './ActivityChart';
 export { ScienceTips } from './ScienceTips';
 export { MetricsSummary } from './MetricsSummary';
 export { MissedWorkoutsBanner } from './MissedWorkoutsBanner';
+export { HomePlanSetupCard } from './HomePlanSetupCard';

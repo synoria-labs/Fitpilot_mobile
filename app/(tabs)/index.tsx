@@ -642,6 +642,7 @@ export default function HomeScreen() {
                 isLoading={isLoadingCareTeam}
                 compact
                 variant="summary"
+                emptyPresentation="combined-summary"
                 horizontalPadding={horizontalPadding}
               />
             </Animated.View>

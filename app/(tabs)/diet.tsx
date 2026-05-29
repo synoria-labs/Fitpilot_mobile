@@ -947,7 +947,7 @@ export default function DietScreen() {
                   contentWidth={contentWidth}
                   isTabletPortrait={isTabletPortrait}
                   showWeekButtons={isTablet}
-                  accentColor={nutritionTheme.accentStrong}
+                  accentColor={theme.isDark ? nutritionTheme.accentLight : nutritionTheme.accentStrong}
                   datePickerLabel="Fecha"
                   onShiftWeek={handleShiftWeek}
                   onOpenDatePicker={handleOpenDatePicker}
