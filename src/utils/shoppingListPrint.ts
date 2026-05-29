@@ -1,10 +1,15 @@
 import { Share } from 'react-native';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import {
   groupShoppingListItemsByCategory,
   type ShoppingList,
   type ShoppingListItem,
 } from '../services/shoppingList';
 import { formatLocalDate } from './date';
+
+type ExpoPrintModule = {
+  print: (options: { html?: string; uri?: string }) => Promise<void>;
+};
 
 const escapeHtml = (value: string): string =>
   value
@@ -36,10 +41,6 @@ const renderPlainTextItem = (item: ShoppingListItem): string => {
   const note = item.note?.trim() ? ` (${item.note.trim()})` : '';
   return `- [ ] ${item.name}${quantity}${note}`;
 };
-
-const isExpoPrintUnavailableError = (error: unknown): boolean =>
-  error instanceof Error &&
-  /ExpoPrint|native module|Cannot find native module/i.test(error.message);
 
 export const buildShoppingListHtml = (list: ShoppingList): string => {
   const grouped = groupShoppingListItemsByCategory(list.items);
@@ -165,15 +166,11 @@ export const buildShoppingListPlainText = (list: ShoppingList): string => {
 
 export const printShoppingList = async (list: ShoppingList): Promise<void> => {
   const html = buildShoppingListHtml(list);
+  const ExpoPrint = requireOptionalNativeModule<ExpoPrintModule>('ExpoPrint');
 
-  try {
-    const Print = await import('expo-print');
-    await Print.printAsync({ html });
+  if (ExpoPrint?.print) {
+    await ExpoPrint.print({ html });
     return;
-  } catch (error) {
-    if (!isExpoPrintUnavailableError(error)) {
-      throw error;
-    }
   }
 
   await Share.share({

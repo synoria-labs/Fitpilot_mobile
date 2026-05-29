@@ -27,9 +27,23 @@ import {
   updateClientDailyPrimarySelection,
 } from '../../src/services/diet';
 import { generateShoppingList } from '../../src/services/shoppingList';
+import { mergeDietMenuOptions } from '../../src/utils/dietMenuSelection';
 import type { ClientDietMenu } from '../../src/types';
 
 type SelectorState = { date: string } | null;
+
+const mergeOptionsByDate = (
+  currentOptions: Record<string, ClientDietMenu[]>,
+  incomingOptions: Record<string, ClientDietMenu[]>,
+) => {
+  const nextOptions = { ...currentOptions };
+
+  for (const [date, menus] of Object.entries(incomingOptions)) {
+    nextOptions[date] = mergeDietMenuOptions(nextOptions[date] ?? [], menus);
+  }
+
+  return nextOptions;
+};
 
 export default function WeeklyPlanScreen() {
   const { theme } = useAppTheme();
@@ -70,16 +84,26 @@ export default function WeeklyPlanScreen() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [calendar, options] = await Promise.all([
-        getClientDietCalendar(clientIdString, weekStartKey),
-        getClientDietMenuCalendar(clientIdString, weekStartKey),
-      ]);
+      const calendar = await getClientDietCalendar(clientIdString, weekStartKey);
       const nextPrimary: Record<string, number | null> = {};
+      let nextOptions: Record<string, ClientDietMenu[]> = {};
       for (const day of calendar) {
         nextPrimary[day.assignedDate] = day.backendPrimaryMenuId;
+        nextOptions[day.assignedDate] = day.menuOptions;
       }
+
+      const optionResults = await Promise.allSettled(
+        weekDateKeys.map((date) => getClientDietMenuCalendar(clientIdString, date)),
+      );
+
+      for (const result of optionResults) {
+        if (result.status === 'fulfilled') {
+          nextOptions = mergeOptionsByDate(nextOptions, result.value);
+        }
+      }
+
       setPrimaryByDate(nextPrimary);
-      setOptionsByDate(options);
+      setOptionsByDate(nextOptions);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'No se pudo cargar tu plan semanal.';
@@ -87,7 +111,7 @@ export default function WeeklyPlanScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [clientIdString, numericClientId, weekStartKey]);
+  }, [clientIdString, numericClientId, weekDateKeys, weekStartKey]);
 
   useEffect(() => {
     void loadWeek();
