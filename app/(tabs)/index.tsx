@@ -29,7 +29,10 @@ import {
   TodayWorkoutCard,
   UserHeader,
 } from '../../src/components/dashboard';
-import { ConnectedHealthFeedbackSummaryCard } from '../../src/components/connected-health';
+import {
+  ConnectedHealthFeedbackSummaryCard,
+  ConnectedHealthSetupBanner,
+} from '../../src/components/connected-health';
 import { CareTeamSection } from '../../src/components/care-team';
 import type { ScienceTip } from '../../src/constants/scienceTips';
 import { spacing } from '../../src/constants/colors';
@@ -612,6 +615,12 @@ export default function HomeScreen() {
                 variant="strip"
               />
             </Animated.View>
+
+            {user?.connectedHealthSetupStatus !== 'completed' ? (
+              <Animated.View entering={getEntryAnimation(280)}>
+                <ConnectedHealthSetupBanner horizontalPadding={horizontalPadding} />
+              </Animated.View>
+            ) : null}
 
             <Animated.View entering={getEntryAnimation(280)}>
               <ConnectedHealthFeedbackSummaryCard

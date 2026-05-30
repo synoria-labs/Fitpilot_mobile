@@ -11,6 +11,11 @@ export default function Index() {
       return <Redirect href="/onboarding" />;
     }
 
+    const setup = user?.connectedHealthSetupStatus;
+    if (setup !== 'completed' && setup !== 'skipped') {
+      return <Redirect href="/health-setup" />;
+    }
+
     return <Redirect href="/(tabs)" />;
   }
 
