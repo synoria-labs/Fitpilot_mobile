@@ -12,7 +12,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, SegmentedControl } from '../../src/components/common';
 import { ProfileDetailScreen } from '../../src/components/profile/ProfileDetailScreen';
-import { DietMenuSelectorModal } from '../../src/components/diet';
+import { DietMenuPreviewModal, DietMenuSelectorModal } from '../../src/components/diet';
 import { borderRadius, fontSize, spacing } from '../../src/constants/colors';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
 import { useAuthStore } from '../../src/store/authStore';
@@ -43,6 +43,7 @@ import { mergeDietMenuOptions } from '../../src/utils/dietMenuSelection';
 import type { ClientDietMenu } from '../../src/types';
 
 type SelectorState = { date: string } | null;
+type PreviewState = { date: string; menu: ClientDietMenu } | null;
 type WeekPlanRange = 'current' | 'next';
 type ReminderHourOptionKey = '8' | '10' | '18';
 
@@ -140,6 +141,7 @@ export default function WeeklyPlanScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectorState, setSelectorState] = useState<SelectorState>(null);
+  const [previewState, setPreviewState] = useState<PreviewState>(null);
   const [isPersistingDate, setIsPersistingDate] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [reminderSettings, setReminderSettings] =
@@ -182,6 +184,7 @@ export default function WeeklyPlanScreen() {
     const requestId = loadRequestIdRef.current + 1;
     loadRequestIdRef.current = requestId;
     setSelectorState(null);
+    setPreviewState(null);
 
     if (!clientIdString || numericClientId === null) {
       setPrimaryByDate({});
@@ -373,25 +376,51 @@ export default function WeeklyPlanScreen() {
     setSelectorState(null);
   }, []);
 
+  const handleClosePreview = useCallback(() => {
+    if (isPersistingDate) {
+      return;
+    }
+
+    setPreviewState(null);
+  }, [isPersistingDate]);
+
   const handleSelectMenu = useCallback(
-    async (menu: ClientDietMenu) => {
+    (menu: ClientDietMenu) => {
       const targetDate = selectorState?.date;
-      if (!targetDate) return;
-      setIsPersistingDate(targetDate);
-      try {
-        await updateClientDailyPrimarySelection(targetDate, menu.menuId);
-        setPrimaryByDate((current) => ({ ...current, [targetDate]: menu.menuId }));
-        setSelectorState(null);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'No se pudo guardar la seleccion.';
-        Alert.alert('Error', message);
-      } finally {
-        setIsPersistingDate(null);
-      }
+      if (!targetDate || isPersistingDate) return;
+
+      setPreviewState({ date: targetDate, menu });
+      setSelectorState(null);
     },
-    [selectorState],
+    [isPersistingDate, selectorState],
   );
+
+  const handleConfirmPreviewMenu = useCallback(async () => {
+    if (!previewState || isPersistingDate) {
+      return;
+    }
+
+    const { date: targetDate, menu } = previewState;
+
+    if (primaryByDate[targetDate] === menu.menuId) {
+      setPreviewState(null);
+      return;
+    }
+
+    setIsPersistingDate(targetDate);
+    try {
+      await updateClientDailyPrimarySelection(targetDate, menu.menuId);
+      setPrimaryByDate((current) => ({ ...current, [targetDate]: menu.menuId }));
+      setOptionsByDate((current) => mergeOptionsByDate(current, { [targetDate]: [menu] }));
+      setPreviewState(null);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'No se pudo guardar la seleccion.';
+      Alert.alert('Error', message);
+    } finally {
+      setIsPersistingDate(null);
+    }
+  }, [isPersistingDate, previewState, primaryByDate]);
 
   const selectedCount = useMemo(
     () => weekDateKeys.filter((date) => hasSelectedMenuId(primaryByDate[date])).length,
@@ -468,6 +497,14 @@ export default function WeeklyPlanScreen() {
         persistedMenuId: primaryByDate[selectorState.date] ?? null,
       }
     : null;
+
+  const previewDateLabel = previewState
+    ? formatLocalDate(previewState.date, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      })
+    : '';
 
   const footer = (
     <Button
@@ -756,6 +793,18 @@ export default function WeeklyPlanScreen() {
         error={null}
         onClose={handleCloseSelector}
         onSelect={handleSelectMenu}
+      />
+
+      <DietMenuPreviewModal
+        visible={previewState !== null}
+        menu={previewState?.menu ?? null}
+        dateLabel={previewDateLabel}
+        mode="confirm"
+        isConfirming={
+          previewState ? isPersistingDate === previewState.date : Boolean(isPersistingDate)
+        }
+        onClose={handleClosePreview}
+        onConfirm={handleConfirmPreviewMenu}
       />
     </>
   );
