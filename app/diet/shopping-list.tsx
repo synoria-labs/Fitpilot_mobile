@@ -17,6 +17,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../src/components/common';
+import { DietMenuPreviewModal } from '../../src/components/diet';
 import {
   borderRadius,
   brandColors,
@@ -33,11 +34,14 @@ import {
   updateShoppingListItem,
   type CreateShoppingListItemInput,
   type ShoppingList,
+  type ShoppingListDay,
   type ShoppingListItem,
   type UpdateShoppingListItemInput,
 } from '../../src/services/shoppingList';
+import { getClientDietMenuCalendar } from '../../src/services/diet';
 import { printShoppingList } from '../../src/utils/shoppingListPrint';
 import { formatLocalDate } from '../../src/utils/date';
+import type { ClientDietMenu } from '../../src/types';
 
 type ItemFormState = {
   name: string;
@@ -47,6 +51,11 @@ type ItemFormState = {
   note: string;
 };
 
+type MenuPreviewState = {
+  date: string;
+  menu: ClientDietMenu;
+} | null;
+
 const EMPTY_FORM: ItemFormState = {
   name: '',
   category: '',
@@ -54,6 +63,8 @@ const EMPTY_FORM: ItemFormState = {
   grams: '',
   note: '',
 };
+
+const getDayPreviewKey = (day: ShoppingListDay) => `${day.date}:${day.menu_id}`;
 
 const itemToForm = (item: ShoppingListItem): ItemFormState => ({
   name: item.name,
@@ -105,6 +116,10 @@ export default function ShoppingListScreen() {
   >(null);
   const [formState, setFormState] = useState<ItemFormState>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [menuPreviewState, setMenuPreviewState] = useState<MenuPreviewState>(null);
+  const [menuPreviewCache, setMenuPreviewCache] = useState<Record<string, ClientDietMenu>>({});
+  const [loadingPreviewKey, setLoadingPreviewKey] = useState<string | null>(null);
+  const [previewErrorByKey, setPreviewErrorByKey] = useState<Record<string, string | null>>({});
 
   const loadList = useCallback(async () => {
     setIsLoading(true);
@@ -126,6 +141,13 @@ export default function ShoppingListScreen() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  useEffect(() => {
+    setMenuPreviewState(null);
+    setMenuPreviewCache({});
+    setLoadingPreviewKey(null);
+    setPreviewErrorByKey({});
+  }, [list?.id]);
 
   const handleToggleChecked = useCallback(
     async (item: ShoppingListItem) => {
@@ -270,6 +292,51 @@ export default function ShoppingListScreen() {
     router.replace('/diet/weekly-plan');
   }, []);
 
+  const handlePreviewDayMenu = useCallback(
+    async (day: ShoppingListDay) => {
+      if (!list || loadingPreviewKey === getDayPreviewKey(day)) {
+        return;
+      }
+
+      const previewKey = getDayPreviewKey(day);
+      const cachedMenu = menuPreviewCache[previewKey];
+      if (cachedMenu) {
+        setMenuPreviewState({ date: day.date, menu: cachedMenu });
+        return;
+      }
+
+      setLoadingPreviewKey(previewKey);
+      setPreviewErrorByKey((current) => ({ ...current, [previewKey]: null }));
+
+      try {
+        const menusByDate = await getClientDietMenuCalendar(String(list.client_id), day.date);
+        const dateMenus = menusByDate[day.date] ?? Object.values(menusByDate).flat();
+        const menu = dateMenus.find((candidate) => candidate.menuId === day.menu_id) ?? null;
+
+        if (!menu) {
+          throw new Error('No pudimos cargar el detalle de este menu.');
+        }
+
+        setMenuPreviewCache((current) => ({ ...current, [previewKey]: menu }));
+        setMenuPreviewState({ date: day.date, menu });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'No pudimos cargar el detalle de este menu.';
+        setPreviewErrorByKey((current) => ({ ...current, [previewKey]: message }));
+      } finally {
+        setLoadingPreviewKey((current) => (current === previewKey ? null : current));
+      }
+    },
+    [list, loadingPreviewKey, menuPreviewCache],
+  );
+
+  const sortedListDays = useMemo(
+    () => (list ? [...list.days].sort((a, b) => a.date.localeCompare(b.date)) : []),
+    [list],
+  );
+
   const grouped = useMemo(
     () => (list ? groupShoppingListItemsByCategory(list.items) : []),
     [list],
@@ -359,6 +426,79 @@ export default function ShoppingListScreen() {
               <TouchableOpacity onPress={handleRegenerate} style={styles.regenButton}>
                 <Text style={styles.regenButtonText}>Regenerar</Text>
               </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {sortedListDays.length > 0 ? (
+            <View style={styles.menuPreviewSection}>
+              <View style={styles.menuPreviewHeader}>
+                <Text style={styles.sectionTitle}>Menus de la semana</Text>
+                <View style={styles.menuPreviewCountBadge}>
+                  <Text style={styles.menuPreviewCountText}>
+                    {sortedListDays.length} dias
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.menuPreviewCard}>
+                {sortedListDays.map((day, index) => {
+                  const previewKey = getDayPreviewKey(day);
+                  const isPreviewLoading = loadingPreviewKey === previewKey;
+                  const previewError = previewErrorByKey[previewKey] ?? null;
+                  const dayLabel = formatLocalDate(day.date, {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short',
+                  });
+
+                  return (
+                    <View
+                      key={previewKey}
+                      style={[
+                        styles.menuPreviewRow,
+                        index === sortedListDays.length - 1
+                          ? styles.menuPreviewRowLast
+                          : null,
+                      ]}
+                    >
+                      <View style={styles.menuPreviewCopy}>
+                        <Text style={styles.menuPreviewDate}>{dayLabel}</Text>
+                        <Text style={styles.menuPreviewTitle} numberOfLines={2}>
+                          {day.menu_title || `Menu #${day.menu_id}`}
+                        </Text>
+                        {previewError ? (
+                          <Text style={styles.menuPreviewError} numberOfLines={2}>
+                            {previewError}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.menuPreviewButton,
+                          isPreviewLoading ? styles.menuPreviewButtonDisabled : null,
+                        ]}
+                        activeOpacity={0.85}
+                        onPress={() => void handlePreviewDayMenu(day)}
+                        disabled={isPreviewLoading}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Previsualizar ${day.menu_title || `menu ${day.menu_id}`}`}
+                      >
+                        {isPreviewLoading ? (
+                          <ActivityIndicator size="small" color={theme.colors.primary} />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name="eye-outline"
+                              size={17}
+                              color={theme.colors.primary}
+                            />
+                            <Text style={styles.menuPreviewButtonText}>Ver</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           ) : null}
 
@@ -471,6 +611,22 @@ export default function ShoppingListScreen() {
           </TouchableOpacity>
         </ScrollView>
       )}
+
+      <DietMenuPreviewModal
+        visible={menuPreviewState !== null}
+        menu={menuPreviewState?.menu ?? null}
+        dateLabel={
+          menuPreviewState
+            ? formatLocalDate(menuPreviewState.date, {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })
+            : ''
+        }
+        mode="readonly"
+        onClose={() => setMenuPreviewState(null)}
+      />
 
       <Modal
         visible={formMode !== null}
@@ -706,6 +862,97 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       fontSize: fontSize.xs,
       fontWeight: '800',
       color: theme.colors.surface,
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    menuPreviewSection: {
+      gap: spacing.sm,
+    },
+    menuPreviewHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md,
+    },
+    menuPreviewCountBadge: {
+      borderRadius: borderRadius.full,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 5,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    menuPreviewCountText: {
+      color: theme.colors.primary,
+      fontSize: fontSize.xs,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    menuPreviewCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    menuPreviewRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    menuPreviewRowLast: {
+      borderBottomWidth: 0,
+    },
+    menuPreviewCopy: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
+    },
+    menuPreviewDate: {
+      color: theme.colors.textMuted,
+      fontSize: fontSize.xs,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    menuPreviewTitle: {
+      color: theme.colors.textPrimary,
+      fontSize: fontSize.sm,
+      fontWeight: '700',
+      lineHeight: 19,
+    },
+    menuPreviewError: {
+      marginTop: spacing.xs,
+      color: theme.colors.error,
+      fontSize: fontSize.xs,
+      fontWeight: '600',
+      lineHeight: 16,
+    },
+    menuPreviewButton: {
+      minWidth: 72,
+      minHeight: 36,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.xs,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    menuPreviewButtonDisabled: {
+      opacity: 0.65,
+    },
+    menuPreviewButtonText: {
+      color: theme.colors.primary,
+      fontSize: fontSize.xs,
+      fontWeight: '800',
       textTransform: 'uppercase',
       letterSpacing: 0.4,
     },

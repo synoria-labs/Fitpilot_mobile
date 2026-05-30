@@ -66,7 +66,7 @@ export const DietMenuSelectorModal: React.FC<DietMenuSelectorModalProps> = ({
               <Text style={styles.title}>Menus del pool</Text>
               <Text style={styles.subtitle}>{dateLabel}</Text>
               <Text style={styles.supportingText}>
-                Toca un menu para revisarlo en pantalla antes de confirmar el cambio.
+                Toca un menu para ver sus recetas y alimentos antes de confirmar.
               </Text>
             </View>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
