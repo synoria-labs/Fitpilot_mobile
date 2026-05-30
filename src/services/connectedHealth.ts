@@ -131,4 +131,9 @@ export const connectedHealthService = {
       platform,
       sharing_enabled: sharingEnabled,
     }),
+
+  setSetupStatus: (
+    status: 'completed' | 'skipped',
+  ): Promise<{ connected_health_setup_status: string }> =>
+    nutritionClient.patch('/connected-health/me/setup', { status }),
 };

@@ -93,6 +93,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
           <Stack.Screen name="onboarding" />
+          <Stack.Screen name="health-setup" />
 
           <Stack.Screen
             name="profile"
