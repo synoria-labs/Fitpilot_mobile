@@ -269,6 +269,14 @@ export default function HomeScreen() {
       return;
     }
 
+    void refreshCareTeam();
+  }, [isFocused, refreshCareTeam, user?.id]);
+
+  useEffect(() => {
+    if (!isFocused || !user?.id) {
+      return;
+    }
+
     if (
       dashboardDataVersion !== 0 &&
       lastLoadedWorkoutLogsVersionRef.current === workoutLogsVersion

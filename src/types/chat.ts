@@ -1,5 +1,13 @@
 export type ChatAttachmentType = 'IMAGE' | 'PDF' | 'AUDIO' | 'LINK';
 export type ChatDeliveryStatus = 'SENT' | 'DELIVERED' | 'READ';
+export type ChatContactRequestStatus =
+  | 'new'
+  | 'read'
+  | 'contacted'
+  | 'proposed'
+  | 'scheduled'
+  | 'converted'
+  | 'dismissed';
 
 export type ChatUserSummary = {
   id: number;
@@ -54,6 +62,13 @@ export type ChatConversation = {
   last_message: ChatMessage | null;
   unread_count: number;
   can_send: boolean;
+  contact_request_status?: ChatContactRequestStatus | null;
+  contact_request_id?: number | null;
+  contact_request_requested_start_at?: string | null;
+  contact_request_requested_duration_minutes?: number | null;
+  contact_request_proposed_start_at?: string | null;
+  contact_request_proposed_duration_minutes?: number | null;
+  contact_request_scheduled_appointment_id?: number | null;
   last_message_at: string | null;
   last_read_message_id: number | null;
   created_at: string;

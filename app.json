@@ -30,7 +30,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3b82f6"
       },
-      "package": "com.fitpilot.mobile"
+      "package": "com.fitpilot.mobile",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -42,6 +43,7 @@
       "expo-secure-store",
       "expo-asset",
       "expo-font",
+      "expo-notifications",
       [
         "expo-image-picker",
         {

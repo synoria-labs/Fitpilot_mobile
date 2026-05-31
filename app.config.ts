@@ -104,6 +104,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: '#3b82f6',
       },
       package: 'com.fitpilot.mobile',
+      googleServicesFile: './google-services.json',
     },
     web: {
       bundler: 'metro',
@@ -119,6 +120,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-secure-store',
       'expo-asset',
       'expo-font',
+      'expo-notifications',
       'expo-document-picker',
       [
         'expo-audio',

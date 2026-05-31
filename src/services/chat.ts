@@ -83,6 +83,12 @@ export const markChatConversationDelivered = (conversationId: number, messageId:
     { message_id: messageId },
   );
 
+export const confirmProfessionalContactRequestSchedule = (contactRequestId: number) =>
+  nutritionClient.post<{
+    contact_request: unknown;
+    appointment: unknown;
+  }>(`/professional-profiles/contact-requests/${contactRequestId}/confirm-schedule`);
+
 export const getChatSocketToken = () => getAccessToken();
 
 export const deleteChatMessage = (conversationId: number, messageId: number) =>

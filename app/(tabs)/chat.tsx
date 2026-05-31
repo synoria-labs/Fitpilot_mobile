@@ -20,11 +20,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -42,13 +44,13 @@ import { LoadingSpinner, TabScreenWrapper } from '../../src/components/common';
 import {
   borderRadius,
   fontSize,
-  shadows,
   spacing,
 } from '../../src/constants/colors';
-import { useBottomTabBarContentInset } from '../../src/hooks/useBottomTabBarVisibility';
+import { useBottomTabBarVisibility } from '../../src/hooks/useBottomTabBarVisibility';
 import { useCareTeam } from '../../src/hooks/useCareTeam';
 import {
   deleteChatMessage,
+  confirmProfessionalContactRequestSchedule,
   getChatConversations,
   getChatMessages,
   getChatSocketToken,
@@ -68,15 +70,12 @@ import type {
   ChatDeliveryStatus,
   ChatMessage,
 } from '../../src/types/chat';
-import {
-  getPrimaryScreenHorizontalPadding,
-  isTabletLayout,
-} from '../../src/utils/layout';
 
 const MAX_FILES_PER_MESSAGE = 4;
 const MAX_AUDIO_SECONDS = 300;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const RECORDING_WAVE_BARS = [0.42, 0.76, 0.36, 0.92, 0.58, 1, 0.48, 0.84, 0.52, 0.88, 0.34, 0.72];
+const CHAT_BACKGROUND_GRADIENT = ['#08111f', '#050b14', '#0d1624'] as const;
 
 type PendingChatFile = ChatUploadFile & {
   id: string;
@@ -148,6 +147,27 @@ const formatMessageTime = (value: string) => {
   });
 };
 
+const formatScheduleLabel = (value?: string | null, duration?: number | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const label = date.toLocaleString('es-MX', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return `${label}${duration ? ` · ${duration} min` : ''}`;
+};
+
 const formatDuration = (milliseconds: number) => {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -161,6 +181,9 @@ const sortConversations = (items: ChatConversation[]) =>
     const rightDate = right.last_message_at ?? right.updated_at;
     return new Date(rightDate).getTime() - new Date(leftDate).getTime();
   });
+
+const hasConversationHistory = (conversation: ChatConversation) =>
+  Boolean(conversation.last_message);
 
 const deliveryStatusRank: Record<ChatDeliveryStatus, number> = {
   SENT: 1,
@@ -199,6 +222,12 @@ const applyReceiptStatus = (
       ? message
       : { ...message, delivery_status: nextStatus };
   });
+};
+
+const getDeliveryReceiptLabel = (status: ChatDeliveryStatus | null) => {
+  if (status === 'READ') return 'Visto';
+  if (status === 'DELIVERED') return 'Entregado';
+  return 'Enviado';
 };
 
 const toProfessionalOption = (
@@ -364,7 +393,6 @@ const MessageBubble = ({
   onDownloadAttachment: (attachment: ChatAttachment) => void;
 }) => {
   const styles = useThemedStyles(createStyles);
-  const { theme } = useAppTheme();
   const showActions = () => {
     const buttons = [
       {
@@ -449,15 +477,22 @@ const MessageBubble = ({
             {formatMessageTime(message.created_at)}
           </Text>
           {isMine ? (
-            <Ionicons
-              name={message.delivery_status === 'SENT' ? 'checkmark' : 'checkmark-done'}
-              size={14}
-              color={
-                message.delivery_status === 'READ'
-                  ? theme.colors.primary
-                  : 'rgba(255,255,255,0.72)'
-              }
-            />
+            <View
+              accessibilityLabel={getDeliveryReceiptLabel(message.delivery_status)}
+              accessibilityRole="image"
+              accessible
+              style={styles.messageReceipt}
+            >
+              <Ionicons
+                name={message.delivery_status === 'SENT' ? 'checkmark' : 'checkmark-done'}
+                size={15}
+                color={
+                  message.delivery_status === 'READ'
+                    ? '#087f7a'
+                    : 'rgba(8,17,31,0.52)'
+                }
+              />
+            </View>
           ) : null}
         </View>
       </View>
@@ -465,15 +500,37 @@ const MessageBubble = ({
   );
 };
 
+const ConversationAvatar = ({
+  conversation,
+  variant = 'list',
+}: {
+  conversation: ChatConversation;
+  variant?: 'list' | 'thread';
+}) => {
+  const styles = useThemedStyles(createStyles);
+  const displayName = buildDisplayName(conversation.participant);
+  const imageUri = conversation.participant.profile_picture;
+
+  return (
+    <View style={[styles.avatar, variant === 'thread' ? styles.threadAvatar : null]}>
+      {imageUri ? (
+        <Image source={{ uri: imageUri }} style={styles.avatarImage} />
+      ) : (
+        <Text style={[styles.avatarText, variant === 'thread' ? styles.threadAvatarText : null]}>
+          {displayName.slice(0, 1)}
+        </Text>
+      )}
+    </View>
+  );
+};
+
 export default function ChatScreen() {
-  const { width, height } = useWindowDimensions();
-  const isTablet = isTabletLayout(width, height);
-  const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
-  const contentInsetBottom = useBottomTabBarContentInset();
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const params = useLocalSearchParams<{ conversationId?: string }>();
+  const isFocused = useIsFocused();
+  const { hideTabBar, showTabBar } = useBottomTabBarVisibility();
   const { user } = useAuthStore();
   const careTeam = useCareTeam(user?.id ?? null);
   const scrollRef = useRef<ScrollView | null>(null);
@@ -504,7 +561,9 @@ export default function ChatScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isConfirmingProposal, setIsConfirmingProposal] = useState(false);
   const [isStartingConversation, setIsStartingConversation] = useState(false);
+  const [hasAutoSelectedConversation, setHasAutoSelectedConversation] = useState(false);
 
   const currentUserId = Number(user?.id);
   const activeConversation = useMemo(
@@ -513,6 +572,44 @@ export default function ChatScreen() {
       null,
     [activeConversationId, conversations],
   );
+  const pendingProposalLabel = activeConversation
+    ? formatScheduleLabel(
+        activeConversation.contact_request_proposed_start_at,
+        activeConversation.contact_request_proposed_duration_minutes,
+      )
+    : null;
+  const canConfirmScheduleProposal = Boolean(
+    activeConversation?.contact_request_id &&
+      activeConversation.contact_request_status === 'proposed' &&
+      activeConversation.contact_request_proposed_start_at &&
+      !activeConversation.contact_request_scheduled_appointment_id,
+  );
+  const isThreadOpen = Boolean(activeConversation);
+
+  useEffect(() => {
+    if (isFocused) {
+      setHasAutoSelectedConversation(false);
+    }
+  }, [isFocused]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (isThreadOpen) {
+        hideTabBar();
+      } else {
+        showTabBar();
+      }
+
+      return () => {
+        showTabBar();
+      };
+    }, [hideTabBar, isThreadOpen, showTabBar]),
+  );
+
+  const closeThread = useCallback(() => {
+    setActiveConversationId(null);
+    setHasAutoSelectedConversation(true);
+  }, []);
 
   const professionalOptions = useMemo(() => {
     const rawOptions = [
@@ -529,6 +626,21 @@ export default function ChatScreen() {
       return true;
     });
   }, [careTeam.summaries.nutrition, careTeam.summaries.training]);
+
+  const visibleConversations = useMemo(
+    () => conversations.filter(hasConversationHistory),
+    [conversations],
+  );
+
+  const startableProfessionalOptions = useMemo(() => {
+    const visibleProfessionalIds = new Set(
+      visibleConversations.map((conversation) => conversation.professional_id),
+    );
+
+    return professionalOptions.filter(
+      (professional) => !visibleProfessionalIds.has(professional.id),
+    );
+  }, [professionalOptions, visibleConversations]);
 
   const upsertConversation = useCallback((conversation: ChatConversation) => {
     setConversations((currentConversations) =>
@@ -721,6 +833,7 @@ export default function ChatScreen() {
         );
         upsertConversation(conversation);
         setActiveConversationId(conversation.id);
+        setHasAutoSelectedConversation(true);
       } catch {
         Alert.alert(
           'Chat no disponible',
@@ -835,6 +948,55 @@ export default function ChatScreen() {
     replyToMessage?.id,
   ]);
 
+  const confirmScheduleProposal = useCallback(() => {
+    if (
+      !activeConversationId ||
+      !activeConversation?.contact_request_id ||
+      !pendingProposalLabel ||
+      isConfirmingProposal
+    ) {
+      return;
+    }
+
+    Alert.alert(
+      'Confirmar cita',
+      `¿Quieres agendar la primera cita para ${pendingProposalLabel}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            setIsConfirmingProposal(true);
+            try {
+              await confirmProfessionalContactRequestSchedule(
+                activeConversation.contact_request_id as number,
+              );
+              const [latestMessages] = await Promise.all([
+                getChatMessages(activeConversationId),
+                loadConversations(),
+              ]);
+              setMessages(latestMessages);
+              Alert.alert('Cita agendada', 'Tu cita quedo confirmada.');
+            } catch {
+              Alert.alert(
+                'No se pudo confirmar',
+                'Intenta de nuevo o responde en el chat para acordar otro horario.',
+              );
+            } finally {
+              setIsConfirmingProposal(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [
+    activeConversation,
+    activeConversationId,
+    isConfirmingProposal,
+    loadConversations,
+    pendingProposalLabel,
+  ]);
+
   const handleDownloadAttachment = useCallback((attachment: ChatAttachment) => {
     if (!attachment.url) {
       return;
@@ -859,6 +1021,7 @@ export default function ChatScreen() {
     const parsed = Number(params.conversationId);
     if (Number.isFinite(parsed) && parsed > 0) {
       setActiveConversationId(parsed);
+      setHasAutoSelectedConversation(true);
     }
   }, [params.conversationId]);
 
@@ -874,10 +1037,21 @@ export default function ChatScreen() {
   }, [loadConversations]);
 
   useEffect(() => {
-    if (!activeConversationId && conversations.length) {
-      setActiveConversationId(conversations[0].id);
+    if (
+      isFocused &&
+      !hasAutoSelectedConversation &&
+      !activeConversationId &&
+      visibleConversations.length === 1
+    ) {
+      setActiveConversationId(visibleConversations[0].id);
+      setHasAutoSelectedConversation(true);
     }
-  }, [activeConversationId, conversations]);
+  }, [
+    activeConversationId,
+    hasAutoSelectedConversation,
+    isFocused,
+    visibleConversations,
+  ]);
 
   useEffect(() => {
     if (!activeConversationId) {
@@ -1051,90 +1225,355 @@ export default function ChatScreen() {
         ? 0.22
         : 0;
 
+  const previewModal = (
+    <Modal
+      visible={Boolean(previewAttachment)}
+      animationType="slide"
+      presentationStyle="fullScreen"
+      onRequestClose={() => setPreviewAttachment(null)}
+    >
+      <View
+        style={[
+          styles.previewModal,
+          {
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
+          },
+        ]}
+      >
+        <View style={styles.previewHeader}>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            style={styles.previewHeaderButton}
+            onPress={() => setPreviewAttachment(null)}
+          >
+            <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.previewTitle} numberOfLines={1}>
+            {previewAttachment?.file_name ||
+              (previewAttachment?.type === 'PDF' ? 'PDF' : 'Imagen')}
+          </Text>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            style={styles.previewHeaderButton}
+            onPress={() => {
+              if (previewAttachment) {
+                handleDownloadAttachment(previewAttachment);
+              }
+            }}
+          >
+            <Ionicons name="download-outline" size={22} color={theme.colors.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.previewBody}>
+          {previewAttachment?.type === 'IMAGE' && previewAttachment.url ? (
+            <Image
+              source={{ uri: previewAttachment.url }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
+          ) : previewAttachment?.type === 'PDF' && previewAttachment.url ? (
+            <WebView
+              source={{ uri: previewAttachment.url }}
+              style={styles.previewPdf}
+              startInLoadingState
+            />
+          ) : null}
+        </View>
+      </View>
+    </Modal>
+  );
+
+  if (activeConversation) {
+    return (
+      <TabScreenWrapper>
+        {previewModal}
+        <LinearGradient colors={CHAT_BACKGROUND_GRADIENT} style={styles.stage}>
+          <StatusBar style="light" />
+          <SafeAreaView style={styles.safeAreaTransparent} edges={['top', 'left', 'right']}>
+            <KeyboardAvoidingView
+              style={styles.threadShell}
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+              <View style={styles.threadHeader}>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={closeThread}
+                  style={styles.threadIconButton}
+                >
+                  <Ionicons name="arrow-back" size={21} color="#f8fafc" />
+                </TouchableOpacity>
+                <ConversationAvatar conversation={activeConversation} variant="thread" />
+                <View style={styles.threadTitleBlock}>
+                  <Text numberOfLines={1} style={styles.threadTitle}>
+                    {buildDisplayName(activeConversation.participant)}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.threadSubtitle}>
+                    {activeConversation.participant.email || 'Profesional FitPilot'}
+                  </Text>
+                </View>
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                ) : null}
+              </View>
+
+              <ScrollView
+                ref={scrollRef}
+                style={styles.messagesScroll}
+                contentContainerStyle={styles.messagesContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={isRefreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={theme.colors.primary}
+                  />
+                }
+              >
+                {isLoadingMessages ? (
+                  <View style={styles.messagesLoading}>
+                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                  </View>
+                ) : messages.length ? (
+                  messages.map((message) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      isMine={message.sender_id === currentUserId}
+                      senderLabel={getSenderLabel}
+                      onReply={setReplyToMessage}
+                      onDelete={handleDeleteMessage}
+                      onReferencePress={scrollToMessage}
+                      onPreviewAttachment={setPreviewAttachment}
+                      onDownloadAttachment={handleDownloadAttachment}
+                    />
+                  ))
+                ) : (
+                  <View style={styles.emptyThread}>
+                    <Text style={styles.emptyTitle}>Nuevo chat</Text>
+                    <Text style={styles.emptyCopy}>
+                      Envia el primer mensaje cuando estes listo.
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+
+              {replyToMessage ? (
+                <View style={styles.replyComposer}>
+                  <Ionicons name="return-up-back" size={17} color={theme.colors.primary} />
+                  <View style={styles.replyComposerContent}>
+                    <Text style={styles.replyComposerTitle} numberOfLines={1}>
+                      Respondiendo a {getSenderLabel(replyToMessage.sender_id)}
+                    </Text>
+                    <Text style={styles.replyComposerText} numberOfLines={1}>
+                      {getReplyPreview(replyToMessage)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity hitSlop={8} onPress={() => setReplyToMessage(null)}>
+                    <Ionicons name="close" size={18} color="#94a3b8" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {pendingFiles.length ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pendingFiles}
+                >
+                  {pendingFiles.map((file) => (
+                    <View key={file.id} style={styles.pendingFileChip}>
+                      <Ionicons
+                        name={
+                          file.type.startsWith('image/')
+                            ? 'image'
+                            : file.type.startsWith('audio/')
+                              ? 'mic'
+                              : 'document-text'
+                        }
+                        size={15}
+                        color={theme.colors.primary}
+                      />
+                      <Text style={styles.pendingFileText} numberOfLines={1}>
+                        {file.name}
+                      </Text>
+                      <TouchableOpacity
+                        hitSlop={8}
+                        onPress={() =>
+                          setPendingFiles((currentFiles) =>
+                            currentFiles.filter((item) => item.id !== file.id),
+                          )
+                        }
+                      >
+                        <Ionicons name="close" size={15} color="#94a3b8" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : null}
+
+              {canConfirmScheduleProposal && pendingProposalLabel ? (
+                <View style={styles.scheduleProposalCard}>
+                  <View style={styles.scheduleProposalIcon}>
+                    <Ionicons name="calendar-outline" size={18} color="#08111f" />
+                  </View>
+                  <View style={styles.scheduleProposalContent}>
+                    <Text style={styles.scheduleProposalTitle}>Nuevo horario propuesto</Text>
+                    <Text style={styles.scheduleProposalText}>{pendingProposalLabel}</Text>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.78}
+                    disabled={isConfirmingProposal}
+                    onPress={confirmScheduleProposal}
+                    style={[
+                      styles.scheduleProposalButton,
+                      isConfirmingProposal ? styles.scheduleProposalButtonDisabled : null,
+                    ]}
+                  >
+                    {isConfirmingProposal ? (
+                      <ActivityIndicator size="small" color="#08111f" />
+                    ) : (
+                      <Text style={styles.scheduleProposalButtonText}>Confirmar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {!activeConversation.can_send ? (
+                <View style={styles.lockedNotice}>
+                  <Ionicons name="lock-closed" size={15} color={theme.colors.warning} />
+                  <Text style={styles.lockedNoticeText}>
+                    El historial esta disponible, pero el envio esta cerrado.
+                  </Text>
+                </View>
+              ) : null}
+
+              {recorderState.isRecording ? (
+                <View style={styles.recordingWaveCard}>
+                  <View style={styles.recordingDot} />
+                  <View style={styles.recordingWaveBars}>
+                    {RECORDING_WAVE_BARS.map((bar, index) => {
+                      const pulse = 0.62 + Math.sin(index + recordingDuration / 220) * 0.28;
+                      const height = 8 + recordingLevel * 34 * Math.max(0.25, bar + pulse);
+                      return (
+                        <View
+                          key={index}
+                          style={[
+                            styles.recordingWaveBar,
+                            { height: Math.min(38, height) },
+                          ]}
+                        />
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.recordingWaveTime}>
+                    {formatDuration(recordingDuration)}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.composer}>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  activeOpacity={0.75}
+                  disabled={isInputDisabled}
+                  onPress={handlePickImage}
+                >
+                  <Ionicons
+                    name="image-outline"
+                    size={21}
+                    color={isInputDisabled ? '#64748b' : '#f8fafc'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  activeOpacity={0.75}
+                  disabled={isInputDisabled}
+                  onPress={handlePickDocument}
+                >
+                  <Ionicons
+                    name="attach"
+                    size={21}
+                    color={isInputDisabled ? '#64748b' : '#f8fafc'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.iconButton,
+                    recorderState.isRecording ? styles.recordingButton : null,
+                  ]}
+                  activeOpacity={0.75}
+                  disabled={isInputDisabled && !recorderState.isRecording}
+                  onPress={handleRecordPress}
+                >
+                  <Ionicons
+                    name={recorderState.isRecording ? 'stop' : 'mic-outline'}
+                    size={21}
+                    color={recorderState.isRecording ? '#08111f' : '#f8fafc'}
+                  />
+                </TouchableOpacity>
+                <View style={styles.inputShell}>
+                  <TextInput
+                    value={recorderState.isRecording ? formatDuration(recordingDuration) : draft}
+                    editable={!isInputDisabled && !recorderState.isRecording}
+                    onChangeText={setDraft}
+                    placeholder="Mensaje"
+                    placeholderTextColor="#94a3b8"
+                    style={styles.input}
+                    multiline
+                    maxLength={4000}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[styles.sendButton, canSend ? styles.sendButtonEnabled : null]}
+                  activeOpacity={0.75}
+                  disabled={!canSend}
+                  onPress={handleSend}
+                >
+                  {isSending ? (
+                    <ActivityIndicator size="small" color="#08111f" />
+                  ) : (
+                    <Ionicons
+                      name="send"
+                      size={18}
+                      color={canSend ? '#08111f' : '#64748b'}
+                    />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </KeyboardAvoidingView>
+          </SafeAreaView>
+        </LinearGradient>
+      </TabScreenWrapper>
+    );
+  }
+
   return (
     <TabScreenWrapper>
-      <Modal
-        visible={Boolean(previewAttachment)}
-        animationType="slide"
-        presentationStyle="fullScreen"
-        onRequestClose={() => setPreviewAttachment(null)}
-      >
-        <View
-          style={[
-            styles.previewModal,
-            {
-              paddingTop: insets.top,
-              paddingBottom: insets.bottom,
-            },
-          ]}
-        >
-          <View style={styles.previewHeader}>
-            <TouchableOpacity
-              activeOpacity={0.75}
-              style={styles.previewHeaderButton}
-              onPress={() => setPreviewAttachment(null)}
-            >
-              <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.previewTitle} numberOfLines={1}>
-              {previewAttachment?.file_name ||
-                (previewAttachment?.type === 'PDF' ? 'PDF' : 'Imagen')}
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.75}
-              style={styles.previewHeaderButton}
-              onPress={() => {
-                if (previewAttachment) {
-                  handleDownloadAttachment(previewAttachment);
-                }
-              }}
-            >
-              <Ionicons name="download-outline" size={22} color={theme.colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.previewBody}>
-            {previewAttachment?.type === 'IMAGE' && previewAttachment.url ? (
-              <Image
-                source={{ uri: previewAttachment.url }}
-                style={styles.previewImage}
-                resizeMode="contain"
-              />
-            ) : previewAttachment?.type === 'PDF' && previewAttachment.url ? (
-              <WebView
-                source={{ uri: previewAttachment.url }}
-                style={styles.previewPdf}
-                startInLoadingState
-              />
-            ) : null}
-          </View>
-        </View>
-      </Modal>
-      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <View
-            style={[
-              styles.container,
-              {
-                paddingHorizontal: horizontalPadding,
-                paddingBottom: Math.max(contentInsetBottom, spacing.md),
-              },
+      {previewModal}
+      <LinearGradient colors={CHAT_BACKGROUND_GRADIENT} style={styles.stage}>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeAreaTransparent} edges={['top', 'left', 'right']}>
+          <ScrollView
+            contentContainerStyle={[
+              styles.listScreenContent,
+              { paddingBottom: Math.max(insets.bottom + 96, spacing.xl) },
             ]}
+            showsVerticalScrollIndicator={false}
           >
-            <View style={styles.header}>
+            <View style={styles.listHeader}>
               <View>
+                <Text style={styles.brand}>FitPilot</Text>
                 <Text style={styles.title}>Chat</Text>
-                <Text style={styles.subtitle}>
-                  {activeConversation
-                    ? buildDisplayName(activeConversation.participant)
-                    : 'FitPilot'}
-                </Text>
               </View>
-              {isRefreshing ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
-              ) : null}
+              <View style={styles.headerIcon}>
+                <Ionicons
+                  name="chatbubble-ellipses"
+                  size={22}
+                  color={theme.colors.primary}
+                />
+              </View>
             </View>
 
             {isLoadingConversations ? (
@@ -1142,527 +1581,257 @@ export default function ChatScreen() {
                 <LoadingSpinner text="Cargando chat..." />
               </View>
             ) : (
-              <View
-                style={[
-                  styles.chatShell,
-                  isTablet ? styles.chatShellTablet : null,
-                ]}
-              >
-                <View style={[styles.inboxPane, isTablet ? styles.inboxPaneTablet : null]}>
-                  <ScrollView
-                    horizontal={!isTablet}
-                    showsHorizontalScrollIndicator={false}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={[
-                      styles.conversationList,
-                      isTablet ? styles.conversationListTablet : null,
-                    ]}
+              <View style={styles.conversationList}>
+                {visibleConversations.map((conversation) => (
+                  <TouchableOpacity
+                    key={conversation.id}
+                    activeOpacity={0.76}
+                    style={styles.conversationItem}
+                    onPress={() => setActiveConversationId(conversation.id)}
                   >
-                    {conversations.map((conversation) => {
-                      const isActive = conversation.id === activeConversationId;
-                      return (
-                        <TouchableOpacity
-                          key={conversation.id}
-                          activeOpacity={0.76}
-                          style={[
-                            styles.conversationItem,
-                            isActive ? styles.conversationItemActive : null,
-                            isTablet ? styles.conversationItemTablet : null,
-                          ]}
-                          onPress={() => setActiveConversationId(conversation.id)}
-                        >
-                          <View style={styles.avatar}>
-                            {conversation.participant.profile_picture ? (
-                              <Image
-                                source={{ uri: conversation.participant.profile_picture }}
-                                style={styles.avatarImage}
-                              />
-                            ) : (
-                              <Text style={styles.avatarText}>
-                                {buildDisplayName(conversation.participant).slice(0, 1)}
-                              </Text>
-                            )}
-                          </View>
-                          <View style={styles.conversationContent}>
-                            <Text style={styles.conversationName} numberOfLines={1}>
-                              {buildDisplayName(conversation.participant)}
-                            </Text>
-                            <Text style={styles.conversationPreview} numberOfLines={1}>
-                              {getReplyPreview(conversation.last_message)}
+                    <ConversationAvatar conversation={conversation} />
+                    <View style={styles.conversationContent}>
+                      <View style={styles.conversationTop}>
+                        <Text style={styles.conversationName} numberOfLines={1}>
+                          {buildDisplayName(conversation.participant)}
+                        </Text>
+                        {conversation.unread_count > 0 ? (
+                          <View style={styles.unreadBadge}>
+                            <Text style={styles.unreadBadgeText}>
+                              {conversation.unread_count > 9
+                                ? '9+'
+                                : conversation.unread_count}
                             </Text>
                           </View>
-                          {conversation.unread_count > 0 ? (
-                            <View style={styles.unreadBadge}>
-                              <Text style={styles.unreadBadgeText}>
-                                {conversation.unread_count > 9
-                                  ? '9+'
-                                  : conversation.unread_count}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    {professionalOptions.length && !conversations.length ? (
-                      professionalOptions.map((professional) => (
-                        <TouchableOpacity
-                          key={professional.id}
-                          activeOpacity={0.76}
-                          style={styles.conversationItem}
-                          disabled={isStartingConversation}
-                          onPress={() => startConversation(professional.id)}
-                        >
-                          <View style={styles.avatar}>
-                            <Ionicons
-                              name="person"
-                              size={20}
-                              color={theme.colors.primary}
-                            />
-                          </View>
-                          <View style={styles.conversationContent}>
-                            <Text style={styles.conversationName} numberOfLines={1}>
-                              {professional.name}
-                            </Text>
-                            <Text style={styles.conversationPreview} numberOfLines={1}>
-                              {professional.roleLabel ?? 'Profesional'}
-                            </Text>
-                          </View>
-                          <Ionicons
-                            name="chatbubble-ellipses-outline"
-                            size={18}
-                            color={theme.colors.iconMuted}
-                          />
-                        </TouchableOpacity>
-                      ))
-                    ) : null}
-                  </ScrollView>
-                </View>
-
-                <View style={styles.threadPane}>
-                  {!activeConversation ? (
-                    <View style={styles.emptyState}>
-                      <Ionicons
-                        name="chatbubbles-outline"
-                        size={34}
-                        color={theme.colors.iconMuted}
-                      />
-                      <Text style={styles.emptyTitle}>Sin conversaciones</Text>
-                      <Text style={styles.emptyCopy}>
-                        Abre un chat con tu profesional asignado.
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.primaryButton}
-                        activeOpacity={0.78}
-                        disabled={isStartingConversation}
-                        onPress={() => startConversation(professionalOptions[0]?.id)}
-                      >
-                        {isStartingConversation ? (
-                          <ActivityIndicator size="small" color={theme.colors.surface} />
-                        ) : (
-                          <>
-                            <Ionicons
-                              name="chatbubble-ellipses"
-                              size={18}
-                              color={theme.colors.surface}
-                            />
-                            <Text style={styles.primaryButtonText}>Abrir chat</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <>
-                      <ScrollView
-                        ref={scrollRef}
-                        style={styles.messagesScroll}
-                        contentContainerStyle={styles.messagesContent}
-                        keyboardShouldPersistTaps="handled"
-                        refreshControl={
-                          <RefreshControl
-                            refreshing={isRefreshing}
-                            onRefresh={handleRefresh}
-                            tintColor={theme.colors.primary}
-                          />
-                        }
-                      >
-                        {isLoadingMessages ? (
-                          <View style={styles.messagesLoading}>
-                            <ActivityIndicator size="small" color={theme.colors.primary} />
-                          </View>
-                        ) : messages.length ? (
-                          messages.map((message) => (
-                            <MessageBubble
-                              key={message.id}
-                              message={message}
-                              isMine={message.sender_id === currentUserId}
-                              senderLabel={getSenderLabel}
-                              onReply={setReplyToMessage}
-                              onDelete={handleDeleteMessage}
-                              onReferencePress={scrollToMessage}
-                              onPreviewAttachment={setPreviewAttachment}
-                              onDownloadAttachment={handleDownloadAttachment}
-                            />
-                          ))
-                        ) : (
-                          <View style={styles.emptyThread}>
-                            <Text style={styles.emptyTitle}>Nuevo chat</Text>
-                            <Text style={styles.emptyCopy}>
-                              Envia el primer mensaje cuando estes listo.
-                            </Text>
-                          </View>
-                        )}
-                      </ScrollView>
-
-                      {replyToMessage ? (
-                        <View style={styles.replyComposer}>
-                          <Ionicons
-                            name="return-up-back"
-                            size={17}
-                            color={theme.colors.primary}
-                          />
-                          <View style={styles.replyComposerContent}>
-                            <Text style={styles.replyComposerTitle} numberOfLines={1}>
-                              Respondiendo a {getSenderLabel(replyToMessage.sender_id)}
-                            </Text>
-                            <Text style={styles.replyComposerText} numberOfLines={1}>
-                              {getReplyPreview(replyToMessage)}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            hitSlop={8}
-                            onPress={() => setReplyToMessage(null)}
-                          >
-                            <Ionicons
-                              name="close"
-                              size={18}
-                              color={theme.colors.iconMuted}
-                            />
-                          </TouchableOpacity>
-                        </View>
-                      ) : null}
-
-                      {pendingFiles.length ? (
-                        <ScrollView
-                          horizontal
-                          showsHorizontalScrollIndicator={false}
-                          contentContainerStyle={styles.pendingFiles}
-                        >
-                          {pendingFiles.map((file) => (
-                            <View key={file.id} style={styles.pendingFileChip}>
-                              <Ionicons
-                                name={
-                                  file.type.startsWith('image/')
-                                    ? 'image'
-                                    : file.type.startsWith('audio/')
-                                      ? 'mic'
-                                      : 'document-text'
-                                }
-                                size={15}
-                                color={theme.colors.primary}
-                              />
-                              <Text style={styles.pendingFileText} numberOfLines={1}>
-                                {file.name}
-                              </Text>
-                              <TouchableOpacity
-                                hitSlop={8}
-                                onPress={() =>
-                                  setPendingFiles((currentFiles) =>
-                                    currentFiles.filter((item) => item.id !== file.id),
-                                  )
-                                }
-                              >
-                                <Ionicons
-                                  name="close"
-                                  size={15}
-                                  color={theme.colors.iconMuted}
-                                />
-                              </TouchableOpacity>
-                            </View>
-                          ))}
-                        </ScrollView>
-                      ) : null}
-
-                      {!activeConversation.can_send ? (
-                        <View style={styles.lockedNotice}>
-                          <Ionicons
-                            name="lock-closed"
-                            size={15}
-                            color={theme.colors.warning}
-                          />
-                          <Text style={styles.lockedNoticeText}>
-                            El historial esta disponible, pero el envio esta cerrado.
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      {recorderState.isRecording ? (
-                        <View style={styles.recordingWaveCard}>
-                          <View style={styles.recordingDot} />
-                          <View style={styles.recordingWaveBars}>
-                            {RECORDING_WAVE_BARS.map((bar, index) => {
-                              const pulse = 0.62 + Math.sin(index + recordingDuration / 220) * 0.28;
-                              const height = 8 + recordingLevel * 34 * Math.max(0.25, bar + pulse);
-                              return (
-                                <View
-                                  key={index}
-                                  style={[
-                                    styles.recordingWaveBar,
-                                    { height: Math.min(38, height) },
-                                  ]}
-                                />
-                              );
-                            })}
-                          </View>
-                          <Text style={styles.recordingWaveTime}>
-                            {formatDuration(recordingDuration)}
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      <View style={styles.composer}>
-                        <TouchableOpacity
-                          style={styles.iconButton}
-                          activeOpacity={0.75}
-                          disabled={isInputDisabled}
-                          onPress={handlePickImage}
-                        >
-                          <Ionicons
-                            name="image-outline"
-                            size={21}
-                            color={
-                              isInputDisabled
-                                ? theme.colors.iconMuted
-                                : theme.colors.primary
-                            }
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.iconButton}
-                          activeOpacity={0.75}
-                          disabled={isInputDisabled}
-                          onPress={handlePickDocument}
-                        >
-                          <Ionicons
-                            name="attach"
-                            size={21}
-                            color={
-                              isInputDisabled
-                                ? theme.colors.iconMuted
-                                : theme.colors.primary
-                            }
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.iconButton,
-                            recorderState.isRecording ? styles.recordingButton : null,
-                          ]}
-                          activeOpacity={0.75}
-                          disabled={isInputDisabled && !recorderState.isRecording}
-                          onPress={handleRecordPress}
-                        >
-                          <Ionicons
-                            name={recorderState.isRecording ? 'stop' : 'mic-outline'}
-                            size={21}
-                            color={
-                              recorderState.isRecording
-                                ? theme.colors.surface
-                                : theme.colors.primary
-                            }
-                          />
-                        </TouchableOpacity>
-                        <View style={styles.inputShell}>
-                          <TextInput
-                            value={recorderState.isRecording ? formatDuration(recordingDuration) : draft}
-                            editable={!isInputDisabled && !recorderState.isRecording}
-                            onChangeText={setDraft}
-                            placeholder="Mensaje"
-                            placeholderTextColor={theme.colors.textMuted}
-                            style={styles.input}
-                            multiline
-                            maxLength={4000}
-                          />
-                        </View>
-                        <TouchableOpacity
-                          style={[
-                            styles.sendButton,
-                            canSend ? styles.sendButtonEnabled : null,
-                          ]}
-                          activeOpacity={0.75}
-                          disabled={!canSend}
-                          onPress={handleSend}
-                        >
-                          {isSending ? (
-                            <ActivityIndicator size="small" color={theme.colors.surface} />
-                          ) : (
-                            <Ionicons
-                              name="send"
-                              size={18}
-                              color={
-                                canSend ? theme.colors.surface : theme.colors.iconMuted
-                              }
-                            />
-                          )}
-                        </TouchableOpacity>
+                        ) : null}
                       </View>
-                    </>
-                  )}
-                </View>
+                      <Text style={styles.conversationPreview} numberOfLines={1}>
+                        {getReplyPreview(conversation.last_message)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                {startableProfessionalOptions.length ? (
+                  startableProfessionalOptions.map((professional) => (
+                    <TouchableOpacity
+                      key={professional.id}
+                      activeOpacity={0.76}
+                      style={styles.conversationItem}
+                      disabled={isStartingConversation}
+                      onPress={() => startConversation(professional.id)}
+                    >
+                      <View style={styles.avatar}>
+                        <Ionicons name="person" size={20} color={theme.colors.primary} />
+                      </View>
+                      <View style={styles.conversationContent}>
+                        <Text style={styles.conversationName} numberOfLines={1}>
+                          {professional.name}
+                        </Text>
+                        <Text style={styles.conversationPreview} numberOfLines={1}>
+                          {professional.roleLabel
+                            ? `${professional.roleLabel} · Iniciar conversacion`
+                            : 'Iniciar conversacion'}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="chatbubble-ellipses-outline"
+                        size={18}
+                        color="#94a3b8"
+                      />
+                    </TouchableOpacity>
+                  ))
+                ) : null}
               </View>
             )}
-          </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+
+            {!isLoadingConversations &&
+            !visibleConversations.length &&
+            !startableProfessionalOptions.length ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbubbles-outline" size={34} color="#94a3b8" />
+                <Text style={styles.emptyTitle}>Sin conversaciones</Text>
+                <Text style={styles.emptyCopy}>
+                  Abre un chat con tu profesional asignado.
+                </Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </SafeAreaView>
+      </LinearGradient>
     </TabScreenWrapper>
   );
 }
 
 const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
   StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    keyboardView: {
+    stage: {
       flex: 1,
     },
-    container: {
+    safeAreaTransparent: {
       flex: 1,
-      paddingTop: spacing.md,
-      gap: spacing.md,
     },
-    header: {
+    threadShell: {
+      flex: 1,
+    },
+    threadHeader: {
+      minHeight: 70,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: 'rgba(255,255,255,0.08)',
+      paddingHorizontal: 10,
+      paddingVertical: 12,
+    },
+    threadIconButton: {
+      width: 42,
+      height: 42,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+    },
+    threadTitleBlock: {
+      flex: 1,
+      minWidth: 0,
+    },
+    threadTitle: {
+      color: '#f8fafc',
+      fontSize: 17,
+      fontWeight: '800',
+    },
+    threadSubtitle: {
+      marginTop: 2,
+      color: '#94a3b8',
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    listScreenContent: {
+      flexGrow: 1,
+      padding: spacing.md,
+      paddingTop: spacing.lg,
+    },
+    listHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      marginBottom: spacing.lg,
+    },
+    brand: {
+      color: theme.colors.primary,
+      fontSize: 13,
+      fontWeight: '900',
+      letterSpacing: 1.8,
+      textTransform: 'uppercase',
     },
     title: {
-      color: theme.colors.textPrimary,
-      fontSize: fontSize['2xl'],
-      fontWeight: '800',
+      marginTop: 2,
+      color: '#f8fafc',
+      fontSize: 30,
+      fontWeight: '900',
     },
-    subtitle: {
-      marginTop: spacing.xs,
-      color: theme.colors.textMuted,
-      fontSize: fontSize.sm,
-      fontWeight: '600',
+    headerIcon: {
+      width: 46,
+      height: 46,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(96,165,250,0.26)',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(96,165,250,0.12)',
     },
     loadingState: {
-      flex: 1,
+      minHeight: 220,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    chatShell: {
-      flex: 1,
-      gap: spacing.md,
-    },
-    chatShellTablet: {
-      flexDirection: 'row',
-    },
-    inboxPane: {
-      minHeight: 78,
-    },
-    inboxPaneTablet: {
-      width: 300,
-      minHeight: 0,
     },
     conversationList: {
-      gap: spacing.sm,
-      paddingRight: spacing.md,
-    },
-    conversationListTablet: {
-      flexGrow: 1,
-      flexDirection: 'column',
-      paddingRight: 0,
+      gap: 10,
     },
     conversationItem: {
-      width: 246,
-      minHeight: 68,
+      minHeight: 74,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
-      backgroundColor: theme.colors.surface,
+      gap: 12,
       borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: borderRadius.md,
-      padding: spacing.sm,
-      ...shadows.sm,
-    },
-    conversationItemTablet: {
-      width: '100%',
-    },
-    conversationItemActive: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primarySoft,
+      borderColor: 'rgba(255,255,255,0.09)',
+      borderRadius: borderRadius.lg,
+      backgroundColor: 'rgba(255,255,255,0.055)',
+      padding: 14,
     },
     avatar: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 46,
+      height: 46,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primarySoft,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
       overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: 'rgba(96,165,250,0.32)',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(96,165,250,0.15)',
+    },
+    threadAvatar: {
+      width: 48,
+      height: 48,
+      borderColor: 'rgba(255,255,255,0.18)',
+      backgroundColor: 'rgba(96,165,250,0.18)',
     },
     avatarImage: {
       width: '100%',
       height: '100%',
     },
     avatarText: {
-      color: theme.colors.primary,
+      color: '#f8fafc',
       fontSize: fontSize.base,
-      fontWeight: '800',
+      fontWeight: '900',
       textTransform: 'uppercase',
+    },
+    threadAvatarText: {
+      fontSize: fontSize.lg,
     },
     conversationContent: {
       flex: 1,
       minWidth: 0,
     },
+    conversationTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+    },
     conversationName: {
-      color: theme.colors.textPrimary,
-      fontSize: fontSize.sm,
+      flex: 1,
+      color: '#f8fafc',
+      fontSize: fontSize.base,
       fontWeight: '800',
     },
     conversationPreview: {
-      marginTop: 3,
-      color: theme.colors.textMuted,
-      fontSize: fontSize.xs,
-      lineHeight: 16,
+      marginTop: 4,
+      color: '#94a3b8',
+      fontSize: fontSize.sm,
+      lineHeight: 18,
     },
     unreadBadge: {
       minWidth: 22,
       height: 22,
-      borderRadius: 11,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.error,
+      borderRadius: 11,
+      backgroundColor: theme.colors.primary,
       paddingHorizontal: spacing.xs,
     },
     unreadBadgeText: {
-      color: theme.colors.surface,
+      color: '#08111f',
       fontSize: 11,
-      fontWeight: '800',
-    },
-    threadPane: {
-      flex: 1,
-      minHeight: 0,
-      overflow: 'hidden',
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: borderRadius.lg,
-      ...shadows.sm,
+      fontWeight: '900',
     },
     messagesScroll: {
       flex: 1,
     },
     messagesContent: {
       flexGrow: 1,
+      gap: 12,
       padding: spacing.md,
-      gap: spacing.sm,
+      paddingBottom: spacing.lg,
     },
     messagesLoading: {
       flex: 1,
@@ -1671,11 +1840,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingVertical: spacing.xl,
     },
     emptyState: {
-      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: spacing.xl,
       gap: spacing.sm,
+      marginTop: spacing.xl,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.09)',
+      borderRadius: borderRadius.lg,
+      backgroundColor: 'rgba(255,255,255,0.045)',
+      padding: spacing.xl,
     },
     emptyThread: {
       flex: 1,
@@ -1685,32 +1858,16 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingVertical: spacing.xl,
     },
     emptyTitle: {
-      color: theme.colors.textPrimary,
+      color: '#f8fafc',
       fontSize: fontSize.lg,
-      fontWeight: '800',
+      fontWeight: '900',
       textAlign: 'center',
     },
     emptyCopy: {
-      color: theme.colors.textMuted,
+      color: '#94a3b8',
       fontSize: fontSize.sm,
       lineHeight: 20,
       textAlign: 'center',
-    },
-    primaryButton: {
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: spacing.sm,
-      marginTop: spacing.md,
-      paddingHorizontal: spacing.lg,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.primary,
-    },
-    primaryButtonText: {
-      color: theme.colors.surface,
-      fontSize: fontSize.sm,
-      fontWeight: '800',
     },
     messageRow: {
       width: '100%',
@@ -1721,115 +1878,123 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     messageBubble: {
       maxWidth: '84%',
-      borderRadius: borderRadius.lg,
-      borderBottomLeftRadius: borderRadius.sm,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: spacing.sm,
       gap: spacing.xs,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderRadius: 20,
+      borderBottomLeftRadius: borderRadius.sm,
+      backgroundColor: 'rgba(248,250,252,0.08)',
+      padding: 12,
     },
     messageBubbleMine: {
-      borderBottomLeftRadius: borderRadius.lg,
+      borderColor: 'rgba(255,255,255,0.24)',
+      borderBottomLeftRadius: 20,
       borderBottomRightRadius: borderRadius.sm,
       backgroundColor: theme.colors.primary,
-      borderColor: theme.colors.primary,
     },
     messageBody: {
-      color: theme.colors.textPrimary,
-      fontSize: fontSize.base,
-      lineHeight: 22,
+      color: '#f8fafc',
+      fontSize: 15,
+      lineHeight: 21,
     },
     messageBodyMine: {
-      color: theme.colors.surface,
+      color: '#08111f',
     },
     messageDeleted: {
-      color: theme.colors.textMuted,
-      fontSize: fontSize.base,
+      color: '#94a3b8',
+      fontSize: 15,
       fontStyle: 'italic',
-      lineHeight: 22,
+      lineHeight: 21,
     },
     replyBlock: {
       borderLeftWidth: 3,
       borderLeftColor: theme.colors.primary,
-      borderRadius: borderRadius.sm,
-      backgroundColor: theme.colors.surface,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.md,
+      backgroundColor: 'rgba(255,255,255,0.055)',
+      paddingHorizontal: 10,
+      paddingVertical: 8,
     },
     replyBlockMine: {
-      borderLeftColor: 'rgba(255,255,255,0.82)',
-      backgroundColor: 'rgba(255,255,255,0.16)',
+      borderLeftColor: 'rgba(8,17,31,0.46)',
+      backgroundColor: 'rgba(8,17,31,0.12)',
     },
     replyAuthor: {
       color: theme.colors.primary,
-      fontSize: fontSize.xs,
-      fontWeight: '800',
+      fontSize: 10,
+      fontWeight: '900',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
     },
     replyAuthorMine: {
-      color: theme.colors.surface,
+      color: 'rgba(8,17,31,0.72)',
     },
     replyText: {
       marginTop: 2,
-      color: theme.colors.textMuted,
+      color: '#e2e8f0',
       fontSize: fontSize.xs,
       fontWeight: '700',
     },
     replyTextMine: {
-      color: 'rgba(255,255,255,0.78)',
+      color: '#08111f',
     },
     messageMeta: {
       alignSelf: 'flex-end',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 3,
+      marginTop: 2,
     },
     messageMetaMine: {
       alignSelf: 'flex-end',
     },
     messageTime: {
-      alignSelf: 'flex-end',
-      color: theme.colors.textMuted,
+      color: '#94a3b8',
       fontSize: 11,
-      fontWeight: '700',
+      fontWeight: '800',
     },
     messageTimeMine: {
-      color: 'rgba(255,255,255,0.72)',
+      color: 'rgba(8,17,31,0.6)',
+    },
+    messageReceipt: {
+      width: 17,
+      height: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     attachmentList: {
       gap: spacing.xs,
     },
     imageAttachment: {
-      width: 190,
-      height: 130,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.border,
+      width: 220,
+      height: 160,
+      borderRadius: borderRadius.lg,
+      backgroundColor: 'rgba(255,255,255,0.08)',
     },
     fileAttachment: {
-      maxWidth: 230,
+      maxWidth: 240,
       minHeight: 38,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      borderRadius: borderRadius.sm,
-      backgroundColor: theme.colors.surface,
+      borderRadius: borderRadius.md,
+      backgroundColor: 'rgba(255,255,255,0.08)',
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
     },
     fileAttachmentText: {
       flex: 1,
-      color: theme.colors.textPrimary,
+      color: '#f8fafc',
       fontSize: fontSize.sm,
       fontWeight: '700',
     },
     audioAttachment: {
-      maxWidth: 230,
-      minHeight: 38,
+      maxWidth: 240,
+      minHeight: 42,
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      borderRadius: borderRadius.sm,
-      backgroundColor: theme.colors.surface,
+      borderRadius: borderRadius.md,
+      backgroundColor: 'rgba(255,255,255,0.08)',
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
     },
@@ -1842,7 +2007,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     audioAttachmentText: {
       flex: 1,
-      color: theme.colors.textPrimary,
+      color: '#f8fafc',
       fontSize: fontSize.sm,
       fontWeight: '700',
     },
@@ -1852,7 +2017,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: 'rgba(96,165,250,0.14)',
     },
     previewModal: {
       flex: 1,
@@ -1896,8 +2061,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     pendingFiles: {
       gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
     },
     pendingFileChip: {
       maxWidth: 210,
@@ -1905,30 +2070,80 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
       borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
+      borderColor: 'rgba(96,165,250,0.28)',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(96,165,250,0.13)',
       paddingHorizontal: spacing.sm,
     },
     pendingFileText: {
       flexShrink: 1,
-      color: theme.colors.textPrimary,
+      color: '#f8fafc',
       fontSize: fontSize.xs,
       fontWeight: '700',
+    },
+    scheduleProposalCard: {
+      minHeight: 76,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
+      marginHorizontal: 12,
+      marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: 'rgba(45,212,191,0.34)',
+      borderRadius: borderRadius.lg,
+      backgroundColor: 'rgba(20,184,166,0.16)',
+      padding: spacing.sm,
+    },
+    scheduleProposalIcon: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.primary,
+    },
+    scheduleProposalContent: {
+      flex: 1,
+      minWidth: 0,
+    },
+    scheduleProposalTitle: {
+      color: '#ccfbf1',
+      fontSize: fontSize.xs,
+      fontWeight: '900',
+      textTransform: 'uppercase',
+    },
+    scheduleProposalText: {
+      marginTop: 3,
+      color: '#f8fafc',
+      fontSize: fontSize.sm,
+      fontWeight: '800',
+    },
+    scheduleProposalButton: {
+      minHeight: 38,
+      minWidth: 92,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: spacing.md,
+    },
+    scheduleProposalButtonDisabled: {
+      opacity: 0.64,
+    },
+    scheduleProposalButtonText: {
+      color: '#08111f',
+      fontSize: fontSize.xs,
+      fontWeight: '900',
     },
     replyComposer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      marginHorizontal: spacing.sm,
-      marginTop: spacing.sm,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-      backgroundColor: theme.colors.primarySoft,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(255,255,255,0.08)',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
     },
     replyComposerContent: {
       flex: 1,
@@ -1936,12 +2151,14 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     replyComposerTitle: {
       color: theme.colors.primary,
-      fontSize: fontSize.xs,
-      fontWeight: '800',
+      fontSize: 10,
+      fontWeight: '900',
+      letterSpacing: 1.1,
+      textTransform: 'uppercase',
     },
     replyComposerText: {
-      marginTop: 1,
-      color: theme.colors.textMuted,
+      marginTop: 2,
+      color: '#f8fafc',
       fontSize: fontSize.xs,
       fontWeight: '700',
     },
@@ -1949,12 +2166,12 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
     },
     lockedNoticeText: {
       flex: 1,
-      color: theme.colors.textMuted,
+      color: '#94a3b8',
       fontSize: fontSize.xs,
       fontWeight: '700',
     },
@@ -1963,10 +2180,12 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
-      marginHorizontal: spacing.md,
+      marginHorizontal: 12,
       marginBottom: spacing.sm,
+      borderWidth: 1,
+      borderColor: 'rgba(96,165,250,0.24)',
       borderRadius: borderRadius.xl,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: 'rgba(96,165,250,0.13)',
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
     },
@@ -1974,7 +2193,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       width: 10,
       height: 10,
       borderRadius: 5,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.error,
     },
     recordingWaveBars: {
       minHeight: 40,
@@ -1999,54 +2218,56 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     composer: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      gap: spacing.xs,
-      padding: spacing.sm,
+      gap: 10,
       borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
+      borderTopColor: 'rgba(255,255,255,0.08)',
+      padding: 12,
     },
     iconButton: {
-      width: 38,
-      height: 38,
+      width: 42,
+      height: 42,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 19,
-      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.12)',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(255,255,255,0.055)',
     },
     recordingButton: {
+      borderColor: 'rgba(248,113,113,0.48)',
       backgroundColor: theme.colors.error,
     },
     inputShell: {
       flex: 1,
-      minHeight: 38,
+      minHeight: 42,
       maxHeight: 112,
       borderWidth: 1,
-      borderColor: theme.colors.inputBorder,
-      borderRadius: 19,
-      backgroundColor: theme.colors.inputBackground,
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderRadius: 21,
+      backgroundColor: 'rgba(255,255,255,0.055)',
       paddingHorizontal: spacing.md,
-      paddingVertical: Platform.OS === 'ios' ? 9 : 0,
+      paddingVertical: Platform.OS === 'ios' ? 10 : 0,
     },
     input: {
-      minHeight: 36,
+      minHeight: 38,
       maxHeight: 96,
-      color: theme.colors.textPrimary,
+      color: '#f8fafc',
       fontSize: fontSize.base,
       padding: 0,
       textAlignVertical: 'center',
     },
     sendButton: {
-      width: 38,
-      height: 38,
+      width: 42,
+      height: 42,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 19,
-      backgroundColor: theme.colors.surfaceAlt,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(255,255,255,0.055)',
     },
     sendButtonEnabled: {
-      backgroundColor: theme.colors.primary,
       borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary,
     },
   });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useCareTeamStore } from '../store/careTeamStore';
 import { getTodayDateKey } from '../utils/date';
 import { countUniqueAssignedProfessionals } from '../utils/careTeam';
@@ -31,6 +31,14 @@ export const useCareTeam = (clientId: string | null) => {
     [summaries],
   );
 
+  const refreshCareTeam = useCallback(async () => {
+    if (!clientId) {
+      return;
+    }
+
+    await loadCareTeam(clientId, { dateKey, force: true });
+  }, [clientId, dateKey, loadCareTeam]);
+
   return {
     dateKey,
     summaries,
@@ -39,12 +47,6 @@ export const useCareTeam = (clientId: string | null) => {
     isRefreshing,
     hasLoaded: hasLoadedCurrentRequest,
     assignedCount,
-    refreshCareTeam: async () => {
-      if (!clientId) {
-        return;
-      }
-
-      await loadCareTeam(clientId, { dateKey, force: true });
-    },
+    refreshCareTeam,
   };
 };
