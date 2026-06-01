@@ -20,6 +20,7 @@ import {
   Button,
   Card,
   LoadingSpinner,
+  ProfileShortcutButton,
   SegmentedControl,
   TabScreenWrapper,
 } from '../../src/components/common';
@@ -1364,10 +1365,13 @@ export default function WorkoutsScreen() {
           isTablet ? styles.pageHeaderTablet : null,
         ]}
       >
-        <View style={styles.screenIntro}>
-          <Text style={styles.screenEyebrow}>Entrenamientos</Text>
-          <Text style={styles.screenTitle}>Progreso</Text>
-          <Text style={styles.screenSubtitle}>{activeTabSubtitle}</Text>
+        <View style={styles.screenIntroRow}>
+          <View style={styles.screenIntro}>
+            <Text style={styles.screenEyebrow}>Entrenamientos</Text>
+            <Text style={styles.screenTitle}>Progreso</Text>
+            <Text style={styles.screenSubtitle}>{activeTabSubtitle}</Text>
+          </View>
+          <ProfileShortcutButton />
         </View>
 
         <SegmentedControl
@@ -2007,7 +2011,15 @@ const createStyles = (theme: AppTheme) =>
       paddingTop: spacing.lg,
     },
     screenIntro: {
+      flex: 1,
+      minWidth: 0,
       gap: spacing.xs,
+    },
+    screenIntroRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
     },
     screenEyebrow: {
       fontSize: fontSize.xs,

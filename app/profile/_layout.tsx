@@ -11,6 +11,7 @@ export default function ProtectedProfileLayout() {
           animation: 'slide_from_right',
         }}
       >
+        <Stack.Screen name="index" />
         <Stack.Screen name="personal-info" />
         <Stack.Screen name="professionals" />
         <Stack.Screen name="change-password" />

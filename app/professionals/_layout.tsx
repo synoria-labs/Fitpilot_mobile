@@ -11,6 +11,7 @@ export default function ProtectedProfessionalsLayout() {
           animation: 'slide_from_right',
         }}
       >
+        <Stack.Screen name="index" />
         <Stack.Screen name="[username]" />
       </Stack>
     </ProtectedRoute>

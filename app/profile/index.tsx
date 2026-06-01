@@ -15,10 +15,6 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
-import {
-  useBottomTabBarContentInset,
-  useBottomTabBarScroll,
-} from '../../src/hooks/useBottomTabBarVisibility';
 import { useCareTeam } from '../../src/hooks/useCareTeam';
 import {
   getThemePreferenceLabel,
@@ -39,7 +35,6 @@ import {
 } from '../../src/constants/colors';
 import {
   ProfileImagePreviewModal,
-  TabScreenWrapper,
 } from '../../src/components/common';
 import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
 import { pickProfileImageFromLibrary } from '../../src/utils/profileImagePicker';
@@ -131,8 +126,6 @@ export default function ProfileScreen() {
   } = useCareTeam(user?.id ?? null);
   const { preference, theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const tabBarScroll = useBottomTabBarScroll();
-  const contentInsetBottom = useBottomTabBarContentInset();
   const measurementPreference = useMeasurementPreferenceStore(
     (state) => state.preference,
   );
@@ -395,9 +388,17 @@ export default function ProfileScreen() {
   );
 
   return (
-    <TabScreenWrapper>
-      <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            activeOpacity={0.85}
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
+            <Ionicons name="arrow-back" size={20} color={theme.colors.icon} />
+          </TouchableOpacity>
           <Text style={styles.title}>Perfil</Text>
         </View>
 
@@ -407,11 +408,9 @@ export default function ProfileScreen() {
             styles.scrollContent,
             {
               paddingHorizontal: horizontalPadding,
-              paddingBottom: contentInsetBottom,
+              paddingBottom: spacing.xxl,
             },
           ]}
-          onScroll={tabBarScroll.onScroll}
-          scrollEventThrottle={tabBarScroll.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.userCard}>
@@ -561,7 +560,6 @@ export default function ProfileScreen() {
           isUploading={isProfileImageUploading}
         />
       </SafeAreaView>
-    </TabScreenWrapper>
   );
 }
 
@@ -572,10 +570,24 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       backgroundColor: theme.colors.background,
     },
     header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
     },
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: borderRadius.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
     title: {
+      flex: 1,
       fontSize: fontSize['2xl'],
       fontWeight: 'bold',
       color: theme.colors.textPrimary,

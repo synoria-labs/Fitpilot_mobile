@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   LoadingSpinner,
   SegmentedControl,
-  TabScreenWrapper,
 } from '../../src/components/common';
 import {
   borderRadius,
@@ -24,7 +23,6 @@ import {
   shadows,
   spacing,
 } from '../../src/constants/colors';
-import { useBottomTabBarContentInset } from '../../src/hooks/useBottomTabBarVisibility';
 import {
   listPublicProfessionals,
   type PublicProfessionalCard,
@@ -182,7 +180,6 @@ const getRelationshipActionLabel = (profile: PublicProfessionalCard) => {
 
 export default function SearchProfessionalsScreen() {
   const { width, height } = useWindowDimensions();
-  const contentInsetBottom = useBottomTabBarContentInset();
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -285,16 +282,15 @@ export default function SearchProfessionalsScreen() {
   };
 
   return (
-    <TabScreenWrapper>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingHorizontal: horizontalPadding,
-              paddingBottom: contentInsetBottom + spacing.xl,
-            },
-          ]}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingBottom: spacing.xl,
+          },
+        ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -305,6 +301,18 @@ export default function SearchProfessionalsScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+              hitSlop={8}
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed ? styles.backButtonPressed : null,
+              ]}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.colors.icon} />
+            </Pressable>
             <View style={styles.headerCopy}>
               <Text style={styles.eyebrow}>Buscar</Text>
               <Text style={styles.title}>Profesionales</Text>
@@ -420,9 +428,8 @@ export default function SearchProfessionalsScreen() {
               ))}
             </View>
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </TabScreenWrapper>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -560,6 +567,19 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.md,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    backButtonPressed: {
+      opacity: 0.82,
     },
     headerCopy: {
       flex: 1,

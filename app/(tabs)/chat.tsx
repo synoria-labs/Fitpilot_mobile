@@ -80,6 +80,7 @@ const CHAT_BACKGROUND_GRADIENT = ['#08111f', '#050b14', '#0d1624'] as const;
 type PendingChatFile = ChatUploadFile & {
   id: string;
   size?: number;
+  durationMillis?: number;
 };
 
 type ProfessionalChatOption = {
@@ -175,6 +176,18 @@ const formatDuration = (milliseconds: number) => {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 };
 
+const getAudioDisplayName = (name?: string | null) => {
+  const trimmedName = name?.trim();
+  if (!trimmedName || /^nota-voz-\d+/i.test(trimmedName)) {
+    return 'Nota de voz';
+  }
+
+  return trimmedName;
+};
+
+const getPendingFileDisplayName = (file: PendingChatFile) =>
+  file.type.startsWith('audio/') ? 'Nota de voz' : file.name;
+
 const sortConversations = (items: ChatConversation[]) =>
   [...items].sort((left, right) => {
     const leftDate = left.last_message_at ?? left.updated_at;
@@ -261,6 +274,9 @@ const AudioAttachmentPlayer = ({
   const player = useAudioPlayer(attachment.url ? { uri: attachment.url } : null);
   const status = useAudioPlayerStatus(player);
   const isPlaying = status.playing;
+  const durationLabel = attachment.duration_seconds
+    ? formatDuration(attachment.duration_seconds * 1000)
+    : null;
 
   return (
     <View style={styles.audioAttachment}>
@@ -279,14 +295,21 @@ const AudioAttachmentPlayer = ({
           }
         }}
       >
-        <Ionicons
-          name={isPlaying ? 'pause' : 'play'}
-          size={16}
-          color={theme.colors.primary}
-        />
-        <Text style={styles.audioAttachmentText} numberOfLines={1}>
-          {attachment.file_name || 'Nota de voz'}
-        </Text>
+        <View style={styles.audioPlaybackIcon}>
+          <Ionicons
+            name={isPlaying ? 'pause' : 'play'}
+            size={12}
+            color={theme.colors.primary}
+          />
+        </View>
+        <View style={styles.audioAttachmentCopy}>
+          <Text style={styles.audioAttachmentText} numberOfLines={1}>
+            {getAudioDisplayName(attachment.file_name)}
+          </Text>
+          {durationLabel ? (
+            <Text style={styles.audioAttachmentMeta}>{durationLabel}</Text>
+          ) : null}
+        </View>
       </TouchableOpacity>
       <TouchableOpacity
         activeOpacity={0.75}
@@ -768,6 +791,9 @@ export default function ChatScreen() {
     }
 
     try {
+      const durationMillis =
+        recorderState.durationMillis ||
+        Math.max(0, Date.now() - (recordingStartedAtRef.current ?? Date.now()));
       await recorder.stop();
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
       const uri = recorder.uri ?? recorderState.url;
@@ -779,6 +805,7 @@ export default function ChatScreen() {
             uri,
             name: `nota-voz-${Date.now()}.m4a`,
             type: guessMimeType(uri, 'audio/mp4'),
+            durationMillis,
           },
         ]);
       }
@@ -787,7 +814,7 @@ export default function ChatScreen() {
     } finally {
       recordingStartedAtRef.current = null;
     }
-  }, [appendPendingFiles, recorder, recorderState.url]);
+  }, [appendPendingFiles, recorder, recorderState.durationMillis, recorderState.url]);
 
   const startRecording = useCallback(async () => {
     if (pendingFiles.length >= MAX_FILES_PER_MESSAGE) {
@@ -1379,37 +1406,56 @@ export default function ChatScreen() {
               {pendingFiles.length ? (
                 <ScrollView
                   horizontal
+                  style={styles.pendingFilesScroller}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.pendingFiles}
                 >
-                  {pendingFiles.map((file) => (
-                    <View key={file.id} style={styles.pendingFileChip}>
-                      <Ionicons
-                        name={
-                          file.type.startsWith('image/')
-                            ? 'image'
-                            : file.type.startsWith('audio/')
-                              ? 'mic'
-                              : 'document-text'
-                        }
-                        size={15}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.pendingFileText} numberOfLines={1}>
-                        {file.name}
-                      </Text>
-                      <TouchableOpacity
-                        hitSlop={8}
-                        onPress={() =>
-                          setPendingFiles((currentFiles) =>
-                            currentFiles.filter((item) => item.id !== file.id),
-                          )
-                        }
+                  {pendingFiles.map((file) => {
+                    const isAudio = file.type.startsWith('audio/');
+
+                    return (
+                      <View
+                        key={file.id}
+                        style={[
+                          styles.pendingFileChip,
+                          isAudio ? styles.pendingAudioFileChip : null,
+                        ]}
                       >
-                        <Ionicons name="close" size={15} color="#94a3b8" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+                        <View style={styles.pendingFileIcon}>
+                          <Ionicons
+                            name={
+                              file.type.startsWith('image/')
+                                ? 'image'
+                                : isAudio
+                                  ? 'mic-outline'
+                                  : 'document-text'
+                            }
+                            size={isAudio ? 13 : 14}
+                            color={theme.colors.primary}
+                          />
+                        </View>
+                        <Text style={styles.pendingFileText} numberOfLines={1}>
+                          {getPendingFileDisplayName(file)}
+                        </Text>
+                        {file.durationMillis ? (
+                          <Text style={styles.pendingFileMeta}>
+                            {formatDuration(file.durationMillis)}
+                          </Text>
+                        ) : null}
+                        <TouchableOpacity
+                          hitSlop={8}
+                          style={styles.pendingFileRemoveButton}
+                          onPress={() =>
+                            setPendingFiles((currentFiles) =>
+                              currentFiles.filter((item) => item.id !== file.id),
+                            )
+                          }
+                        >
+                          <Ionicons name="close" size={13} color="#94a3b8" />
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
                 </ScrollView>
               ) : null}
 
@@ -1988,32 +2034,51 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       fontWeight: '700',
     },
     audioAttachment: {
-      maxWidth: 240,
-      minHeight: 42,
+      maxWidth: 210,
+      minHeight: 38,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.xs,
-      borderRadius: borderRadius.md,
-      backgroundColor: 'rgba(255,255,255,0.08)',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
+      gap: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(96,165,250,0.2)',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(15,23,42,0.28)',
+      paddingHorizontal: 6,
+      paddingVertical: 5,
     },
     audioPlayback: {
       minWidth: 0,
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.xs,
+      gap: 7,
+    },
+    audioPlaybackIcon: {
+      width: 24,
+      height: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(96,165,250,0.16)',
+    },
+    audioAttachmentCopy: {
+      flex: 1,
+      minWidth: 0,
     },
     audioAttachmentText: {
-      flex: 1,
       color: '#f8fafc',
-      fontSize: fontSize.sm,
-      fontWeight: '700',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+    audioAttachmentMeta: {
+      marginTop: 1,
+      color: '#94a3b8',
+      fontSize: 10,
+      fontWeight: '800',
     },
     attachmentDownloadButton: {
-      width: 30,
-      height: 30,
+      width: 26,
+      height: 26,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
@@ -2059,28 +2124,60 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       flex: 1,
       backgroundColor: theme.colors.surface,
     },
+    pendingFilesScroller: {
+      height: 46,
+      flexGrow: 0,
+    },
     pendingFiles: {
-      gap: spacing.xs,
+      minHeight: 46,
+      alignItems: 'center',
+      gap: 6,
       paddingHorizontal: 12,
-      paddingVertical: 10,
     },
     pendingFileChip: {
-      maxWidth: 210,
-      minHeight: 34,
+      maxWidth: 190,
+      height: 30,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.xs,
+      gap: 6,
       borderWidth: 1,
-      borderColor: 'rgba(96,165,250,0.28)',
+      borderColor: 'rgba(148,163,184,0.2)',
       borderRadius: borderRadius.full,
-      backgroundColor: 'rgba(96,165,250,0.13)',
-      paddingHorizontal: spacing.sm,
+      backgroundColor: 'rgba(15,23,42,0.58)',
+      paddingLeft: 5,
+      paddingRight: 7,
+    },
+    pendingAudioFileChip: {
+      maxWidth: 160,
+      borderColor: 'rgba(96,165,250,0.24)',
+      backgroundColor: 'rgba(96,165,250,0.12)',
+    },
+    pendingFileIcon: {
+      width: 20,
+      height: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: 'rgba(96,165,250,0.12)',
     },
     pendingFileText: {
+      minWidth: 0,
       flexShrink: 1,
       color: '#f8fafc',
-      fontSize: fontSize.xs,
-      fontWeight: '700',
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    pendingFileMeta: {
+      color: '#93c5fd',
+      fontSize: 10,
+      fontWeight: '900',
+    },
+    pendingFileRemoveButton: {
+      width: 18,
+      height: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
     },
     scheduleProposalCard: {
       minHeight: 76,

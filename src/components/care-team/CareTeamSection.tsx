@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   borderRadius,
   fontSize,
@@ -25,6 +26,10 @@ type CareTeamSectionProps = {
   title?: string;
   subtitle?: string;
   horizontalPadding?: number;
+  actionLabel?: string;
+  actionIcon?: React.ComponentProps<typeof Ionicons>['name'];
+  actionAccessibilityLabel?: string;
+  onActionPress?: () => void;
 };
 
 type CareTeamCardModel = {
@@ -120,13 +125,32 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
   title = 'Tus profesionales',
   subtitle,
   horizontalPadding = 0,
+  actionLabel,
+  actionIcon = 'search-outline',
+  actionAccessibilityLabel,
+  onActionPress,
 }) => {
+  const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const cards = useMemo(
     () => buildCareTeamCards(summaries, errors, isLoading),
     [errors, isLoading, summaries],
   );
   const isSummary = variant === 'summary';
+  const action = onActionPress ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={actionAccessibilityLabel ?? actionLabel}
+      onPress={onActionPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        pressed ? styles.actionButtonPressed : null,
+      ]}
+    >
+      <Ionicons name={actionIcon} size={14} color={theme.colors.primary} />
+      {actionLabel ? <Text style={styles.actionButtonText}>{actionLabel}</Text> : null}
+    </Pressable>
+  ) : null;
 
   return (
     <View
@@ -138,11 +162,19 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
     >
       {isSummary ? (
         <View style={styles.summaryHeader}>
-          <Text style={styles.summaryTitle}>{title}</Text>
+          <Text style={styles.summaryTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {action}
         </View>
       ) : (
         <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+            {action}
+          </View>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
       )}
@@ -176,14 +208,28 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       marginBottom: spacing.md,
     },
     summaryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
       marginBottom: spacing.xs,
     },
+    headerTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
     title: {
+      flex: 1,
+      minWidth: 0,
       fontSize: fontSize.xl,
       fontWeight: '700',
       color: theme.colors.textPrimary,
     },
     summaryTitle: {
+      flex: 1,
+      minWidth: 0,
       fontSize: fontSize.base,
       fontWeight: '800',
       color: theme.colors.textPrimary,
@@ -193,6 +239,25 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       fontSize: fontSize.sm,
       color: theme.colors.textMuted,
       lineHeight: 20,
+    },
+    actionButton: {
+      minHeight: 32,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: spacing.sm,
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    actionButtonPressed: {
+      opacity: 0.82,
+    },
+    actionButtonText: {
+      fontSize: fontSize.xs,
+      fontWeight: '800',
+      color: theme.colors.primary,
     },
     cardsColumn: {
       gap: spacing.sm,

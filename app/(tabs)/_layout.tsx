@@ -246,14 +246,10 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
       ]}
     >
       <BlurView
-        intensity={Platform.OS === 'ios' ? (theme.isDark ? 45 : 60) : 42}
+        intensity={theme.isDark ? 45 : 60}
         experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
         blurReductionFactor={Platform.OS === 'android' ? 2 : undefined}
-        tint={
-          Platform.OS === 'android' && theme.isDark
-            ? 'systemUltraThinMaterialDark'
-            : theme.colors.phoneNavShellBlurTint
-        }
+        tint={theme.colors.phoneNavShellBlurTint}
         style={styles.customTabBarBlur}
       >
         <View style={styles.customTabBarContainer}>
@@ -563,32 +559,6 @@ export default function TabLayout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="search"
-            options={{
-              title: 'Buscar',
-              tabBarIcon: ({ color, size, focused }) => (
-                <Ionicons
-                  name={focused ? 'search' : 'search-outline'}
-                  size={size}
-                  color={color}
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: 'Perfil',
-              tabBarIcon: ({ color, size, focused }) => (
-                <Ionicons
-                  name={focused ? 'person' : 'person-outline'}
-                  size={size}
-                  color={color}
-                />
-              ),
-            }}
-          />
         </Tabs>
       </BottomTabBarVisibilityProvider>
     </ProtectedRoute>
@@ -619,19 +589,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     customTabBarBlur: {
       borderRadius: 35,
       overflow: 'hidden',
-      backgroundColor:
-        Platform.OS === 'android'
-          ? theme.isDark
-            ? 'rgba(13, 37, 72, 0.76)'
-            : 'rgba(239, 248, 255, 0.74)'
-          : theme.colors.phoneNavShellBackground,
+      backgroundColor: theme.colors.phoneNavShellBackground,
       borderWidth: 1,
-      borderColor:
-        Platform.OS === 'android'
-          ? theme.isDark
-            ? 'rgba(103, 182, 223, 0.22)'
-            : 'rgba(103, 182, 223, 0.20)'
-          : theme.colors.phoneNavShellBorder,
+      borderColor: theme.colors.phoneNavShellBorder,
       ...(Platform.OS === 'android'
         ? {
             shadowColor: 'transparent',

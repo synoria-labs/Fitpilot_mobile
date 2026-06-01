@@ -19,6 +19,7 @@ import {
   Card,
   FloatingButton,
   LoadingSpinner,
+  ProfileShortcutButton,
   SegmentedControl,
   TabScreenWrapper,
 } from '../../src/components/common';
@@ -709,6 +710,7 @@ export default function MeasurementsScreen() {
               Unidades: {MEASUREMENT_PREFERENCE_LABELS[measurementPreference]}
             </Text>
           </View>
+          <ProfileShortcutButton />
         </View>
 
         <View style={[styles.tabsWrap, { paddingHorizontal: horizontalPadding }]}>
@@ -1579,12 +1581,15 @@ const createStyles = (theme: AppTheme) =>
     },
     header: {
       flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
       backgroundColor: theme.colors.background,
     },
     headerCopy: {
       flex: 1,
+      minWidth: 0,
     },
     title: {
       fontSize: fontSize['2xl'],
