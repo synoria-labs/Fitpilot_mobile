@@ -272,6 +272,14 @@ export default function HomeScreen() {
       return;
     }
 
+    void refreshCareTeam();
+  }, [isFocused, refreshCareTeam, user?.id]);
+
+  useEffect(() => {
+    if (!isFocused || !user?.id) {
+      return;
+    }
+
     if (
       dashboardDataVersion !== 0 &&
       lastLoadedWorkoutLogsVersionRef.current === workoutLogsVersion
@@ -532,6 +540,12 @@ export default function HomeScreen() {
   const handleOpenMeasurements = useCallback(() => {
     router.push('/(tabs)/measurements');
   }, []);
+  const handleOpenProfile = useCallback(() => {
+    router.push('/profile');
+  }, []);
+  const handleOpenProfessionals = useCallback(() => {
+    router.push('/professionals');
+  }, []);
 
   if (!user) {
     return null;
@@ -567,6 +581,7 @@ export default function HomeScreen() {
               <UserHeader
                 user={user}
                 program={program}
+                onProfilePress={handleOpenProfile}
                 contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
               />
@@ -653,6 +668,9 @@ export default function HomeScreen() {
                 variant="summary"
                 emptyPresentation="combined-summary"
                 horizontalPadding={horizontalPadding}
+                actionLabel="Buscar"
+                actionAccessibilityLabel="Buscar profesionales"
+                onActionPress={handleOpenProfessionals}
               />
             </Animated.View>
 

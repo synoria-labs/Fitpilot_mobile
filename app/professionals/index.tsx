@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   LoadingSpinner,
   SegmentedControl,
-  TabScreenWrapper,
 } from '../../src/components/common';
 import {
   borderRadius,
@@ -24,25 +23,26 @@ import {
   shadows,
   spacing,
 } from '../../src/constants/colors';
-import { useBottomTabBarContentInset } from '../../src/hooks/useBottomTabBarVisibility';
 import {
   listPublicProfessionals,
   type PublicProfessionalCard,
   type PublicProfessionalRole,
   type PublicProfessionalServiceMode,
+  type ServiceType,
 } from '../../src/services/professionalDiscovery';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../src/theme';
 import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
 
-type RoleFilter = 'all' | PublicProfessionalRole;
+type ServiceTypeFilter = 'all' | ServiceType;
 type ServiceModeFilter = 'all' | PublicProfessionalServiceMode;
 type PriceFilter = 'all' | 'under_500' | '500_1000' | '1000_plus';
 
-const ROLE_OPTIONS = [
+const SERVICE_TYPE_OPTIONS = [
   { key: 'all', label: 'Todos' },
-  { key: 'nutritionist', label: 'Nutricion' },
-  { key: 'trainer', label: 'Entreno' },
-] satisfies { key: RoleFilter; label: string }[];
+  { key: 'NUTRITION', label: 'Nutricion' },
+  { key: 'TRAINING', label: 'Entreno' },
+  { key: 'BOTH', label: 'Ambas' },
+] satisfies { key: ServiceTypeFilter; label: string }[];
 
 const SERVICE_MODE_OPTIONS = [
   { key: 'all', label: 'Todo' },
@@ -63,6 +63,12 @@ const ROLE_LABELS: Record<PublicProfessionalRole, string> = {
   trainer: 'Entrenador',
 };
 
+const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
+  NUTRITION: 'Nutricion',
+  TRAINING: 'Entrenamiento',
+  BOTH: 'Ambas',
+};
+
 const SERVICE_MODE_LABELS: Record<PublicProfessionalServiceMode, string> = {
   online: 'En linea',
   in_person: 'Presencial',
@@ -75,13 +81,48 @@ const getInitials = (profile: PublicProfessionalCard) =>
 const getFullName = (profile: PublicProfessionalCard) =>
   [profile.name, profile.lastname].filter(Boolean).join(' ');
 
-const formatPrice = (profile: PublicProfessionalCard) => {
-  const amount = Number(profile.consultation_price_amount);
-  if (!Number.isFinite(amount) || amount <= 0) {
+const getServicePriceAmount = (
+  profile: PublicProfessionalCard,
+  serviceType?: ServiceType | null,
+) => {
+  if (serviceType) {
+    const amount = Number(profile.service_prices?.[serviceType]);
+    if (Number.isFinite(amount) && amount > 0) {
+      return amount;
+    }
+
+    if (serviceType === 'BOTH') {
+      const nutritionAmount = Number(profile.service_prices?.NUTRITION);
+      const trainingAmount = Number(profile.service_prices?.TRAINING);
+
+      return Number.isFinite(nutritionAmount) &&
+        nutritionAmount > 0 &&
+        Number.isFinite(trainingAmount) &&
+        trainingAmount > 0
+        ? nutritionAmount + trainingAmount
+        : null;
+    }
+
     return null;
   }
 
-  return `$${amount.toLocaleString('es-MX')} ${profile.consultation_price_currency ?? 'MXN'}`;
+  const amount = Number(profile.consultation_price_amount);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+};
+
+const formatPrice = (
+  profile: PublicProfessionalCard,
+  serviceType?: ServiceType | null,
+) => {
+  const amount = getServicePriceAmount(profile, serviceType);
+  if (amount === null || amount <= 0) {
+    return null;
+  }
+
+  const prefix =
+    serviceType || (profile.available_service_types?.length ?? 0) <= 1 ? '' : 'Desde ';
+
+  return `${prefix}$${amount.toLocaleString('es-MX')} ${profile.consultation_price_currency ?? 'MXN'}`;
 };
 
 const getPriceRange = (priceFilter: PriceFilter) => {
@@ -94,14 +135,56 @@ const getPriceRange = (priceFilter: PriceFilter) => {
 const getOptionLabel = <T extends string>(options: { key: T; label: string }[], value: T) =>
   options.find((option) => option.key === value)?.label ?? '';
 
+const getInitialServiceTypeForProfile = (
+  profile: PublicProfessionalCard,
+  serviceTypeFilter: ServiceTypeFilter,
+) => {
+  const relationship = profile.client_relationship;
+  const preferredServiceTypes =
+    relationship?.status === 'client' && relationship.bookable_service_types.length > 0
+      ? relationship.bookable_service_types
+      : profile.available_service_types;
+
+  if (
+    serviceTypeFilter !== 'all' &&
+    preferredServiceTypes.includes(serviceTypeFilter)
+  ) {
+    return serviceTypeFilter;
+  }
+
+  if (
+    serviceTypeFilter !== 'all' &&
+    profile.available_service_types.includes(serviceTypeFilter)
+  ) {
+    return serviceTypeFilter;
+  }
+
+  return preferredServiceTypes[0] ?? profile.available_service_types?.[0] ?? 'NUTRITION';
+};
+
+const getRelationshipActionLabel = (profile: PublicProfessionalCard) => {
+  const relationship = profile.client_relationship;
+
+  if (relationship?.status === 'client') {
+    return 'Agendar cita';
+  }
+
+  if (relationship?.status === 'prospect') {
+    return relationship.latest_contact_request_status === 'scheduled'
+      ? 'Cita pendiente'
+      : 'Solicitud en curso';
+  }
+
+  return 'Me interesa';
+};
+
 export default function SearchProfessionalsScreen() {
   const { width, height } = useWindowDimensions();
-  const contentInsetBottom = useBottomTabBarContentInset();
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceTypeFilter>('all');
   const [serviceModeFilter, setServiceModeFilter] = useState<ServiceModeFilter>('all');
   const [priceFilter, setPriceFilter] = useState<PriceFilter>('all');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
@@ -111,7 +194,7 @@ export default function SearchProfessionalsScreen() {
   const [error, setError] = useState<string | null>(null);
   const hasActiveFilters =
     searchQuery.trim().length > 0 ||
-    roleFilter !== 'all' ||
+    serviceTypeFilter !== 'all' ||
     serviceModeFilter !== 'all' ||
     priceFilter !== 'all';
   const resultCountLabel = isLoading
@@ -131,13 +214,13 @@ export default function SearchProfessionalsScreen() {
   const requestParams = useMemo(
     () => ({
       q: searchQuery.trim() || undefined,
-      role: roleFilter === 'all' ? undefined : roleFilter,
+      service_type: serviceTypeFilter === 'all' ? undefined : serviceTypeFilter,
       service_mode: serviceModeFilter === 'all' ? undefined : serviceModeFilter,
       page: 1,
       limit: 30,
       ...getPriceRange(priceFilter),
     }),
-    [priceFilter, roleFilter, searchQuery, serviceModeFilter],
+    [priceFilter, searchQuery, serviceModeFilter, serviceTypeFilter],
   );
 
   const loadProfessionals = useCallback(
@@ -177,40 +260,37 @@ export default function SearchProfessionalsScreen() {
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
-    setRoleFilter('all');
+    setServiceTypeFilter('all');
     setServiceModeFilter('all');
     setPriceFilter('all');
     setIsFiltersExpanded(false);
   }, []);
 
   const openProfessional = (profile: PublicProfessionalCard) => {
-    const requestedRole =
-      roleFilter !== 'all'
-        ? roleFilter
-        : profile.roles.includes('nutritionist')
-          ? 'nutritionist'
-          : profile.roles[0] ?? 'trainer';
+    const requestedServiceType = getInitialServiceTypeForProfile(
+      profile,
+      serviceTypeFilter,
+    );
 
     router.push({
       pathname: '/professionals/[username]' as never,
       params: {
         username: profile.username,
-        role: requestedRole,
+        service_type: requestedServiceType,
       },
     });
   };
 
   return (
-    <TabScreenWrapper>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            {
-              paddingHorizontal: horizontalPadding,
-              paddingBottom: contentInsetBottom + spacing.xl,
-            },
-          ]}
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          {
+            paddingHorizontal: horizontalPadding,
+            paddingBottom: spacing.xl,
+          },
+        ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -221,6 +301,18 @@ export default function SearchProfessionalsScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Volver"
+              hitSlop={8}
+              onPress={() => router.back()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed ? styles.backButtonPressed : null,
+              ]}
+            >
+              <Ionicons name="arrow-back" size={20} color={theme.colors.icon} />
+            </Pressable>
             <View style={styles.headerCopy}>
               <Text style={styles.eyebrow}>Buscar</Text>
               <Text style={styles.title}>Profesionales</Text>
@@ -257,9 +349,9 @@ export default function SearchProfessionalsScreen() {
 
           <View style={styles.filterGroup}>
             <SegmentedControl
-              options={ROLE_OPTIONS}
-              value={roleFilter}
-              onChange={setRoleFilter}
+              options={SERVICE_TYPE_OPTIONS}
+              value={serviceTypeFilter}
+              onChange={setServiceTypeFilter}
               size="compact"
             />
 
@@ -330,14 +422,14 @@ export default function SearchProfessionalsScreen() {
                 <ProfessionalCard
                   key={profile.username}
                   profile={profile}
+                  selectedServiceType={serviceTypeFilter === 'all' ? null : serviceTypeFilter}
                   onPress={() => openProfessional(profile)}
                 />
               ))}
             </View>
           )}
-        </ScrollView>
-      </SafeAreaView>
-    </TabScreenWrapper>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -377,19 +469,24 @@ function FilterRow<T extends string>({ options, value, onChange }: FilterRowProp
 
 interface ProfessionalCardProps {
   profile: PublicProfessionalCard;
+  selectedServiceType: ServiceType | null;
   onPress: () => void;
 }
 
-function ProfessionalCard({ profile, onPress }: ProfessionalCardProps) {
+function ProfessionalCard({ profile, selectedServiceType, onPress }: ProfessionalCardProps) {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const price = formatPrice(profile);
+  const price = formatPrice(profile, selectedServiceType);
   const location = [profile.public_city, profile.public_state].filter(Boolean).join(', ');
   const roleSummary = profile.roles.map((role) => ROLE_LABELS[role]).join(' / ');
+  const serviceSummary = profile.available_service_types?.length
+    ? profile.available_service_types.map((serviceType) => SERVICE_TYPE_LABELS[serviceType]).join(' / ')
+    : null;
   const serviceModeSummary = profile.public_service_mode
     ? SERVICE_MODE_LABELS[profile.public_service_mode]
     : null;
-  const professionalMeta = [roleSummary, serviceModeSummary].filter(Boolean).join(' - ');
+  const professionalMeta = [serviceSummary ?? roleSummary, serviceModeSummary].filter(Boolean).join(' - ');
+  const actionLabel = getRelationshipActionLabel(profile);
 
   return (
     <Pressable
@@ -440,6 +537,16 @@ function ProfessionalCard({ profile, onPress }: ProfessionalCardProps) {
           {profile.specialties.slice(0, 4).join(' - ')}
         </Text>
       ) : null}
+      <View style={styles.cardActionRow}>
+        <View style={styles.cardActionPill}>
+          <Text style={styles.cardActionText}>{actionLabel}</Text>
+          <Ionicons
+            name={profile.client_relationship?.status === 'client' ? 'calendar-outline' : 'send-outline'}
+            size={13}
+            color={theme.colors.primary}
+          />
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -460,6 +567,19 @@ const createStyles = (theme: AppTheme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.md,
+    },
+    backButton: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    backButtonPressed: {
+      opacity: 0.82,
     },
     headerCopy: {
       flex: 1,
@@ -732,6 +852,26 @@ const createStyles = (theme: AppTheme) =>
       fontSize: fontSize.xs,
       lineHeight: 16,
       color: theme.colors.textSecondary,
+    },
+    cardActionRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+    },
+    cardActionPill: {
+      minHeight: 28,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderRadius: borderRadius.full,
+      paddingHorizontal: spacing.sm,
+      backgroundColor: theme.colors.primarySoft,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryBorder,
+    },
+    cardActionText: {
+      fontSize: fontSize.xs,
+      fontWeight: '900',
+      color: theme.colors.primary,
     },
     location: {
       minWidth: 0,

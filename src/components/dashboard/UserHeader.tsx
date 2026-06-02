@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { spacing, fontSize } from '../../constants/colors';
-import { Logo, ProfileImagePreviewModal } from '../common';
+import { Logo } from '../common';
 import type { DashboardProgramSummary, User } from '../../types';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
-import { useAuthStore } from '../../store/authStore';
 
 interface UserHeaderProps {
   user: User;
   program?: DashboardProgramSummary | null;
+  onProfilePress?: () => void;
   onMenuPress?: () => void;
   contentWidth?: number;
   horizontalPadding?: number;
@@ -27,6 +27,7 @@ const objectiveLabels: Record<string, string> = {
 export const UserHeader: React.FC<UserHeaderProps> = ({
   user,
   program,
+  onProfilePress,
   onMenuPress,
   contentWidth,
   horizontalPadding = spacing.md,
@@ -34,9 +35,6 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [hasAvatarError, setHasAvatarError] = useState(false);
-  const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const uploadAvatar = useAuthStore((s) => s.uploadAvatar);
 
   const initials = user.displayName
     .split(' ')
@@ -44,15 +42,6 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
     .join('')
     .toUpperCase()
     .slice(0, 2);
-
-  const handleAvatarChange = async (uri: string) => {
-    setIsUploading(true);
-    try {
-      await uploadAvatar(uri);
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   useEffect(() => {
     setHasAvatarError(false);
@@ -78,59 +67,49 @@ export const UserHeader: React.FC<UserHeaderProps> = ({
   );
 
   return (
-    <>
-      <View
-        style={[
-          styles.container,
-          { paddingHorizontal: horizontalPadding },
-          contentWidth && contentWidth >= 720 ? styles.containerTablet : null,
-        ]}
+    <View
+      style={[
+        styles.container,
+        { paddingHorizontal: horizontalPadding },
+        contentWidth && contentWidth >= 720 ? styles.containerTablet : null,
+      ]}
+    >
+      <TouchableOpacity
+        activeOpacity={0.88}
+        accessibilityRole={onProfilePress ? 'button' : undefined}
+        accessibilityLabel="Abrir perfil"
+        disabled={!onProfilePress}
+        onPress={onProfilePress}
+        style={styles.userInfo}
       >
-        <View style={styles.userInfo}>
-          <TouchableOpacity
-            activeOpacity={0.88}
-            onPress={() => setIsImagePreviewVisible(true)}
-            style={styles.avatarPressable}
-          >
-            {avatarContent}
-          </TouchableOpacity>
-          <View style={styles.textContainer}>
-            <Text style={styles.userName} numberOfLines={1}>
-              {user.displayName}
+        <View style={styles.avatarPressable}>{avatarContent}</View>
+        <View style={styles.textContainer}>
+          <Text style={styles.userName} numberOfLines={1}>
+            {user.displayName}
+          </Text>
+          {objectiveLabel ? (
+            <Text style={styles.goal} numberOfLines={1}>
+              meta: {objectiveLabel}
             </Text>
-            {objectiveLabel ? (
-              <Text style={styles.goal} numberOfLines={1}>
-                meta: {objectiveLabel}
-              </Text>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.rightSection}>
-          <View style={styles.logoContainer}>
-            <Logo size="sm" variant="mark" showText={false} />
-          </View>
-          {onMenuPress ? (
-            <TouchableOpacity onPress={onMenuPress} style={styles.menuButton}>
-              <Ionicons
-                name="ellipsis-vertical"
-                size={20}
-                color={theme.colors.icon}
-              />
-            </TouchableOpacity>
           ) : null}
         </View>
-      </View>
+      </TouchableOpacity>
 
-      <ProfileImagePreviewModal
-        visible={isImagePreviewVisible}
-        imageUrl={avatarImageUrl}
-        title={user.displayName}
-        onClose={() => setIsImagePreviewVisible(false)}
-        onChangeImage={handleAvatarChange}
-        isUploading={isUploading}
-      />
-    </>
+      <View style={styles.rightSection}>
+        <View style={styles.logoContainer}>
+          <Logo size="sm" variant="mark" showText={false} />
+        </View>
+        {onMenuPress ? (
+          <TouchableOpacity onPress={onMenuPress} style={styles.menuButton}>
+            <Ionicons
+              name="ellipsis-vertical"
+              size={20}
+              color={theme.colors.icon}
+            />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
   );
 };
 

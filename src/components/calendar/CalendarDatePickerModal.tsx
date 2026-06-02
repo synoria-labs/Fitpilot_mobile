@@ -18,16 +18,21 @@ import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 
 type CalendarDateInput = Date | string | null | undefined;
 
-interface CalendarDatePickerModalProps {
-  visible: boolean;
-  title: string;
-  subtitle?: string | null;
+export interface CalendarDatePickerPanelProps {
   selectedDate?: CalendarDateInput;
   initialVisibleDate?: CalendarDateInput;
   minDate?: CalendarDateInput;
   maxDate?: CalendarDateInput;
-  onClose: () => void;
+  disabledDateKeys?: string[];
+  isActive?: boolean;
   onSelect: (date: Date) => void;
+}
+
+interface CalendarDatePickerModalProps extends Omit<CalendarDatePickerPanelProps, 'isActive'> {
+  visible: boolean;
+  title: string;
+  subtitle?: string | null;
+  onClose: () => void;
 }
 
 type CalendarDay = {
@@ -89,15 +94,13 @@ const compareMonths = (left: Date, right: Date) => (
   left.getMonth() - right.getMonth()
 );
 
-export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = ({
-  visible,
-  title,
-  subtitle,
+export const CalendarDatePickerPanel: React.FC<CalendarDatePickerPanelProps> = ({
   selectedDate,
   initialVisibleDate,
   minDate,
   maxDate,
-  onClose,
+  disabledDateKeys,
+  isActive = true,
   onSelect,
 }) => {
   const { theme } = useAppTheme();
@@ -108,6 +111,10 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   const parsedMinDate = parseLocalDate(minDate) ?? null;
   const parsedMaxDate = parseLocalDate(maxDate) ?? null;
   const selectedDateKey = toLocalDateKey(parsedSelectedDate);
+  const disabledDateKeySet = useMemo(
+    () => new Set(disabledDateKeys ?? []),
+    [disabledDateKeys],
+  );
   const yearScrollRef = React.useRef<ScrollView>(null);
   const [calendarMonth, setCalendarMonth] = useState(() =>
     startOfMonth(parsedSelectedDate ?? parsedInitialVisibleDate ?? new Date()),
@@ -129,7 +136,7 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   };
 
   useEffect(() => {
-    if (!visible) {
+    if (!isActive) {
       setSelectorMode(null);
       return;
     }
@@ -145,7 +152,7 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
         ? currentMonth
         : nextMonth
     ));
-  }, [initialVisibleDateKey, selectedDateKey, visible]);
+  }, [initialVisibleDateKey, isActive, selectedDateKey]);
 
   const yearOptions = useMemo(() => {
     const currentYear = calendarMonth.getFullYear();
@@ -200,21 +207,23 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
       const date = new Date(gridStart);
       date.setDate(gridStart.getDate() + index);
       date.setHours(12, 0, 0, 0);
+      const dateKey = toLocalDateKey(date) ?? `${date.getTime()}`;
 
       const disabled = Boolean(
         (parsedMinDate && compareDays(date, parsedMinDate) < 0) ||
-        (parsedMaxDate && compareDays(date, parsedMaxDate) > 0),
+        (parsedMaxDate && compareDays(date, parsedMaxDate) > 0) ||
+        disabledDateKeySet.has(dateKey),
       );
 
       return {
-        key: toLocalDateKey(date) ?? `${date.getTime()}`,
+        key: dateKey,
         date,
         label: `${date.getDate()}`,
         inCurrentMonth: date.getMonth() === monthStart.getMonth(),
         disabled,
       };
     });
-  }, [calendarMonth, parsedMaxDate, parsedMinDate]);
+  }, [calendarMonth, disabledDateKeySet, parsedMaxDate, parsedMinDate]);
 
   const canGoToPreviousMonth = !parsedMinDate ||
     compareMonths(calendarMonth, startOfMonth(parsedMinDate)) > 0;
@@ -253,6 +262,215 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
   };
 
   return (
+    <>
+      <View style={styles.monthHeader}>
+        <Pressable
+          onPress={() => {
+            setSelectorMode(null);
+            setCalendarMonth((currentDate) => addMonths(currentDate, -1));
+          }}
+          disabled={!canGoToPreviousMonth}
+          style={[
+            styles.monthNav,
+            !canGoToPreviousMonth ? styles.monthNavDisabled : null,
+          ]}
+        >
+          <Ionicons name="chevron-back-outline" size={20} color={theme.colors.textSecondary} />
+        </Pressable>
+
+        <View style={styles.monthSelectorGroup}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar mes"
+            onPress={() => toggleSelectorMode('month')}
+            style={[
+              styles.monthSelectorButton,
+              selectorMode === 'month' ? styles.monthSelectorButtonActive : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.monthSelectorText,
+                selectorMode === 'month' ? styles.monthSelectorTextActive : null,
+              ]}
+            >
+              {currentMonthLabel}
+            </Text>
+            <Ionicons
+              name={selectorMode === 'month' ? 'chevron-up-outline' : 'chevron-down-outline'}
+              size={16}
+              color={selectorMode === 'month' ? colors.white : theme.colors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar año"
+            onPress={() => toggleSelectorMode('year')}
+            style={[
+              styles.yearSelectorButton,
+              selectorMode === 'year' ? styles.monthSelectorButtonActive : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.yearSelectorText,
+                selectorMode === 'year' ? styles.monthSelectorTextActive : null,
+              ]}
+            >
+              {currentYearLabel}
+            </Text>
+            <Ionicons
+              name={selectorMode === 'year' ? 'chevron-up-outline' : 'chevron-down-outline'}
+              size={16}
+              color={selectorMode === 'year' ? colors.white : theme.colors.textSecondary}
+            />
+          </Pressable>
+        </View>
+
+        <Pressable
+          onPress={() => {
+            setSelectorMode(null);
+            setCalendarMonth((currentDate) => addMonths(currentDate, 1));
+          }}
+          disabled={!canGoToNextMonth}
+          style={[
+            styles.monthNav,
+            !canGoToNextMonth ? styles.monthNavDisabled : null,
+          ]}
+        >
+          <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
+        </Pressable>
+      </View>
+
+      {selectorMode ? (
+        <View style={styles.selectorPanel}>
+          {selectorMode === 'month' ? (
+            <View style={styles.monthGrid}>
+              {MONTH_OPTIONS.map((month) => {
+                const isSelected = month.value === calendarMonth.getMonth();
+                const disabled = isMonthDisabled(month.value);
+
+                return (
+                  <Pressable
+                    key={month.value}
+                    disabled={disabled}
+                    onPress={() => handleMonthSelect(month.value)}
+                    style={[
+                      styles.monthOption,
+                      isSelected ? styles.selectorOptionActive : null,
+                      disabled ? styles.selectorOptionDisabled : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.monthOptionText,
+                        isSelected ? styles.selectorOptionTextActive : null,
+                        disabled ? styles.selectorOptionTextDisabled : null,
+                      ]}
+                    >
+                      {month.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <ScrollView
+              ref={yearScrollRef}
+              style={styles.yearScroll}
+              contentContainerStyle={styles.yearGrid}
+              showsVerticalScrollIndicator
+            >
+              {yearOptions.map((year) => {
+                const isSelected = year === calendarMonth.getFullYear();
+
+                return (
+                  <Pressable
+                    key={year}
+                    onPress={() => handleYearSelect(year)}
+                    style={[
+                      styles.yearOption,
+                      isSelected ? styles.selectorOptionActive : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.yearOptionText,
+                        isSelected ? styles.selectorOptionTextActive : null,
+                      ]}
+                    >
+                      {year}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </View>
+      ) : (
+        <>
+          <View style={styles.weekdaysRow}>
+            {WEEKDAY_LABELS.map((weekday) => (
+              <Text key={weekday} style={styles.weekday}>
+                {weekday}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.grid}>
+            {calendarDays.map((day) => {
+              const isSelected = selectedDateKey === toLocalDateKey(day.date);
+
+              return (
+                <Pressable
+                  key={day.key}
+                  disabled={day.disabled}
+                  onPress={() => onSelect(day.date)}
+                  style={[
+                    styles.day,
+                    day.disabled ? styles.dayDisabled : null,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.dayInner,
+                      !day.inCurrentMonth ? styles.dayOutsideMonth : null,
+                      isSelected ? styles.daySelected : null,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        !day.inCurrentMonth ? styles.dayTextOutsideMonth : null,
+                        day.disabled ? styles.dayTextDisabled : null,
+                        isSelected ? styles.dayTextSelected : null,
+                      ]}
+                    >
+                      {day.label}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
+    </>
+  );
+};
+
+export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = ({
+  visible,
+  title,
+  subtitle,
+  onClose,
+  ...panelProps
+}) => {
+  const { theme } = useAppTheme();
+  const styles = useThemedStyles(createStyles);
+
+  return (
     <Modal
       visible={visible}
       transparent
@@ -274,199 +492,7 @@ export const CalendarDatePickerModal: React.FC<CalendarDatePickerModalProps> = (
             </Pressable>
           </View>
 
-          <View style={styles.monthHeader}>
-            <Pressable
-              onPress={() => {
-                setSelectorMode(null);
-                setCalendarMonth((currentDate) => addMonths(currentDate, -1));
-              }}
-              disabled={!canGoToPreviousMonth}
-              style={[
-                styles.monthNav,
-                !canGoToPreviousMonth ? styles.monthNavDisabled : null,
-              ]}
-            >
-              <Ionicons name="chevron-back-outline" size={20} color={theme.colors.textSecondary} />
-            </Pressable>
-
-            <View style={styles.monthSelectorGroup}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Seleccionar mes"
-                onPress={() => toggleSelectorMode('month')}
-                style={[
-                  styles.monthSelectorButton,
-                  selectorMode === 'month' ? styles.monthSelectorButtonActive : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.monthSelectorText,
-                    selectorMode === 'month' ? styles.monthSelectorTextActive : null,
-                  ]}
-                >
-                  {currentMonthLabel}
-                </Text>
-                <Ionicons
-                  name={selectorMode === 'month' ? 'chevron-up-outline' : 'chevron-down-outline'}
-                  size={16}
-                  color={selectorMode === 'month' ? colors.white : theme.colors.textSecondary}
-                />
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Seleccionar año"
-                onPress={() => toggleSelectorMode('year')}
-                style={[
-                  styles.yearSelectorButton,
-                  selectorMode === 'year' ? styles.monthSelectorButtonActive : null,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.yearSelectorText,
-                    selectorMode === 'year' ? styles.monthSelectorTextActive : null,
-                  ]}
-                >
-                  {currentYearLabel}
-                </Text>
-                <Ionicons
-                  name={selectorMode === 'year' ? 'chevron-up-outline' : 'chevron-down-outline'}
-                  size={16}
-                  color={selectorMode === 'year' ? colors.white : theme.colors.textSecondary}
-                />
-              </Pressable>
-            </View>
-
-            <Pressable
-              onPress={() => {
-                setSelectorMode(null);
-                setCalendarMonth((currentDate) => addMonths(currentDate, 1));
-              }}
-              disabled={!canGoToNextMonth}
-              style={[
-                styles.monthNav,
-                !canGoToNextMonth ? styles.monthNavDisabled : null,
-              ]}
-            >
-              <Ionicons name="chevron-forward-outline" size={20} color={theme.colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          {selectorMode ? (
-            <View style={styles.selectorPanel}>
-              {selectorMode === 'month' ? (
-                <View style={styles.monthGrid}>
-                  {MONTH_OPTIONS.map((month) => {
-                    const isSelected = month.value === calendarMonth.getMonth();
-                    const disabled = isMonthDisabled(month.value);
-
-                    return (
-                      <Pressable
-                        key={month.value}
-                        disabled={disabled}
-                        onPress={() => handleMonthSelect(month.value)}
-                        style={[
-                          styles.monthOption,
-                          isSelected ? styles.selectorOptionActive : null,
-                          disabled ? styles.selectorOptionDisabled : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.monthOptionText,
-                            isSelected ? styles.selectorOptionTextActive : null,
-                            disabled ? styles.selectorOptionTextDisabled : null,
-                          ]}
-                        >
-                          {month.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : (
-                <ScrollView
-                  ref={yearScrollRef}
-                  style={styles.yearScroll}
-                  contentContainerStyle={styles.yearGrid}
-                  showsVerticalScrollIndicator
-                >
-                  {yearOptions.map((year) => {
-                    const isSelected = year === calendarMonth.getFullYear();
-
-                    return (
-                      <Pressable
-                        key={year}
-                        onPress={() => handleYearSelect(year)}
-                        style={[
-                          styles.yearOption,
-                          isSelected ? styles.selectorOptionActive : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.yearOptionText,
-                            isSelected ? styles.selectorOptionTextActive : null,
-                          ]}
-                        >
-                          {year}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              )}
-            </View>
-          ) : (
-            <>
-              <View style={styles.weekdaysRow}>
-                {WEEKDAY_LABELS.map((weekday) => (
-                  <Text key={weekday} style={styles.weekday}>
-                    {weekday}
-                  </Text>
-                ))}
-              </View>
-
-              <View style={styles.grid}>
-                {calendarDays.map((day) => {
-                  const isSelected = selectedDateKey === toLocalDateKey(day.date);
-
-                  return (
-                    <Pressable
-                      key={day.key}
-                      disabled={day.disabled}
-                      onPress={() => onSelect(day.date)}
-                      style={[
-                        styles.day,
-                        day.disabled ? styles.dayDisabled : null,
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.dayInner,
-                          !day.inCurrentMonth ? styles.dayOutsideMonth : null,
-                          isSelected ? styles.daySelected : null,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.dayText,
-                            !day.inCurrentMonth ? styles.dayTextOutsideMonth : null,
-                            day.disabled ? styles.dayTextDisabled : null,
-                            isSelected ? styles.dayTextSelected : null,
-                          ]}
-                        >
-                          {day.label}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </>
-          )}
+          <CalendarDatePickerPanel {...panelProps} isActive={visible} />
 
           <View style={styles.footer}>
             <Pressable onPress={onClose} style={styles.doneButton}>
@@ -700,15 +726,17 @@ const createStyles = (theme: AppTheme) =>
     dayInner: {
       width: 38,
       height: 38,
-      borderRadius: 19,
+      borderRadius: borderRadius.full,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
     dayOutsideMonth: {
       backgroundColor: theme.colors.surfaceAlt,
     },
     daySelected: {
       backgroundColor: theme.colors.primary,
+      borderRadius: borderRadius.full,
     },
     dayText: {
       fontSize: fontSize.sm,

@@ -16,7 +16,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Card, LoadingSpinner, TabScreenWrapper } from '../../src/components/common';
+import {
+  Button,
+  Card,
+  LoadingSpinner,
+  ProfileShortcutButton,
+  TabScreenWrapper,
+} from '../../src/components/common';
 import {
   CalendarDatePickerModal,
   HistoricalNavigator,
@@ -926,11 +932,14 @@ export default function DietScreen() {
             entering={getEntryAnimation(0)}
             style={[styles.header, { paddingHorizontal: horizontalPadding }]}
           >
-            <Text style={styles.eyebrow}>Nutricion</Text>
-            <Text style={styles.title}>Dieta</Text>
-            <Text style={styles.subtitle}>
-              Revisa tu menu del dia y las recetas asignadas.
-            </Text>
+            <View style={styles.headerCopy}>
+              <Text style={styles.eyebrow}>Nutricion</Text>
+              <Text style={styles.title}>Dieta</Text>
+              <Text style={styles.subtitle}>
+                Revisa tu menu del dia y las recetas asignadas.
+              </Text>
+            </View>
+            <ProfileShortcutButton />
           </Animated.View>
 
           {selectedDay ? (
@@ -1234,7 +1243,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingBottom: spacing.xxl,
     },
     header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md,
       paddingTop: spacing.md,
+    },
+    headerCopy: {
+      flex: 1,
+      minWidth: 0,
     },
     eyebrow: {
       color: nutritionTheme.accentStrong,

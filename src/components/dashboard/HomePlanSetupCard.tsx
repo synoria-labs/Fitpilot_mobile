@@ -54,7 +54,7 @@ export const HomePlanSetupCard: React.FC = () => {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Buscar profesionales"
-        onPress={() => router.push('/(tabs)/search')}
+        onPress={() => router.push('/professionals')}
         style={({ pressed }) => [
           styles.ctaButton,
           pressed ? styles.ctaButtonPressed : null,

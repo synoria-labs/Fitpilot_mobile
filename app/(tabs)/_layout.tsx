@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { InteractionManager, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -245,14 +246,10 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
       ]}
     >
       <BlurView
-        intensity={Platform.OS === 'ios' ? (theme.isDark ? 45 : 60) : 42}
+        intensity={theme.isDark ? 45 : 60}
         experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
         blurReductionFactor={Platform.OS === 'android' ? 2 : undefined}
-        tint={
-          Platform.OS === 'android' && theme.isDark
-            ? 'systemUltraThinMaterialDark'
-            : theme.colors.phoneNavShellBlurTint
-        }
+        tint={theme.colors.phoneNavShellBlurTint}
         style={styles.customTabBarBlur}
       >
         <View style={styles.customTabBarContainer}>
@@ -430,6 +427,24 @@ export default function TabLayout() {
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data ?? {};
+      const conversationId = data.conversation_id;
+
+      if (data.type === 'chat' && conversationId) {
+        router.push({
+          pathname: '/(tabs)/chat',
+          params: { conversationId: String(conversationId) },
+        });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <ProtectedRoute>
       <BottomTabBarVisibilityProvider>
@@ -519,38 +534,25 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
+            name="chat"
+            options={{
+              title: 'Chat',
+              tabBarIcon: ({ color, size, focused }) => (
+                <Ionicons
+                  name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'}
+                  size={size}
+                  color={color}
+                />
+              ),
+            }}
+          />
+          <Tabs.Screen
             name="measurements"
             options={{
               title: 'Medidas',
               tabBarIcon: ({ color, size, focused }) => (
                 <Ionicons
                   name={focused ? 'body' : 'body-outline'}
-                  size={size}
-                  color={color}
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="search"
-            options={{
-              title: 'Buscar',
-              tabBarIcon: ({ color, size, focused }) => (
-                <Ionicons
-                  name={focused ? 'search' : 'search-outline'}
-                  size={size}
-                  color={color}
-                />
-              ),
-            }}
-          />
-          <Tabs.Screen
-            name="profile"
-            options={{
-              title: 'Perfil',
-              tabBarIcon: ({ color, size, focused }) => (
-                <Ionicons
-                  name={focused ? 'person' : 'person-outline'}
                   size={size}
                   color={color}
                 />
@@ -587,19 +589,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     customTabBarBlur: {
       borderRadius: 35,
       overflow: 'hidden',
-      backgroundColor:
-        Platform.OS === 'android'
-          ? theme.isDark
-            ? 'rgba(13, 37, 72, 0.76)'
-            : 'rgba(239, 248, 255, 0.74)'
-          : theme.colors.phoneNavShellBackground,
+      backgroundColor: theme.colors.phoneNavShellBackground,
       borderWidth: 1,
-      borderColor:
-        Platform.OS === 'android'
-          ? theme.isDark
-            ? 'rgba(103, 182, 223, 0.22)'
-            : 'rgba(103, 182, 223, 0.20)'
-          : theme.colors.phoneNavShellBorder,
+      borderColor: theme.colors.phoneNavShellBorder,
       ...(Platform.OS === 'android'
         ? {
             shadowColor: 'transparent',

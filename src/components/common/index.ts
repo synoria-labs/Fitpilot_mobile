@@ -7,6 +7,7 @@ export { LoadingSpinner } from './LoadingSpinner';
 export { Logo } from './Logo';
 export { LogoMark } from './LogoMark';
 export { ProfileImagePreviewModal } from './ProfileImagePreviewModal';
+export { ProfileShortcutButton } from './ProfileShortcutButton';
 export { StartupBrandIntro } from './StartupBrandIntro';
 export { GlassCard } from './GlassCard';
 export { Skeleton, WorkoutCardSkeleton, ChartSkeleton, StatCardSkeleton, ListItemSkeleton } from './Skeleton';

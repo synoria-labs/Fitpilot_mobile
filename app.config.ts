@@ -90,6 +90,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       bundleIdentifier: 'com.fitpilot.mobile',
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
+        NSMicrophoneUsageDescription:
+          'Allow $(PRODUCT_NAME) to record voice notes for chat.',
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: !isProd,
           NSAllowsLocalNetworking: !isProd,
@@ -102,6 +104,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: '#3b82f6',
       },
       package: 'com.fitpilot.mobile',
+      googleServicesFile: './google-services.json',
     },
     web: {
       bundler: 'metro',
@@ -117,6 +120,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-secure-store',
       'expo-asset',
       'expo-font',
+      'expo-notifications',
+      'expo-document-picker',
+      [
+        'expo-audio',
+        {
+          microphonePermission:
+            'Allow $(PRODUCT_NAME) to record voice notes for chat.',
+        },
+      ],
       [
         'expo-image-picker',
         {
