@@ -11,6 +11,7 @@ export interface User {
   phoneNumber: string | null;
   isPhoneVerified: boolean;
   onboardingStatus: string | null;
+  connectedHealthSetupStatus: string | null;
   profilePictureUrl: string | null;
   professionalRoles: string[];
   currentSubscription: Record<string, unknown> | null;
@@ -28,6 +29,7 @@ export interface NutritionAuthUserResponse {
   phone_number?: string | null;
   is_phone_verified?: boolean;
   onboarding_status?: string | null;
+  connected_health_setup_status?: string | null;
   profile_picture?: string | null;
   professional_role?: string[] | string | null;
   current_subscription?: Record<string, unknown> | null;

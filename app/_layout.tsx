@@ -93,6 +93,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" />
           <Stack.Screen name="register" />
           <Stack.Screen name="onboarding" />
+          <Stack.Screen name="health-setup" />
 
           <Stack.Screen
             name="profile"
@@ -103,6 +104,13 @@ export default function RootLayout() {
           />
           <Stack.Screen
             name="measurements"
+            options={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          />
+          <Stack.Screen
+            name="diet"
             options={{
               headerShown: false,
               animation: 'slide_from_right',

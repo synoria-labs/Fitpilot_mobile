@@ -51,6 +51,7 @@ export const mapNutritionUserToUser = (payload: NutritionAuthUserResponse): User
     phoneNumber: payload.phone_number ?? null,
     isPhoneVerified: payload.is_phone_verified ?? false,
     onboardingStatus: payload.onboarding_status ?? null,
+    connectedHealthSetupStatus: payload.connected_health_setup_status ?? null,
     profilePictureUrl: payload.profile_picture ?? null,
     professionalRoles: normalizeProfessionalRoles(payload.professional_role),
     currentSubscription: payload.current_subscription ?? null,

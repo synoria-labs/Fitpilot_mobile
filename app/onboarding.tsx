@@ -337,7 +337,7 @@ export default function OnboardingScreen() {
         return;
       }
 
-      router.replace('/(tabs)');
+      router.replace('/health-setup');
     } catch (error) {
       const apiError = error as ApiError;
       setStepError(apiError.message || 'No pudimos guardar tu onboarding. Intenta de nuevo.');
