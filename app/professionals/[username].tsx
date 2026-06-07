@@ -29,6 +29,8 @@ import {
   getPublicProfessionalByUsername,
   recordProfessionalProfileView,
   type PublicProfessionalDetail,
+  type ProfessionalMonthlyPlan,
+  type ProfessionalSessionPackage,
   type ProfessionalAvailabilitySlot,
   type PublicProfessionalAvailabilityDay,
   type PublicProfessionalRole,
@@ -118,6 +120,79 @@ const formatPrice = (
     serviceType || (profile?.available_service_types?.length ?? 0) <= 1 ? '' : 'Desde ';
 
   return `${prefix}$${amount.toLocaleString('es-MX')} ${profile?.consultation_price_currency ?? 'MXN'}`;
+};
+
+const formatPackagePrice = (
+  amount: number | string | null | undefined,
+  currency?: string | null,
+) => {
+  const numericAmount = Number(amount);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    return null;
+  }
+
+  return `$${numericAmount.toLocaleString('es-MX')} ${currency ?? 'MXN'}`;
+};
+
+const getPackageUnitPrice = (sessionPackage: ProfessionalSessionPackage) => {
+  const totalAmount = Number(sessionPackage.total_price_amount);
+  const sessionCount = Number(sessionPackage.session_count);
+
+  if (!Number.isFinite(totalAmount) || totalAmount <= 0 || sessionCount < 2) {
+    return null;
+  }
+
+  return formatPackagePrice(totalAmount / sessionCount, sessionPackage.currency);
+};
+
+const MONTHLY_PRICE_LABELS: Record<ProfessionalMonthlyPlan['price_visibility'], string> = {
+  fixed: 'Precio fijo',
+  starts_at: 'Desde',
+  hidden: 'Precio según valoración',
+  quote_required: 'Requiere cotización',
+};
+
+const MONTHLY_FREQUENCY_LABELS: Record<ProfessionalMonthlyPlan['session_frequency'], string> = {
+  weekly: 'Semanal',
+  biweekly: 'Quincenal',
+  monthly: 'Mensual',
+  as_needed: 'Según necesidad',
+};
+
+const MONTHLY_EXTRA_SESSION_LABELS: Record<ProfessionalMonthlyPlan['extra_sessions_policy'], string> = {
+  professional_approval: 'Citas extra con aprobación',
+  included: 'Citas extra incluidas',
+  paid_extra: 'Citas extra con costo',
+  not_available: 'Sin citas extra',
+};
+
+const formatMonthlyPlanPrice = (monthlyPlan: ProfessionalMonthlyPlan) => {
+  const amount = Number(monthlyPlan.price_amount);
+
+  if (
+    (monthlyPlan.price_visibility === 'fixed' ||
+      monthlyPlan.price_visibility === 'starts_at') &&
+    Number.isFinite(amount) &&
+    amount > 0
+  ) {
+    const price = `$${amount.toLocaleString('es-MX')} ${monthlyPlan.currency ?? 'MXN'} / mes`;
+    return monthlyPlan.price_visibility === 'starts_at' ? `Desde ${price}` : price;
+  }
+
+  return MONTHLY_PRICE_LABELS[monthlyPlan.price_visibility];
+};
+
+const getMonthlyPlanAppointmentLabel = (monthlyPlan: ProfessionalMonthlyPlan) => {
+  if (monthlyPlan.appointment_policy === 'fixed') {
+    const count = Number(monthlyPlan.included_session_count ?? 0);
+    const duration = monthlyPlan.appointment_duration_minutes
+      ? ` de ${monthlyPlan.appointment_duration_minutes} min`
+      : '';
+
+    return `${count} cita${count === 1 ? '' : 's'} al mes${duration}`;
+  }
+
+  return 'Citas según valoración del profesional';
 };
 
 const getFallbackRoleForService = (serviceType: ServiceType | null): PublicProfessionalRole =>
@@ -211,6 +286,7 @@ export default function ProfessionalDetailScreen() {
   const [availabilityDays, setAvailabilityDays] = useState<PublicProfessionalAvailabilityDay[]>([]);
   const [selectedAvailabilityDateKey, setSelectedAvailabilityDateKey] = useState<string | null>(null);
   const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | null>(null);
+  const [selectedMonthlyPlanId, setSelectedMonthlyPlanId] = useState<number | null>(null);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -221,13 +297,28 @@ export default function ProfessionalDetailScreen() {
     () => profile?.available_service_types ?? [],
     [profile?.available_service_types],
   );
+  const sessionPackages = profile?.session_packages ?? [];
+  const monthlyPlans = useMemo(
+    () => profile?.monthly_plans ?? [],
+    [profile?.monthly_plans],
+  );
+  const selectedMonthlyPlan = useMemo(
+    () =>
+      selectedMonthlyPlanId
+        ? monthlyPlans.find((monthlyPlan) => monthlyPlan.id === selectedMonthlyPlanId) ?? null
+        : null,
+    [monthlyPlans, selectedMonthlyPlanId],
+  );
   const clientRelationship = profile?.client_relationship ?? null;
   const bookableServiceTypes = useMemo(
     () => clientRelationship?.bookable_service_types ?? [],
     [clientRelationship?.bookable_service_types],
   );
-  const modalServiceTypes =
-    requestModalMode === 'booking' ? bookableServiceTypes : availableServiceTypes;
+  const modalServiceTypes = selectedMonthlyPlan
+    ? [selectedMonthlyPlan.service_type]
+    : requestModalMode === 'booking'
+      ? bookableServiceTypes
+      : availableServiceTypes;
   const hasActiveClientRelationship = clientRelationship?.status === 'client';
   const hasOpenContactRequest =
     !hasActiveClientRelationship &&
@@ -440,9 +531,22 @@ export default function ProfessionalDetailScreen() {
 
   const openContactModal = () => {
     setRequestModalMode('interest');
+    setSelectedMonthlyPlanId(null);
     if (!selectedServiceType && availableServiceTypes.length > 0) {
       setSelectedServiceType(availableServiceTypes[0]);
     }
+    setAvailabilityDays([]);
+    setSelectedAvailabilityDateKey(null);
+    setSelectedRequestedStartAt(null);
+    setAvailabilityError(null);
+    setIsLoadingAvailability(true);
+    setIsContactModalVisible(true);
+  };
+
+  const openMonthlyPlanModal = (monthlyPlan: ProfessionalMonthlyPlan) => {
+    setRequestModalMode('interest');
+    setSelectedMonthlyPlanId(monthlyPlan.id);
+    setSelectedServiceType(monthlyPlan.service_type);
     setAvailabilityDays([]);
     setSelectedAvailabilityDateKey(null);
     setSelectedRequestedStartAt(null);
@@ -461,6 +565,7 @@ export default function ProfessionalDetailScreen() {
     }
 
     setRequestModalMode('booking');
+    setSelectedMonthlyPlanId(null);
     if (!selectedServiceType || !bookableServiceTypes.includes(selectedServiceType)) {
       setSelectedServiceType(bookableServiceTypes[0]);
     }
@@ -515,15 +620,22 @@ export default function ProfessionalDetailScreen() {
         closeContactModal();
         setSelectedRequestedStartAt(null);
         setSelectedAvailabilityDateKey(null);
+        setSelectedMonthlyPlanId(null);
         Alert.alert('Cita agendada', 'Tu cita quedó confirmada.');
         void loadProfile();
         return;
       }
 
-      const requestMessage = message.trim() || DEFAULT_CONTACT_REQUEST_MESSAGE;
+      const requestMessage =
+        message.trim() ||
+        (selectedMonthlyPlan
+          ? `Hola, me interesa el plan mensual "${selectedMonthlyPlan.name}". Me gustaría recibir más información para comenzar.`
+          : DEFAULT_CONTACT_REQUEST_MESSAGE);
       const contactRequest = await createProfessionalContactRequest(username, {
         role: requestedRole,
         service_type: selectedServiceType,
+        requested_offer_type: selectedMonthlyPlan ? 'monthly_plan' : 'consultation',
+        requested_monthly_plan_id: selectedMonthlyPlan?.id ?? null,
         message: requestMessage,
         share_contact: true,
         requested_start_at: selectedRequestedStartAt,
@@ -535,6 +647,7 @@ export default function ProfessionalDetailScreen() {
       setShareContact(false);
       setSelectedRequestedStartAt(null);
       setSelectedAvailabilityDateKey(null);
+      setSelectedMonthlyPlanId(null);
       if (contactRequest.conversation_id) {
         router.push({
           pathname: '/chat' as never,
@@ -549,6 +662,7 @@ export default function ProfessionalDetailScreen() {
       if (sendError?.status === 409) {
         setHasSentRequest(true);
         closeContactModal();
+        setSelectedMonthlyPlanId(null);
         Alert.alert('Solicitud activa', 'Ya existe una solicitud pendiente con este profesional.');
         return;
       }
@@ -582,6 +696,14 @@ export default function ProfessionalDetailScreen() {
     if (canOpen) {
       await Linking.openURL(url);
     }
+  };
+
+  const openTelegramLink = async () => {
+    if (!profile?.telegram_deep_link) {
+      return;
+    }
+
+    await openSocialLink(profile.telegram_deep_link);
   };
 
   if (isLoading) {
@@ -668,6 +790,136 @@ export default function ProfessionalDetailScreen() {
               </View>
             ) : null}
 
+            {sessionPackages.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Paquetes de sesiones</Text>
+                <Text style={styles.bodyText}>
+                  FitPilot no procesa pagos en esta fase. El pago y el acuerdo se
+                  gestionan directamente con el profesional.
+                </Text>
+                <View style={styles.packageList}>
+                  {sessionPackages.map((sessionPackage) => {
+                    const totalPrice = formatPackagePrice(
+                      sessionPackage.total_price_amount,
+                      sessionPackage.currency,
+                    );
+                    const unitPrice = getPackageUnitPrice(sessionPackage);
+
+                    return (
+                      <View key={sessionPackage.id} style={styles.packageCard}>
+                        <View style={styles.packageHeader}>
+                          <View style={styles.packageTitleGroup}>
+                            <Text style={styles.packageName}>{sessionPackage.name}</Text>
+                            <Text style={styles.packageService}>
+                              {SERVICE_TYPE_LABELS[sessionPackage.service_type]}
+                            </Text>
+                          </View>
+                          <View style={styles.packageSessionPill}>
+                            <Text style={styles.packageSessionText}>
+                              {sessionPackage.session_count} sesiones
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.packagePriceRow}>
+                          {totalPrice ? (
+                            <Text style={styles.packagePrice}>{totalPrice}</Text>
+                          ) : null}
+                          {unitPrice ? (
+                            <Text style={styles.packageUnitPrice}>
+                              {unitPrice} por sesión
+                            </Text>
+                          ) : null}
+                        </View>
+                        {sessionPackage.description ? (
+                          <Text style={styles.packageDescription}>
+                            {sessionPackage.description}
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {monthlyPlans.length > 0 ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Planes mensuales</Text>
+                <Text style={styles.bodyText}>
+                  El pago y la frecuencia final se acuerdan directamente con el profesional.
+                </Text>
+                <View style={styles.packageList}>
+                  {monthlyPlans.map((monthlyPlan) => {
+                    const monthlyPrice = formatMonthlyPlanPrice(monthlyPlan);
+                    const appointmentLabel = getMonthlyPlanAppointmentLabel(monthlyPlan);
+                    const includedItems = monthlyPlan.included_items ?? [];
+                    const requestLabel =
+                      monthlyPlan.price_visibility === 'hidden' ||
+                      monthlyPlan.price_visibility === 'quote_required'
+                        ? 'Solicitar valoración'
+                        : 'Solicitar plan';
+
+                    return (
+                      <View key={monthlyPlan.id} style={styles.packageCard}>
+                        <View style={styles.packageHeader}>
+                          <View style={styles.packageTitleGroup}>
+                            <Text style={styles.packageName}>{monthlyPlan.name}</Text>
+                            <Text style={styles.packageService}>
+                              {SERVICE_TYPE_LABELS[monthlyPlan.service_type]}
+                            </Text>
+                          </View>
+                          <View style={styles.packageSessionPill}>
+                            <Text style={styles.packageSessionText}>
+                              {MONTHLY_FREQUENCY_LABELS[monthlyPlan.session_frequency]}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={styles.packagePriceRow}>
+                          <Text style={styles.packagePrice}>{monthlyPrice}</Text>
+                          <Text style={styles.packageUnitPrice}>{appointmentLabel}</Text>
+                        </View>
+                        {includedItems.length > 0 ? (
+                          <View style={styles.monthlyIncludedList}>
+                            {includedItems.slice(0, 4).map((item) => (
+                              <View key={item} style={styles.monthlyIncludedItem}>
+                                <Ionicons
+                                  name="checkmark-circle-outline"
+                                  size={14}
+                                  color={theme.colors.primary}
+                                />
+                                <Text style={styles.monthlyIncludedText}>{item}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        ) : null}
+                        {monthlyPlan.description ? (
+                          <Text style={styles.packageDescription}>
+                            {monthlyPlan.description}
+                          </Text>
+                        ) : null}
+                        <Text style={styles.packageUnitPrice}>
+                          {MONTHLY_EXTRA_SESSION_LABELS[monthlyPlan.extra_sessions_policy]}
+                        </Text>
+                        <Pressable
+                          style={[
+                            styles.monthlyActionButton,
+                            primaryCtaDisabled ? styles.monthlyActionButtonDisabled : null,
+                          ]}
+                          onPress={() => openMonthlyPlanModal(monthlyPlan)}
+                          disabled={primaryCtaDisabled}
+                        >
+                          <Ionicons name="send-outline" size={15} color="#fff" />
+                          <Text style={styles.monthlyActionText}>
+                            {hasOpenContactRequest ? 'Solicitud en curso' : requestLabel}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Disponibilidad</Text>
               {availabilitySummary.length > 0 ? (
@@ -737,6 +989,17 @@ export default function ProfessionalDetailScreen() {
               }
               style={styles.cta}
             />
+            {profile.telegram_deep_link ? (
+              <Pressable
+                style={styles.telegramButton}
+                onPress={() => void openTelegramLink()}
+              >
+                <Ionicons name="paper-plane-outline" size={18} color="#fff" />
+                <Text style={styles.telegramButtonText}>
+                  Enviar mensaje por Telegram
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -751,7 +1014,11 @@ export default function ProfessionalDetailScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {requestModalMode === 'booking' ? 'Agendar cita' : 'Enviar solicitud'}
+                {requestModalMode === 'booking'
+                  ? 'Agendar cita'
+                  : selectedMonthlyPlan
+                    ? 'Solicitar plan mensual'
+                    : 'Enviar solicitud'}
               </Text>
               <Pressable onPress={closeContactModal}>
                 <Ionicons name="close" size={22} color={theme.colors.textPrimary} />
@@ -765,7 +1032,9 @@ export default function ProfessionalDetailScreen() {
               <Text style={styles.modalText}>
                 {requestModalMode === 'booking'
                   ? `Agenda una cita con ${profile ? getFullName(profile) : 'este profesional'}.`
-                  : `Compartiremos tu nombre, correo y teléfono con ${profile ? getFullName(profile) : 'este profesional'}.`}
+                  : selectedMonthlyPlan
+                    ? `Compartiremos tus datos para solicitar "${selectedMonthlyPlan.name}" con ${profile ? getFullName(profile) : 'este profesional'}.`
+                    : `Compartiremos tu nombre, correo y teléfono con ${profile ? getFullName(profile) : 'este profesional'}.`}
               </Text>
               <View style={styles.slotSection}>
                 <Text style={styles.slotTitle}>Servicio</Text>
@@ -773,7 +1042,9 @@ export default function ProfessionalDetailScreen() {
                   <View style={styles.serviceGrid}>
                     {modalServiceTypes.map((serviceType) => {
                       const isSelected = selectedServiceType === serviceType;
-                      const servicePrice = formatPrice(profile, serviceType);
+                      const servicePrice = selectedMonthlyPlan
+                        ? formatMonthlyPlanPrice(selectedMonthlyPlan)
+                        : formatPrice(profile, serviceType);
 
                       return (
                         <Pressable
@@ -818,7 +1089,9 @@ export default function ProfessionalDetailScreen() {
                 )}
                 {selectedServiceType && selectedServicePrice ? (
                   <Text style={styles.serviceSelectionHint}>
-                    {SERVICE_TYPE_LABELS[selectedServiceType]} · {selectedServicePrice}
+                    {selectedMonthlyPlan
+                      ? `${selectedMonthlyPlan.name} · ${formatMonthlyPlanPrice(selectedMonthlyPlan)}`
+                      : `${SERVICE_TYPE_LABELS[selectedServiceType]} · ${selectedServicePrice}`}
                   </Text>
                 ) : null}
               </View>
@@ -1167,6 +1440,103 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '800',
       color: theme.colors.primary,
     },
+    packageList: {
+      gap: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    packageCard: {
+      gap: spacing.sm,
+      padding: spacing.sm,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.surfaceAlt,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    packageHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      gap: spacing.sm,
+    },
+    packageTitleGroup: {
+      flex: 1,
+      gap: 3,
+    },
+    packageName: {
+      fontSize: fontSize.sm,
+      fontWeight: '900',
+      color: theme.colors.textPrimary,
+    },
+    packageService: {
+      fontSize: fontSize.xs,
+      fontWeight: '700',
+      color: theme.colors.textMuted,
+    },
+    packageSessionPill: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      borderRadius: borderRadius.full,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    packageSessionText: {
+      fontSize: fontSize.xs,
+      fontWeight: '800',
+      color: theme.colors.primary,
+    },
+    packagePriceRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      alignItems: 'center',
+    },
+    packagePrice: {
+      fontSize: fontSize.sm,
+      fontWeight: '900',
+      color: theme.colors.textPrimary,
+    },
+    packageUnitPrice: {
+      fontSize: fontSize.xs,
+      fontWeight: '700',
+      color: theme.colors.textMuted,
+    },
+    packageDescription: {
+      fontSize: fontSize.xs,
+      lineHeight: 18,
+      color: theme.colors.textSecondary,
+    },
+    monthlyIncludedList: {
+      gap: 6,
+    },
+    monthlyIncludedItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    monthlyIncludedText: {
+      flex: 1,
+      fontSize: fontSize.xs,
+      lineHeight: 18,
+      color: theme.colors.textSecondary,
+    },
+    monthlyActionButton: {
+      minHeight: 40,
+      borderRadius: borderRadius.md,
+      backgroundColor: theme.colors.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    monthlyActionButtonDisabled: {
+      opacity: 0.55,
+    },
+    monthlyActionText: {
+      fontSize: fontSize.sm,
+      fontWeight: '900',
+      color: '#fff',
+    },
     availabilityRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -1207,6 +1577,22 @@ const createStyles = (theme: AppTheme) =>
     },
     cta: {
       marginTop: spacing.sm,
+    },
+    telegramButton: {
+      minHeight: 48,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: borderRadius.lg,
+      backgroundColor: '#2AABEE',
+      ...shadows.sm,
+    },
+    telegramButtonText: {
+      fontSize: fontSize.sm,
+      fontWeight: '900',
+      color: '#fff',
     },
     emptyState: {
       flex: 1,

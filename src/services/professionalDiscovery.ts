@@ -22,6 +22,61 @@ export interface ProfessionalAvailabilitySlot {
   is_active: boolean;
 }
 
+export interface ProfessionalSessionPackage {
+  id: number;
+  professional_id: number;
+  service_type: ServiceType;
+  name: string;
+  session_count: number;
+  total_price_amount: number | string | null;
+  currency: string | null;
+  description: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MonthlyPlanPriceVisibility =
+  | 'fixed'
+  | 'starts_at'
+  | 'hidden'
+  | 'quote_required';
+export type MonthlyPlanAppointmentPolicy =
+  | 'fixed'
+  | 'professional_discretion';
+export type MonthlyPlanSessionFrequency =
+  | 'weekly'
+  | 'biweekly'
+  | 'monthly'
+  | 'as_needed';
+export type MonthlyPlanExtraSessionsPolicy =
+  | 'professional_approval'
+  | 'included'
+  | 'paid_extra'
+  | 'not_available';
+
+export interface ProfessionalMonthlyPlan {
+  id: number;
+  professional_id: number;
+  service_type: ServiceType;
+  name: string;
+  description: string | null;
+  included_items: string[];
+  price_visibility: MonthlyPlanPriceVisibility;
+  price_amount: number | string | null;
+  currency: string | null;
+  appointment_policy: MonthlyPlanAppointmentPolicy;
+  included_session_count: number | null;
+  session_frequency: MonthlyPlanSessionFrequency;
+  appointment_duration_minutes: number | null;
+  extra_sessions_policy: MonthlyPlanExtraSessionsPolicy;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type PublicProfessionalAvailabilitySlotStatus = 'available' | 'occupied';
 
 export interface PublicProfessionalAvailabilityTimeSlot {
@@ -67,7 +122,10 @@ export interface PublicProfessionalCard {
 
 export interface PublicProfessionalDetail extends PublicProfessionalCard {
   biography: string | null;
+  telegram_deep_link: string | null;
   availability_slots: ProfessionalAvailabilitySlot[];
+  session_packages: ProfessionalSessionPackage[];
+  monthly_plans: ProfessionalMonthlyPlan[];
   social_media: {
     website: string | null;
     instagram: string | null;
@@ -110,6 +168,8 @@ export interface GetPublicProfessionalAvailabilityParams {
 export interface CreateProfessionalContactRequestPayload {
   role?: PublicProfessionalRole;
   service_type?: ServiceType;
+  requested_offer_type?: 'consultation' | 'monthly_plan';
+  requested_monthly_plan_id?: number | null;
   message?: string | null;
   share_contact: boolean;
   requested_start_at?: string | null;
@@ -128,6 +188,9 @@ export interface ProfessionalContactRequest {
   client_id: number;
   requested_role: PublicProfessionalRole;
   requested_service_type: ServiceType;
+  requested_offer_type: 'consultation' | 'monthly_plan';
+  requested_monthly_plan_id: number | null;
+  requested_offer_snapshot: Record<string, unknown> | null;
   message: string | null;
   requested_start_at: string | null;
   requested_duration_minutes: number | null;
