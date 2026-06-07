@@ -76,6 +76,8 @@ const MAX_AUDIO_SECONDS = 300;
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const RECORDING_WAVE_BARS = [0.42, 0.76, 0.36, 0.92, 0.58, 1, 0.48, 0.84, 0.52, 0.88, 0.34, 0.72];
 const CHAT_BACKGROUND_GRADIENT = ['#08111f', '#050b14', '#0d1624'] as const;
+const CHAT_COMPOSER_PADDING = 12;
+const ANDROID_NAV_BAR_FALLBACK_INSET = 16;
 
 type PendingChatFile = ChatUploadFile & {
   id: string;
@@ -1251,6 +1253,12 @@ export default function ChatScreen() {
       : recorderState.isRecording
         ? 0.22
         : 0;
+  const composerBottomPadding =
+    CHAT_COMPOSER_PADDING +
+    Math.max(
+      insets.bottom,
+      Platform.OS === 'android' ? ANDROID_NAV_BAR_FALLBACK_INSET : 0,
+    );
 
   const previewModal = (
     <Modal
@@ -1519,7 +1527,7 @@ export default function ChatScreen() {
                 </View>
               ) : null}
 
-              <View style={styles.composer}>
+              <View style={[styles.composer, { paddingBottom: composerBottomPadding }]}>
                 <TouchableOpacity
                   style={styles.iconButton}
                   activeOpacity={0.75}
