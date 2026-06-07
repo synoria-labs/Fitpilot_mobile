@@ -1,0 +1,3576 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R 39 0 R 41 0 R 43 0 R 45 0 R 47 0 R 49 0 R 51 0 R 53 0 R 55 0 R] /Count 26 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Length 3897 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(FitPilot Workspace - Analisis para NotebookLM) Tj
+T*
+(====================================================) Tj
+T*
+() Tj
+T*
+(Fecha de generacion: 2026-06-05) Tj
+T*
+(Workspace local analizado: /Users/leeroy/dev-projects/fitpilot) Tj
+T*
+(Archivo workspace detectado: fitpilot.code-workspace) Tj
+T*
+(Repositorio donde se guardo este informe: Fitpilot_mobile/docs) Tj
+T*
+() Tj
+T*
+(Nota de privacidad: se omitieron valores de .env y secretos. El informe solo menciona nombres de) Tj
+T*
+(variables desde plantillas versionadas cuando existen.) Tj
+T*
+() Tj
+T*
+(# Resumen Ejecutivo) Tj
+T*
+() Tj
+T*
+(FitPilot es una plataforma fitness/nutricion multi-aplicacion. El workspace contiene siete repositorios) Tj
+T*
+(que juntos cubren adquisicion publica, onboarding, experiencia cliente, experiencia profesional,) Tj
+T*
+(administracion interna y dos dominios backend separados: Nutrition y Training.) Tj
+T*
+() Tj
+T*
+(La separacion principal es por experiencia y dominio:) Tj
+T*
+(- Landing page publica para marketing y captacion.) Tj
+T*
+(- Web profesional para nutriologos/entrenadores.) Tj
+T*
+(- App movil y portal web para clientes.) Tj
+T*
+(- Panel admin para operacion interna.) Tj
+T*
+(- Nutrition Backend como identidad/plataforma/nutricion/comunicacion/billing.) Tj
+T*
+(- Training Backend como entrenamiento/programacion/logs/analitica/generacion AI.) Tj
+T*
+() Tj
+T*
+(En conjunto el producto permite: registrar usuarios, verificar telefono/email, configurar profesionales,) Tj
+T*
+(captar prospectos, gestionar clientes, crear menus y recetas, generar listas de compra, manejar) Tj
+T*
+(mediciones y salud conectada, construir programas de entrenamiento, ejecutar workouts, analizar) Tj
+T*
+(progreso, chatear, enviar notificaciones, cobrar suscripciones y observar reportes administrativos.) Tj
+T*
+() Tj
+T*
+(# Apps y Repositorios del Workspace) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## FitPilot Frontend Profesional \(FitPilot-frontend\)) Tj
+T*
+() Tj
+T*
+(Rol: Aplicacion web principal para profesionales. Une flujos de nutricion, entrenamiento, clientes,) Tj
+T*
+(chat, agenda, suscripciones y perfil profesional.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/FitPilot-frontend) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/FitPilot-frontend.git) Tj
+T*
+(Branch local: feature/session-packages-v1) Tj
+T*
+(Creado segun primer commit local: af415cf | 2025-12-04 22:19:19 -0600 | Ale-mtz-2 | Initial commit:) Tj
+T*
+(FitPilot Frontend) Tj
+T*
+(Ultimo commit local: 030b32c | 2026-06-02 13:26:47 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull) Tj
+T*
+(request #64 from fitpilot-team/wip/chat-main-sync-2026-05-28) Tj
+T*
+(Total commits locales: 274) Tj
+T*
+(Contribuidores por commits: 130 Ale-mtz-2; 90 Leeroy Garcia; 53 Leeroy Uziel Garcia Gonzalez; 1 Codex) Tj
+T*
+(Archivos analizados aprox.: 511 totales, 457 fuente, 69 tests/specs.) Tj
+T*
+(Extensiones principales: .ts=274, .tsx=180, .json=20, [sin extension]=8, .svg=7, .md=5, .txt=3, .yml=3) Tj
+T*
+(Package: fit-pilot-frontend@1.0.0) Tj
+T*
+(Docker/deploy files: Dockerfile, docker-compose.coolify.yml, docker-compose.yml) Tj
+T*
+(Estado git local: M src/features/professional-profiles/api.ts;  M src/features/professional-) Tj
+T*
+(profiles/queries.ts;  M src/features/professional-profiles/types.ts;  M src/pages/ProfilePage.tsx) Tj
+T*
+(Resumen funcional:) Tj
+T*
+(- Web app React + Vite + TypeScript para profesionales de nutricion y entrenamiento.) Tj
+T*
+(- Rutas protegidas por sesion y por acceso a productos, con i18n por prefijo de idioma.) Tj
+T*
+(- Incluye editor de programas, generador AI de training, clientes, historial clinico, menus, recetas,) Tj
+T*
+(consulta, chat, anuncios, perfil y suscripciones.) Tj
+T*
+(- Consume Nutrition API y Training API mediante variables Vite separadas.) Tj
+T*
+() Tj
+T*
+(## FitPilot Mobile \(Fitpilot_mobile\)) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 1 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 4 0 R >>
+endobj
+6 0 obj
+<< /Length 4135 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+() Tj
+T*
+(Rol: Aplicacion movil para clientes/pacientes en Expo React Native. Es la experiencia diaria de) Tj
+T*
+(entrenamientos, dieta, mediciones, chat, salud conectada y perfil.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/Fitpilot_mobile) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/Fitpilot_mobile.git) Tj
+T*
+(Branch local: feature/session-packages-v1) Tj
+T*
+(Creado segun primer commit local: 3c243e8 | 2026-02-18 15:12:08 -0600 | Ale-mtz-2 | feat\(mobile\):) Tj
+T*
+(initialize fitpilot mobile app) Tj
+T*
+(Ultimo commit local: 7b06c4c | 2026-06-01 18:31:25 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull) Tj
+T*
+(request #31 from fitpilot-team/wip/chat-main-sync-2026-05-28) Tj
+T*
+(Total commits locales: 117) Tj
+T*
+(Contribuidores por commits: 81 Ale-mtz-2; 26 Leeroy Garcia; 10 Leeroy Uziel Garcia Gonzalez) Tj
+T*
+(Archivos analizados aprox.: 294 totales, 214 fuente, 3 tests/specs.) Tj
+T*
+(Extensiones principales: .tsx=115, .ts=87, .json=12, .xml=12, [sin extension]=8, .js=7, .properties=7,) Tj
+T*
+(.bin=7) Tj
+T*
+(Package: fitpilot-mobile@1.0.0) Tj
+T*
+(Estado git local: M app/professionals/[username].tsx;  M src/services/professionalDiscovery.ts; ??) Tj
+T*
+(FitPilot-production.aab) Tj
+T*
+(Resumen funcional:) Tj
+T*
+(- App Expo Router con tabs principales: Inicio, Entrenamientos, Dieta, Mediciones y Chat.) Tj
+T*
+(- Gestiona login/registro, onboarding, perfil, configuracion de tema/notificaciones, salud conectada,) Tj
+T*
+(profesionales, recetas y sesiones de workout.) Tj
+T*
+(- Usa Zustand para estado, Secure Store para sesion, Expo Notifications, Expo Print, Expo Video y) Tj
+T*
+(Socket.IO.) Tj
+T*
+(- Contiene proyectos nativos iOS y Android generados/configurados para builds de tienda.) Tj
+T*
+() Tj
+T*
+(## FitPilot Training Backend \(Fitpilot_training_backend\)) Tj
+T*
+() Tj
+T*
+(Rol: API Python/FastAPI de entrenamiento: ejercicios, programas, mesociclos, microciclos, logs,) Tj
+T*
+(analitica y generacion AI de rutinas.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/Fitpilot_training_backend) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/Fitpilot_training_backend.git) Tj
+T*
+(Branch local: main) Tj
+T*
+(Creado segun primer commit local: 6c34157 | 2025-11-20 19:21:00 -0600 | Ale-mtz-2 | feat: Initial Fit) Tj
+T*
+(Pilot project setup) Tj
+T*
+(Ultimo commit local: 2353ee7 | 2026-05-27 12:21:03 -0600 | Ale-mtz-2 | feat\(workout-log\): add mesocycle) Tj
+T*
+(and microcycle fields to program context) Tj
+T*
+(Total commits locales: 170) Tj
+T*
+(Contribuidores por commits: 127 Ale-mtz-2; 31 Leeroy Garcia; 6 Codex Automation; 6 Leeroy Uziel Garcia) Tj
+T*
+(Gonzalez) Tj
+T*
+(Archivos analizados aprox.: 278 totales, 248 fuente, 74 tests/specs.) Tj
+T*
+(Extensiones principales: .py=248, .json=8, .md=6, [sin extension]=4, .yml=4, .example=3, .txt=1, .ini=1) Tj
+T*
+(Docker/deploy files: docker-compose.coolify.yml, docker-compose.development.yml, docker-compose.yml) Tj
+T*
+(Estado git local: M backend/Dockerfile;  M docker-compose.development.yml) Tj
+T*
+(Resumen funcional:) Tj
+T*
+(- FastAPI con SQLAlchemy/Alembic, PostgreSQL remoto obligatorio, Redis y storage R2 para media.) Tj
+T*
+(- Responsable del dominio de entrenamiento: catalogo de ejercicios, musculos, programas, mesociclos,) Tj
+T*
+(microciclos, dias, ejercicios por dia, workout logs y analitica.) Tj
+T*
+(- Valida JWT emitidos por Nutrition usando secretos compartidos; /api/auth/login queda deprecado para) Tj
+T*
+(operacion real segun README.) Tj
+T*
+(- Incluye generacion AI de programas y Coach Engine con scoring, reparacion y retrieval semantico.) Tj
+T*
+() Tj
+T*
+(## FitPilot Admin \(fitpilot-admin\)) Tj
+T*
+() Tj
+T*
+(Rol: Panel interno administrativo para monitorear usuarios, reportes, notificaciones, uso de AI y) Tj
+T*
+(codigos de acceso.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-admin) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/fitpilot-admin.git) Tj
+T*
+(Branch local: main) Tj
+T*
+(Creado segun primer commit local: becb981 | 2026-05-09 17:48:26 -0600 | Leeroy Garcia | first commit) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 2 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 3804 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(Ultimo commit local: 2c61d78 | 2026-05-15 03:26:18 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull) Tj
+T*
+(request #2 from fitpilot-team/fix/admin-pnpm-lockfile) Tj
+T*
+(Total commits locales: 12) Tj
+T*
+(Contribuidores por commits: 10 Leeroy Garcia; 2 Leeroy Uziel Garcia Gonzalez) Tj
+T*
+(Archivos analizados aprox.: 162 totales, 22 fuente, 1 tests/specs.) Tj
+T*
+(Extensiones principales: .md=115, .tsx=13, .ts=8, .json=7, [sin extension]=6, .svg=4, .yaml=2, .html=1) Tj
+T*
+(Package: fitpilot-admin@0.0.0) Tj
+T*
+(Docker/deploy files: Dockerfile, docker-compose.coolify.yml) Tj
+T*
+(Estado git local: clean) Tj
+T*
+(Resumen funcional:) Tj
+T*
+(- Vite React con TanStack Router para administracion interna.) Tj
+T*
+(- Modulos: dashboard, usuarios, reportes, notificaciones, uso de AI y codigos beta/de acceso.) Tj
+T*
+(- Autenticacion de administrador local via adminAuth y guardas de ruta.) Tj
+T*
+(- Consume Nutrition API y Turnstile.) Tj
+T*
+() Tj
+T*
+(## FitPilot Frontend Client \(fitpilot-frontend-client\)) Tj
+T*
+() Tj
+T*
+(Rol: Portal web para clientes. Cubre registro/login, onboarding, dashboard, menus/dietas, composicion) Tj
+T*
+(corporal, perfil y baja de cuenta.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-frontend-client) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/fitpilot-frontend-client.git) Tj
+T*
+(Branch local: main) Tj
+T*
+(Creado segun primer commit local: d93d6cb | 2026-01-27 15:21:26 -0600 | Leeroy Garcia | client app) Tj
+T*
+(creation) Tj
+T*
+(Ultimo commit local: cbdbc7d | 2026-05-29 09:22:33 -0600 | Ale-mtz-2 | Refactor color scheme to use) Tj
+T*
+(primary color variables across components) Tj
+T*
+(Total commits locales: 31) Tj
+T*
+(Contribuidores por commits: 22 Leeroy Garcia; 6 Leeroy Uziel Garcia Gonzalez; 3 Ale-mtz-2) Tj
+T*
+(Archivos analizados aprox.: 86 totales, 55 fuente, 0 tests/specs.) Tj
+T*
+(Extensiones principales: .tsx=30, .ts=24, [sin extension]=8, .svg=7, .json=6, .yaml=2, .yml=2, .md=2) Tj
+T*
+(Package: fitpilot-frontend-client@0.0.0) Tj
+T*
+(Docker/deploy files: Dockerfile, docker-compose.coolify.yml, docker-compose.yml) Tj
+T*
+(Estado git local: clean) Tj
+T*
+(Resumen funcional:) Tj
+T*
+(- Portal web React + Vite + TanStack Router para clientes.) Tj
+T*
+(- Flujos de auth, registro por link, onboarding, dashboard, composicion, menus/dietas, perfil y) Tj
+T*
+(eliminacion de cuenta.) Tj
+T*
+(- Tiene i18n ES/EN y prefetch/loaders para rutas.) Tj
+T*
+(- Complementa la app movil como experiencia web para clientes.) Tj
+T*
+() Tj
+T*
+(## FitPilot Landing Page \(fitpilot-landingpage\)) Tj
+T*
+() Tj
+T*
+(Rol: Sitio publico/marketing en Astro con paginas bilingues para explorar FitPilot, profesionales, app y) Tj
+T*
+(contacto.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-landingpage) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/fitpilot-landingpage.git) Tj
+T*
+(Branch local: main) Tj
+T*
+(Creado segun primer commit local: af5a3c0 | 2025-12-13 18:07:14 -0600 | houston[bot] | Initial commit) Tj
+T*
+(from Astro) Tj
+T*
+(Ultimo commit local: 836e0bf | 2026-05-28 00:46:16 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull) Tj
+T*
+(request #5 from fitpilot-team/feature/professional-discovery-v1) Tj
+T*
+(Total commits locales: 22) Tj
+T*
+(Contribuidores por commits: 14 Leeroy Garcia; 4 Ale-mtz-2; 3 Leeroy Uziel Garcia Gonzalez; 1) Tj
+T*
+(houston[bot]) Tj
+T*
+(Archivos analizados aprox.: 60 totales, 36 fuente, 0 tests/specs.) Tj
+T*
+(Extensiones principales: .astro=31, [sin extension]=6, .svg=5, .json=4, .yaml=3, .tsx=3, .md=2, .ts=2) Tj
+T*
+(Package: fitpilot-landingpage@0.0.1) Tj
+T*
+(Docker/deploy files: Dockerfile, compose.yaml, docker-compose.coolify.yml) Tj
+T*
+(Estado git local: clean) Tj
+T*
+(Resumen funcional:) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 3 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 4304 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- Sitio Astro estatico con React embebido para componentes interactivos.) Tj
+T*
+(- Paginas publicas en raiz, /es y /en: home, app, platform, trainers, nutritionists, explore, contact,) Tj
+T*
+(help-center y success.) Tj
+T*
+(- Build servido por Nginx via Docker/Coolify.) Tj
+T*
+(- Funciona como entrada comercial y catalogo publico de profesionales.) Tj
+T*
+() Tj
+T*
+(## FitPilot Nutrition Backend \(fitpilot-nutrition-backend\)) Tj
+T*
+() Tj
+T*
+(Rol: API NestJS/Prisma de nutricion y plataforma: auth, usuarios, profesionales, menus, recetas,) Tj
+T*
+(alimentos, billing, chat, notificaciones y salud conectada.) Tj
+T*
+(Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-nutrition-backend) Tj
+T*
+(Remoto: https://github.com/fitpilot-team/fitpilot-nutrition-backend.git) Tj
+T*
+(Branch local: feature/session-packages-v1) Tj
+T*
+(Creado segun primer commit local: 99db273 | 2025-12-16 18:47:45 -0600 | Leeroy Garcia | add prisma) Tj
+T*
+(config) Tj
+T*
+(Ultimo commit local: 1241e84 | 2026-06-02 09:23:35 -0600 | Codex | Merge branch 'main' of) Tj
+T*
+(https://github.com/fitpilot-team/fitpilot-nutrition-backend) Tj
+T*
+(Total commits locales: 278) Tj
+T*
+(Contribuidores por commits: 118 Leeroy Garcia; 86 Codex; 51 Leeroy Uziel Garcia Gonzalez; 16 Ale-mtz-2;) Tj
+T*
+(7 Codex Automation) Tj
+T*
+(Archivos analizados aprox.: 736 totales, 517 fuente, 101 tests/specs.) Tj
+T*
+(Extensiones principales: .ts=513, .md=101, .sql=53, .txt=21, .json=12, [sin extension]=9, .yml=8,) Tj
+T*
+(.example=4) Tj
+T*
+(Package: fitpilot-nutrition-backend@0.0.1) Tj
+T*
+(Docker/deploy files: Dockerfile, docker-compose.coolify.yml, docker-compose.development.yml, docker-) Tj
+T*
+(compose.release.yml, docker-compose.yml) Tj
+T*
+(Estado git local: M prisma/schema.prisma;  M src/notifications/notifications.service.ts;  M) Tj
+T*
+(src/professional-profiles/dto/create-professional-contact-request.dto.ts;  M src/professional-) Tj
+T*
+(profiles/professional-profiles.controller.ts;  M src/professional-profiles/professional-) Tj
+T*
+(profiles.service.spec.ts;  M src/professional-profiles/professional-profiles.service.ts; ??) Tj
+T*
+(prisma/migrations/20260602_add_professional_session_packages/; ??) Tj
+T*
+(prisma/migrations/20260604_add_professional_monthly_plans/; ?? src/professional-profiles/dto/monthly-) Tj
+T*
+(plan.dto.ts; ?? src/professional-profiles/dto/session-package.dto.ts) Tj
+T*
+(Resumen funcional:) Tj
+T*
+(- NestJS + Prisma + PostgreSQL, con Redis, Socket.IO, Stripe, Twilio, R2 y proveedores AI.) Tj
+T*
+(- Centro de auth y plataforma: emite JWT, maneja usuarios, perfiles profesionales, clientes, planes,) Tj
+T*
+(billing, chat y notificaciones.) Tj
+T*
+(- Dominio nutricional amplio: alimentos, SMAE/import, equivalentes, recetas, menus, listas de compra,) Tj
+T*
+(mediciones, metas y targets diarios.) Tj
+T*
+(- Expone endpoints publicos de directorio profesional y contacto, mas APIs admin/reporting.) Tj
+T*
+() Tj
+T*
+(# Linea de Tiempo de Creacion) Tj
+T*
+() Tj
+T*
+(Fechas tomadas del primer commit disponible en cada repositorio local:) Tj
+T*
+(- Fitpilot_mobile: 3c243e8 | 2026-02-18 15:12:08 -0600 | Ale-mtz-2 | feat\(mobile\): initialize fitpilot) Tj
+T*
+(mobile app) Tj
+T*
+(- Fitpilot_training_backend: 6c34157 | 2025-11-20 19:21:00 -0600 | Ale-mtz-2 | feat: Initial Fit Pilot) Tj
+T*
+(project setup) Tj
+T*
+(- fitpilot-nutrition-backend: 99db273 | 2025-12-16 18:47:45 -0600 | Leeroy Garcia | add prisma config) Tj
+T*
+(- FitPilot-frontend: af415cf | 2025-12-04 22:19:19 -0600 | Ale-mtz-2 | Initial commit: FitPilot Frontend) Tj
+T*
+(- fitpilot-landingpage: af5a3c0 | 2025-12-13 18:07:14 -0600 | houston[bot] | Initial commit from Astro) Tj
+T*
+(- fitpilot-admin: becb981 | 2026-05-09 17:48:26 -0600 | Leeroy Garcia | first commit) Tj
+T*
+(- fitpilot-frontend-client: d93d6cb | 2026-01-27 15:21:26 -0600 | Leeroy Garcia | client app creation) Tj
+T*
+() Tj
+T*
+(Lectura rapida: el backend de training aparece primero en noviembre de 2025; el frontend profesional y) Tj
+T*
+(landing nacen en diciembre de 2025; nutrition backend arranca tambien en diciembre de 2025; el portal) Tj
+T*
+(cliente llega en enero de 2026; mobile en febrero de 2026; admin en mayo de 2026.) Tj
+T*
+() Tj
+T*
+(# Arquitectura y Relaciones) Tj
+T*
+() Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 4 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 4069 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- Nutrition Backend es el centro de identidad: emite access/refresh tokens y Training Backend acepta) Tj
+T*
+(esos JWT mediante NUTRITION_JWT_SECRETS.) Tj
+T*
+(- FitPilot Frontend Profesional habla con Nutrition API para auth, nutricion, profesionales, billing,) Tj
+T*
+(chat y reportes; y con Training API para programas, ejercicios, logs y analitica.) Tj
+T*
+(- FitPilot Mobile usa EXPO_PUBLIC_NUTRITION_API_URL y EXPO_PUBLIC_TRAINING_API_URL para combinar dieta,) Tj
+T*
+(mediciones, profesionales, chat y entrenamientos.) Tj
+T*
+(- Admin consume principalmente Nutrition API para operacion interna: usuarios, reportes, notificaciones,) Tj
+T*
+(AI usage y codigos de acceso.) Tj
+T*
+(- Client Frontend consume Nutrition API para auth/onboarding, menus, composicion y perfil.) Tj
+T*
+(- Landing Page es publica y sirve como captacion; enlaza al ecosistema de app/profesionales.) Tj
+T*
+(- Ambos backends tienen guardrail de base de datos remote-only; el desarrollo/deploy espera PostgreSQL) Tj
+T*
+(remoto y Redis compartido.) Tj
+T*
+(- R2/Cloudflare se usa para almacenamiento publico de media, especialmente avatares y media de) Tj
+T*
+(ejercicios.) Tj
+T*
+() Tj
+T*
+(Mapa mental simplificado:) Tj
+T*
+(Landing -> captacion publica -> profesional/cliente) Tj
+T*
+(Profesional Web -> Nutrition API + Training API) Tj
+T*
+(Mobile Cliente -> Nutrition API + Training API) Tj
+T*
+(Client Web -> Nutrition API) Tj
+T*
+(Admin -> Nutrition API) Tj
+T*
+(Nutrition API -> Postgres remoto + Redis + R2 + Stripe + Twilio + AI providers + Socket.IO) Tj
+T*
+(Training API -> Postgres remoto + Redis + R2 + OpenAI/Anthropic/Voyage/Ollama + pgvector) Tj
+T*
+() Tj
+T*
+(# Stacks Tecnicos) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## FitPilot-frontend) Tj
+T*
+() Tj
+T*
+(Dependencias runtime destacadas: @dnd-kit/core, @dnd-kit/modifiers, @dnd-kit/sortable, @dnd-) Tj
+T*
+(kit/utilities, @headlessui/react, @heroicons/react, @hookform/resolvers, @tailwindcss/vite,) Tj
+T*
+(@tanstack/react-query, @tanstack/react-query-devtools, @tiptap/core, @tiptap/react, @tiptap/starter-kit,) Tj
+T*
+(@toon-format/toon, axios, date-fns, framer-motion, i18next, i18next-browser-languagedetector, jspdf,) Tj
+T*
+(jspdf-autotable, lucide-react, motion-utils, react, react-dom, react-hook-form, react-hot-toast,) Tj
+T*
+(react-i18next, react-router-dom, recharts, socket.io-client, use-sync-external-store, ...) Tj
+T*
+(Dependencias dev destacadas: @playwright/test, @tailwindcss/forms, @types/node, @types/react,) Tj
+T*
+(@types/react-dom, @typescript-eslint/eslint-plugin, @typescript-eslint/parser, @vitejs/plugin-react,) Tj
+T*
+(autoprefixer, eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh, postcss, prettier,) Tj
+T*
+(tailwindcss, typescript, vite, vite-plugin-svgr, vitest) Tj
+T*
+(Scripts principales:) Tj
+T*
+(  - dev: vite --mode development) Tj
+T*
+(  - build: tsc && vite build) Tj
+T*
+(  - lint: eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0) Tj
+T*
+(  - preview: vite preview) Tj
+T*
+(  - test: vitest) Tj
+T*
+() Tj
+T*
+(## Fitpilot_mobile) Tj
+T*
+() Tj
+T*
+(Dependencias runtime destacadas: @expo/vector-icons, @react-native-masked-view/masked-view, @react-) Tj
+T*
+(navigation/bottom-tabs, @react-navigation/native, @react-navigation/native-stack, axios, expo, expo-) Tj
+T*
+(asset, expo-audio, expo-blur, expo-constants, expo-dev-client, expo-device, expo-document-picker, expo-) Tj
+T*
+(font, expo-image-picker, expo-linear-gradient, expo-linking, expo-navigation-bar, expo-notifications,) Tj
+T*
+(expo-print, expo-router, expo-screen-orientation, expo-secure-store, expo-splash-screen, expo-status-) Tj
+T*
+(bar, expo-video, lucide-react-native, react, react-dom, react-native, react-native-country-codes-picker,) Tj
+T*
+(...) Tj
+T*
+(Dependencias dev destacadas: @babel/core, @types/react, babel-plugin-module-resolver, eslint, eslint-) Tj
+T*
+(config-expo, react-native-svg-transformer, typescript) Tj
+T*
+(Scripts principales:) Tj
+T*
+(  - start: expo start) Tj
+T*
+(  - android: expo run:android) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 5 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 3271 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(  - ios: expo run:ios) Tj
+T*
+(  - web: expo start --web) Tj
+T*
+(  - build:android:production:local: pnpm dlx eas-cli@19.1.0 build --platform android --profile) Tj
+T*
+(production --local) Tj
+T*
+(  - validate:android:host: powershell -ExecutionPolicy Bypass -File ./scripts/validate-android-host.ps1) Tj
+T*
+(  - lint: eslint .) Tj
+T*
+(  - typescript: tsc --noEmit) Tj
+T*
+(  - check:text-encoding: node scripts/check-mojibake.mjs) Tj
+T*
+() Tj
+T*
+(## Fitpilot_training_backend) Tj
+T*
+() Tj
+T*
+(Stack principal desde requirements.txt: FastAPI, Uvicorn, SQLAlchemy, Alembic, psycopg, pgvector,) Tj
+T*
+(Pydantic, python-jose, Redis, Celery, httpx/requests, OpenAI, Anthropic, boto3, Pillow, pytest, pandas y) Tj
+T*
+(numpy.) Tj
+T*
+() Tj
+T*
+(## fitpilot-admin) Tj
+T*
+() Tj
+T*
+(Dependencias runtime destacadas: @tailwindcss/vite, @tanstack/react-query, @tanstack/react-query-) Tj
+T*
+(devtools, @tanstack/react-router, @tanstack/router-devtools, @tiptap/core, @tiptap/react,) Tj
+T*
+(@tiptap/starter-kit, framer-motion, lucide-react, react, react-dom, recharts, tailwindcss) Tj
+T*
+(Dependencias dev destacadas: @eslint/js, @types/node, @types/react, @types/react-dom, @vitejs/plugin-) Tj
+T*
+(react, eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, typescript, typescript-) Tj
+T*
+(eslint, vite) Tj
+T*
+(Scripts principales:) Tj
+T*
+(  - dev: vite) Tj
+T*
+(  - build: tsc -b && vite build) Tj
+T*
+(  - lint: eslint .) Tj
+T*
+(  - preview: vite preview) Tj
+T*
+() Tj
+T*
+(## fitpilot-frontend-client) Tj
+T*
+() Tj
+T*
+(Dependencias runtime destacadas: @tailwindcss/vite, @tanstack/react-query, @tanstack/react-router,) Tj
+T*
+(axios, framer-motion, i18next, i18next-browser-languagedetector, jwt-decode, lucide-react, react, react-) Tj
+T*
+(dom, react-i18next, recharts, tailwindcss) Tj
+T*
+(Dependencias dev destacadas: @eslint/js, @tanstack/react-query-devtools, @tanstack/router-devtools,) Tj
+T*
+(@tanstack/router-plugin, @types/node, @types/react, @types/react-dom, @vitejs/plugin-react-swc, eslint,) Tj
+T*
+(eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, typescript, typescript-eslint, vite) Tj
+T*
+(Scripts principales:) Tj
+T*
+(  - dev: vite) Tj
+T*
+(  - build: tsc -b && vite build) Tj
+T*
+(  - lint: eslint .) Tj
+T*
+(  - preview: vite preview) Tj
+T*
+() Tj
+T*
+(## fitpilot-landingpage) Tj
+T*
+() Tj
+T*
+(Dependencias runtime destacadas: @astrojs/react, @tailwindcss/vite, @types/aos, aos, astro, framer-) Tj
+T*
+(motion, react, react-dom, tailwindcss) Tj
+T*
+(Dependencias dev destacadas: @types/react, @types/react-dom) Tj
+T*
+(Scripts principales:) Tj
+T*
+(  - dev: astro dev) Tj
+T*
+(  - build: astro build) Tj
+T*
+(  - preview: astro preview) Tj
+T*
+(  - astro: astro) Tj
+T*
+() Tj
+T*
+(## fitpilot-nutrition-backend) Tj
+T*
+() Tj
+T*
+(Dependencias runtime destacadas: @aws-sdk/client-s3, @aws-sdk/s3-request-presigner, @google/generative-) Tj
+T*
+(ai, @nestjs/common, @nestjs/config, @nestjs/core, @nestjs/jwt, @nestjs/mapped-types, @nestjs/passport,) Tj
+T*
+(@nestjs/platform-express, @nestjs/platform-socket.io, @nestjs/schedule, @nestjs/swagger,) Tj
+T*
+(@nestjs/websockets, @prisma/adapter-pg, @prisma/client, @toon-format/toon, axios, bcrypt, class-) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 6 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 4716 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(transformer, class-validator, expo-server-sdk, jsonwebtoken, libphonenumber-js, nanoid, openai,) Tj
+T*
+(passport, passport-jwt, pdfkit, pg, redis, reflect-metadata, ...) Tj
+T*
+(Dependencias dev destacadas: @eslint/eslintrc, @eslint/js, @nestjs/cli, @nestjs/schematics,) Tj
+T*
+(@nestjs/testing, @types/bcrypt, @types/express, @types/jest, @types/multer, @types/node,) Tj
+T*
+(@types/passport-jwt, @types/pdfkit, @types/supertest, dotenv-cli, env-cmd, eslint, eslint-config-) Tj
+T*
+(prettier, eslint-plugin-prettier, globals, jest, prettier, prisma, source-map-support, supertest, ...) Tj
+T*
+(Scripts principales:) Tj
+T*
+(  - build: node ./node_modules/@nestjs/cli/bin/nest.js build) Tj
+T*
+(  - format: node ./node_modules/prettier/bin/prettier.cjs --write "src/**/*.ts" "test/**/*.ts") Tj
+T*
+(  - start: node ./node_modules/@nestjs/cli/bin/nest.js start) Tj
+T*
+(  - start:dev: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v NODE_ENV=development) Tj
+T*
+(-v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/@nestjs/cli/bin/nest.js start --watch) Tj
+T*
+(  - start:debug: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v NODE_ENV=development) Tj
+T*
+(-v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/@nestjs/cli/bin/nest.js start --debug --watch) Tj
+T*
+(  - start:prod: node dist/src/main.js) Tj
+T*
+(  - start:dev:prod-env: node ./node_modules/dotenv-cli/cli.js -e .env.production -v NODE_ENV=development) Tj
+T*
+(-v FITPILOT_ENV_CONTEXT=production -- node ./node_modules/@nestjs/cli/bin/nest.js start --watch) Tj
+T*
+(  - lint: node ./node_modules/eslint/bin/eslint.js "{src,apps,libs,test}/**/*.ts" --fix) Tj
+T*
+(  - test: node ./node_modules/jest/bin/jest.js) Tj
+T*
+(  - test:watch: node ./node_modules/jest/bin/jest.js --watch) Tj
+T*
+(  - test:cov: node ./node_modules/jest/bin/jest.js --coverage) Tj
+T*
+(  - test:debug: node --inspect-brk -r tsconfig-paths/register -r ts-node/register) Tj
+T*
+(./node_modules/jest/bin/jest.js --runInBand) Tj
+T*
+(  - test:e2e: node ./node_modules/env-cmd/bin/env-cmd.js -f .env.test.local -- node) Tj
+T*
+(./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand) Tj
+T*
+(  - db:seed: node ./node_modules/prisma/build/index.js db seed) Tj
+T*
+(  - db:migrations:validate: node scripts/validate-prisma-migrations.js) Tj
+T*
+(  - db:schema:guard: node scripts/check-prisma-schema-change.js) Tj
+T*
+(  - db:migrate:dev: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v) Tj
+T*
+(FITPILOT_ENV_CONTEXT=development -- node ./node_modules/prisma/build/index.js migrate deploy) Tj
+T*
+(  - db:migrate:deploy: node scripts/validate-prisma-migrations.js && node) Tj
+T*
+(./node_modules/prisma/build/index.js migrate deploy) Tj
+T*
+(  - menus:drafts:clean-placeholders: node ./node_modules/ts-node/dist/bin.js scripts/clean-menu-draft-) Tj
+T*
+(placeholders.ts) Tj
+T*
+(  - menus:backfill-exchange-systems: node ./node_modules/ts-node/dist/bin.js scripts/backfill-menu-) Tj
+T*
+(exchange-systems.ts) Tj
+T*
+(  - foods:smae:reset-import: node ./node_modules/ts-node/dist/bin.js scripts/reset-food-domain-and-) Tj
+T*
+(import-smae.ts) Tj
+T*
+(  - foods:smae:backfill-weights: node ./node_modules/ts-node/dist/bin.js scripts/backfill-food-) Tj
+T*
+(nutrition-weight-fields.ts) Tj
+T*
+(  - foods:search-index:backfill: node ./node_modules/ts-node/dist/bin.js scripts/backfill-food-search-) Tj
+T*
+(index.ts) Tj
+T*
+(  - foods:search:golden-report: node ./node_modules/ts-node/dist/bin.js scripts/report-food-search-) Tj
+T*
+(golden-queries.ts) Tj
+T*
+(  - db:push:dev: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v) Tj
+T*
+(FITPILOT_ENV_CONTEXT=development -- node ./node_modules/prisma/build/index.js db push) Tj
+T*
+(  - db:push:prod: node ./node_modules/dotenv-cli/cli.js -e .env.production.local -v) Tj
+T*
+(FITPILOT_ENV_CONTEXT=production -- node ./node_modules/prisma/build/index.js db push) Tj
+T*
+(  - studio: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v) Tj
+T*
+(FITPILOT_ENV_CONTEXT=development -- node ./node_modules/prisma/build/index.js studio) Tj
+T*
+(  - studio:prod: node ./node_modules/dotenv-cli/cli.js -e .env.production.local -v) Tj
+T*
+(FITPILOT_ENV_CONTEXT=production -- node ./node_modules/prisma/build/index.js studio) Tj
+T*
+() Tj
+T*
+(# Funcionalidades por Producto) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## Experiencia Profesional Web - FitPilot-frontend) Tj
+T*
+() Tj
+T*
+(- Autenticacion: login, registro, forgot/reset password, Turnstile y rutas legales publicas.) Tj
+T*
+(- Onboarding profesional y perfil publico/profesional, incluida actividad de perfil y disponibilidad de) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 7 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 16 0 R >>
+endobj
+18 0 obj
+<< /Length 3957 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(username.) Tj
+T*
+(- Training: catalogo de ejercicios, plantillas/programas, editor de mesociclos, generador AI, logs y) Tj
+T*
+(planes de clientes.) Tj
+T*
+(- Nutrition: dashboard, agenda, clientes, intake, historial medico, mediciones, alimentos, recetas,) Tj
+T*
+(consulta, meal plans, builder, menus reutilizables, weekly view y drafts.) Tj
+T*
+(- Cliente/profesional: clientes, historial clinico, contexto, suscripciones, chat, anuncios, command) Tj
+T*
+(palette y ajustes profesionales.) Tj
+T*
+(- Reportes/exports: dependencias como jsPDF, jsPDF AutoTable y Recharts sugieren) Tj
+T*
+(generacion/visualizacion de reportes y graficas.) Tj
+T*
+() Tj
+T*
+(## Experiencia Mobile - Fitpilot_mobile) Tj
+T*
+() Tj
+T*
+(- Tabs principales: Home, Workouts, Diet, Measurements y Chat.) Tj
+T*
+(- Login, registro, onboarding y health setup.) Tj
+T*
+(- Home/dashboard con plan del dia, calendario, actividad, tips cientificos, metricas y timeline de) Tj
+T*
+(microciclo.) Tj
+T*
+(- Workouts: ejecucion de sesion, timers, descanso, cardio, movimientos, sets, abandono, detalle de) Tj
+T*
+(ejercicio y analitica.) Tj
+T*
+(- Diet: plan semanal, comidas, ingredientes, intercambios, shopping list imprimible, recetas y rich) Tj
+T*
+(text.) Tj
+T*
+(- Measurements/health metrics: peso, progreso por metrica, glucosa, preferencias de unidades y) Tj
+T*
+(resumenes.) Tj
+T*
+(- Connected health: setup, resumen, detalle, feedback y sharing.) Tj
+T*
+(- Professional discovery/care team: listado de profesionales, perfil publico, profesionales asignados y) Tj
+T*
+(contacto.) Tj
+T*
+(- Perfil: datos personales, cambio de password, ayuda, soporte, tema, notificaciones, legales y) Tj
+T*
+(profesionales.) Tj
+T*
+() Tj
+T*
+(## Training Backend - Fitpilot_training_backend) Tj
+T*
+() Tj
+T*
+(- Catalogos: musculos y ejercicios con busqueda, carga de imagen, fetch/generacion de imagen anatomica y) Tj
+T*
+(traduccion.) Tj
+T*
+(- Programacion: macro/meso/microciclos, dias de entrenamiento, ejercicios por dia, duplicado,) Tj
+T*
+(reordenamiento y transferencia.) Tj
+T*
+(- Clientes y contexto: clientes, interviews, patient context y resumen trainer-facing.) Tj
+T*
+(- Workout logs: proximo entrenamiento, hoy, missed, progreso semanal/microciclo, sets, cardio blocks,) Tj
+T*
+(movement blocks y reopening.) Tj
+T*
+(- Analytics: dashboards, history, modules, preferencias y tendencias por ejercicio tanto para cliente) Tj
+T*
+(propio como clientes profesionales.) Tj
+T*
+(- AI generator: questionnaire config, validacion de interview, preview/generate/save, debug artifacts y) Tj
+T*
+(bloques adaptativos.) Tj
+T*
+(- Coach Engine: scoring de calidad, composer v2, reparaciones, reglas de dias/volumen y pruebas) Tj
+T*
+(extensas.) Tj
+T*
+() Tj
+T*
+(## Nutrition Backend - fitpilot-nutrition-backend) Tj
+T*
+() Tj
+T*
+(- Auth/identidad: signup, login, refresh, logout, sesiones, verification phone/email, forgot/reset) Tj
+T*
+(password y user activation tokens.) Tj
+T*
+(- Usuarios/profesionales: perfiles profesionales, directorio publico, contact requests, paquetes de) Tj
+T*
+(sesiones, planes mensuales, onboarding profesional y clientes profesionales.) Tj
+T*
+(- Nutricion: alimentos, categorias, valores nutricionales, micronutrientes, grupos/sistemas de) Tj
+T*
+(equivalentes, recetas, recipe foods, menus, drafts, weekly planning, shopping lists y swaps del cliente.) Tj
+T*
+(- Salud y medidas: client metrics, health metrics, metabolic profiles, measurements, connected health) Tj
+T*
+(sync/summary/detail/sharing/setup.) Tj
+T*
+(- Comunicacion: chat, announcements, notifications push, SMS/Twilio, email y consulta/transcripcion.) Tj
+T*
+(- Comercial/admin: billing Stripe, subscriptions, affiliate codes, signup access codes, admin reports y) Tj
+T*
+(AI usage/pricing/feedback.) Tj
+T*
+(- Infra: Prisma, Redis cache, R2 storage, Swagger, guards de suscripcion y scripts de) Tj
+T*
+(validacion/migracion.) Tj
+T*
+() Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 8 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 18 0 R >>
+endobj
+20 0 obj
+<< /Length 1961 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(## Admin - fitpilot-admin) Tj
+T*
+() Tj
+T*
+(- Login admin y layout protegido.) Tj
+T*
+(- Dashboard operativo.) Tj
+T*
+(- Usuarios.) Tj
+T*
+(- Reportes: overview, users, subscriptions, professionals, appointments y operations desde Nutrition) Tj
+T*
+(Backend.) Tj
+T*
+(- Notificaciones.) Tj
+T*
+(- AI usage.) Tj
+T*
+(- Signup access codes/beta.) Tj
+T*
+() Tj
+T*
+(## Client Web - fitpilot-frontend-client) Tj
+T*
+() Tj
+T*
+(- Auth: sign-in, sign-up, forgot/reset password y complete registration.) Tj
+T*
+(- Onboarding protegido por estado de usuario.) Tj
+T*
+(- Dashboard, composicion, menus/dietas y perfil.) Tj
+T*
+(- Account deletion publica para cumplimiento.) Tj
+T*
+(- i18n ES/EN y Axios con access token store.) Tj
+T*
+() Tj
+T*
+(## Landing - fitpilot-landingpage) Tj
+T*
+() Tj
+T*
+(- Home publica con Hero, features, management, visuales, CTA y footer.) Tj
+T*
+(- Paginas app, platform, trainers, nutritionists, explore, contact, help-center, success y 404.) Tj
+T*
+(- Versiones /es y /en para principales paginas.) Tj
+T*
+(- Catalogo/descubrimiento de profesionales mediante componente ProfessionalsCatalog.) Tj
+T*
+() Tj
+T*
+(# Rutas Frontend) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## FitPilot-frontend) Tj
+T*
+() Tj
+T*
+(- /terms) Tj
+T*
+(- /privacy) Tj
+T*
+(- /turnstile/mobile) Tj
+T*
+(- /auth) Tj
+T*
+(- login) Tj
+T*
+(- register) Tj
+T*
+(- forgot-password) Tj
+T*
+(- reset-password) Tj
+T*
+(- /onboarding) Tj
+T*
+(- /) Tj
+T*
+(- /training) Tj
+T*
+(- exercises) Tj
+T*
+(- programs) Tj
+T*
+(- programs/new) Tj
+T*
+(- programs/:id) Tj
+T*
+(- ai-generator) Tj
+T*
+(- logs) Tj
+T*
+(- logs/:workoutLogId) Tj
+T*
+(- /client-plans) Tj
+T*
+(- /training/client-plans) Tj
+T*
+(- /nutrition/meal-plans/clients-menus) Tj
+T*
+(- /exercises) Tj
+T*
+(- /templates) Tj
+T*
+(- /templates/new) Tj
+T*
+(- /templates/:id) Tj
+T*
+(- /mesocycles/:id) Tj
+T*
+(- /clients) Tj
+T*
+(- /clients/:clientId/*) Tj
+T*
+(- /announcements) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 9 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 20 0 R >>
+endobj
+22 0 obj
+<< /Length 1682 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- /chat) Tj
+T*
+(- /profile-activity) Tj
+T*
+(- /profile) Tj
+T*
+(- /subscriptions/plans) Tj
+T*
+(- /subscriptions/success) Tj
+T*
+(- /subscriptions/cancel) Tj
+T*
+(- /ai-generator) Tj
+T*
+(- /nutrition) Tj
+T*
+(- agenda) Tj
+T*
+(- clients) Tj
+T*
+(- clients/new) Tj
+T*
+(- foods) Tj
+T*
+(- recipes) Tj
+T*
+(- recipes/new) Tj
+T*
+(- recipes/:recipeId/edit) Tj
+T*
+(- clients/:clientId/intake) Tj
+T*
+(- clients/:clientId/medical-history) Tj
+T*
+(- clients/:clientId/measurements) Tj
+T*
+(- clients/:clientId) Tj
+T*
+(- consultation/:id) Tj
+T*
+(- meal-plans) Tj
+T*
+(- builder) Tj
+T*
+(- templates) Tj
+T*
+(- create-menu) Tj
+T*
+(- reusable-menus) Tj
+T*
+(- clients-menus/weekly-view/:clientId) Tj
+T*
+(- drafts) Tj
+T*
+(- *) Tj
+T*
+() Tj
+T*
+(## Fitpilot_mobile) Tj
+T*
+() Tj
+T*
+(- /\(tabs\)/_layout) Tj
+T*
+(- /\(tabs\)/chat) Tj
+T*
+(- /\(tabs\)/diet) Tj
+T*
+(- /\(tabs\)) Tj
+T*
+(- /\(tabs\)/measurements) Tj
+T*
+(- /\(tabs\)/workouts) Tj
+T*
+(- /_layout) Tj
+T*
+(- /diet/_layout) Tj
+T*
+(- /diet/shopping-list) Tj
+T*
+(- /diet/weekly-plan) Tj
+T*
+(- /health-setup) Tj
+T*
+(-) Tj
+T*
+(- /login) Tj
+T*
+(- /measurements/_layout) Tj
+T*
+(- /measurements/progress/[metric]) Tj
+T*
+(- /measurements/weight-progress) Tj
+T*
+(- /onboarding) Tj
+T*
+(- /professionals/[username]) Tj
+T*
+(- /professionals/_layout) Tj
+T*
+(- /professionals) Tj
+T*
+(- /profile/_layout) Tj
+T*
+(- /profile/change-password) Tj
+T*
+(- /profile/connected-health) Tj
+T*
+(- /profile/contact-support) Tj
+T*
+(- /profile/help) Tj
+T*
+(- /profile) Tj
+T*
+(- /profile/legal/[document]) Tj
+T*
+(- /profile/notifications-settings) Tj
+T*
+(- /profile/personal-info) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 10 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+23 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 22 0 R >>
+endobj
+24 0 obj
+<< /Length 1390 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- /profile/professionals) Tj
+T*
+(- /profile/theme-settings) Tj
+T*
+(- /recipes/[recipeId]) Tj
+T*
+(- /recipes/_layout) Tj
+T*
+(- /recommendations/[tipId]) Tj
+T*
+(- /register) Tj
+T*
+(- /workout/[id]) Tj
+T*
+(- /workout/_layout) Tj
+T*
+(- /workouts/_layout) Tj
+T*
+(- /workouts/exercises/[exerciseId]) Tj
+T*
+() Tj
+T*
+(## fitpilot-admin) Tj
+T*
+() Tj
+T*
+(- /) Tj
+T*
+(- /auth) Tj
+T*
+(- /login) Tj
+T*
+(- /dashboard) Tj
+T*
+(- /users) Tj
+T*
+(- /reports) Tj
+T*
+(- /notifications) Tj
+T*
+(- /ai-usage) Tj
+T*
+(- /signup-access-codes) Tj
+T*
+() Tj
+T*
+(## fitpilot-frontend-client) Tj
+T*
+() Tj
+T*
+(- /onboarding) Tj
+T*
+(- /account-deletion) Tj
+T*
+(- /) Tj
+T*
+(- /diets) Tj
+T*
+(- /dashboard) Tj
+T*
+(- /composition) Tj
+T*
+(- /menus) Tj
+T*
+(- /profile) Tj
+T*
+(- /auth) Tj
+T*
+(- /sign-in) Tj
+T*
+(- /sign-up) Tj
+T*
+(- /forgot-password) Tj
+T*
+(- /reset-password) Tj
+T*
+(- /complete-registration) Tj
+T*
+() Tj
+T*
+(## fitpilot-landingpage) Tj
+T*
+() Tj
+T*
+(- /404) Tj
+T*
+(- /app) Tj
+T*
+(- /contact) Tj
+T*
+(- /en/) Tj
+T*
+(- /es/app) Tj
+T*
+(- /es/contact) Tj
+T*
+(- /es/explore) Tj
+T*
+(- /es/help-center) Tj
+T*
+(- /es/) Tj
+T*
+(- /es/nutritionists) Tj
+T*
+(- /es/platform) Tj
+T*
+(- /es/success) Tj
+T*
+(- /es/trainers) Tj
+T*
+(- /explore) Tj
+T*
+(- /help-center) Tj
+T*
+(- /) Tj
+T*
+(- /nutritionists) Tj
+T*
+(- /platform) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 11 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+25 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 24 0 R >>
+endobj
+26 0 obj
+<< /Length 2230 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- /success) Tj
+T*
+(- /trainers) Tj
+T*
+() Tj
+T*
+(# API Training - Endpoints Detectados) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## api/routers/auth.py) Tj
+T*
+() Tj
+T*
+(- POST /api/auth/register) Tj
+T*
+(- POST /api/auth/login) Tj
+T*
+(- GET /api/auth/me) Tj
+T*
+(- PATCH /api/auth/me) Tj
+T*
+(- POST /api/auth/change-password) Tj
+T*
+(- POST /api/auth/me/upload-photo) Tj
+T*
+(- DELETE /api/auth/me/photo) Tj
+T*
+() Tj
+T*
+(## api/routers/muscles.py) Tj
+T*
+() Tj
+T*
+(- GET /api/muscles/) Tj
+T*
+(- GET /api/muscles/categories/list) Tj
+T*
+(- GET /api/muscles/regions/list) Tj
+T*
+(- GET /api/muscles/by-name/{muscle_name}) Tj
+T*
+(- GET /api/muscles/{muscle_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/exercises.py) Tj
+T*
+() Tj
+T*
+(- GET /api/exercises/) Tj
+T*
+(- GET /api/exercises/palette-search) Tj
+T*
+(- GET /api/exercises/{exercise_id}) Tj
+T*
+(- POST /api/exercises/) Tj
+T*
+(- PUT /api/exercises/{exercise_id}) Tj
+T*
+(- DELETE /api/exercises/{exercise_id}) Tj
+T*
+(- POST /api/exercises/{exercise_id}/upload-image) Tj
+T*
+(- DELETE /api/exercises/{exercise_id}/image) Tj
+T*
+(- POST /api/exercises/{exercise_id}/fetch-movement-image) Tj
+T*
+(- POST /api/exercises/{exercise_id}/generate-anatomy-image) Tj
+T*
+() Tj
+T*
+(## api/routers/clients.py) Tj
+T*
+() Tj
+T*
+(- GET /api/clients/) Tj
+T*
+(- GET /api/clients/palette-search) Tj
+T*
+(- POST /api/clients/) Tj
+T*
+(- GET /api/clients/{client_id}) Tj
+T*
+(- PUT /api/clients/{client_id}) Tj
+T*
+(- DELETE /api/clients/{client_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/mesocycles.py) Tj
+T*
+() Tj
+T*
+(- GET /api/mesocycles/) Tj
+T*
+(- GET /api/mesocycles/palette-search) Tj
+T*
+(- GET /api/mesocycles/{macrocycle_id}) Tj
+T*
+(- POST /api/mesocycles/) Tj
+T*
+(- PUT /api/mesocycles/{macrocycle_id}) Tj
+T*
+(- POST /api/mesocycles/{macrocycle_id}/save-as-template) Tj
+T*
+(- POST /api/mesocycles/{macrocycle_id}/activate) Tj
+T*
+(- DELETE /api/mesocycles/{macrocycle_id}) Tj
+T*
+(- GET /api/mesocycles/{macrocycle_id}/mesocycles) Tj
+T*
+(- POST /api/mesocycles/{macrocycle_id}/mesocycles) Tj
+T*
+(- GET /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}) Tj
+T*
+(- PUT /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 12 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+27 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 26 0 R >>
+endobj
+28 0 obj
+<< /Length 3283 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- DELETE /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}) Tj
+T*
+(- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles) Tj
+T*
+(- PUT /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}) Tj
+T*
+(- DELETE /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}) Tj
+T*
+(- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/duplicate) Tj
+T*
+(- POST) Tj
+T*
+(/api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/reorder) Tj
+T*
+(- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days) Tj
+T*
+(- PUT) Tj
+T*
+(/api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}) Tj
+T*
+(- DELETE) Tj
+T*
+(/api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}) Tj
+T*
+(- POST) Tj
+T*
+(/api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}/exercises) Tj
+T*
+(- PUT) Tj
+T*
+(/api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}/exercises/{exercise_id}) Tj
+T*
+(- DELETE) Tj
+T*
+(/api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}/exercises/{exercise_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/microcycles.py) Tj
+T*
+() Tj
+T*
+(- GET /api/microcycles/macrocycle/{macrocycle_id}) Tj
+T*
+(- GET /api/microcycles/{microcycle_id}) Tj
+T*
+(- POST /api/microcycles/macrocycle/{macrocycle_id}) Tj
+T*
+(- PUT /api/microcycles/{microcycle_id}) Tj
+T*
+(- DELETE /api/microcycles/{microcycle_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/training_days.py) Tj
+T*
+() Tj
+T*
+(- GET /api/training-days/microcycle/{microcycle_id}) Tj
+T*
+(- GET /api/training-days/{training_day_id}/muscle-volume) Tj
+T*
+(- GET /api/training-days/{training_day_id}) Tj
+T*
+(- POST /api/training-days/microcycle/{microcycle_id}) Tj
+T*
+(- PUT /api/training-days/{training_day_id}) Tj
+T*
+(- DELETE /api/training-days/{training_day_id}) Tj
+T*
+(- POST /api/training-days/{training_day_id}/duplicate) Tj
+T*
+(- PATCH /api/training-days/{training_day_id}/reorder) Tj
+T*
+() Tj
+T*
+(## api/routers/day_exercises.py) Tj
+T*
+() Tj
+T*
+(- GET /api/day-exercises/training-day/{training_day_id}) Tj
+T*
+(- GET /api/day-exercises/{day_exercise_id}) Tj
+T*
+(- POST /api/day-exercises/training-day/{training_day_id}) Tj
+T*
+(- PUT /api/day-exercises/{day_exercise_id}) Tj
+T*
+(- DELETE /api/day-exercises/{day_exercise_id}) Tj
+T*
+(- POST /api/day-exercises/training-day/{training_day_id}/reorder) Tj
+T*
+(- POST /api/day-exercises/{day_exercise_id}/duplicate) Tj
+T*
+(- POST /api/day-exercises/{day_exercise_id}/transfer) Tj
+T*
+(- PATCH /api/day-exercises/{day_exercise_id}/move) Tj
+T*
+() Tj
+T*
+(## api/routers/client_interviews.py) Tj
+T*
+() Tj
+T*
+(- GET /api/client-interviews/{client_id}) Tj
+T*
+(- POST /api/client-interviews/{client_id}) Tj
+T*
+(- PUT /api/client-interviews/{client_id}) Tj
+T*
+(- DELETE /api/client-interviews/{client_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/client_app.py) Tj
+T*
+() Tj
+T*
+(- GET /api/client-app/dashboard-bootstrap) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 13 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+29 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 28 0 R >>
+endobj
+30 0 obj
+<< /Length 2799 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- GET /api/client-app/training-professional-summary) Tj
+T*
+() Tj
+T*
+(## api/routers/patient_context.py) Tj
+T*
+() Tj
+T*
+(- GET /api/patients/{client_id}/context) Tj
+T*
+(- POST /api/patients/{client_id}/context) Tj
+T*
+(- GET /api/patients/me/context) Tj
+T*
+() Tj
+T*
+(## api/routers/ai_generator.py) Tj
+T*
+() Tj
+T*
+(- GET /api/ai/questionnaire-config) Tj
+T*
+(- GET /api/ai/validate-interview/{client_id}) Tj
+T*
+(- GET /api/ai/interview-data/{client_id}) Tj
+T*
+(- POST /api/ai/test-generate) Tj
+T*
+(- POST /api/ai/generate) Tj
+T*
+(- POST /api/ai/preview) Tj
+T*
+(- GET /api/ai/metrics/structure-quality) Tj
+T*
+(- GET /api/ai/attempts/debug) Tj
+T*
+(- GET /api/ai/attempts/{attempt_id}/debug-artifacts) Tj
+T*
+(- POST /api/ai/save) Tj
+T*
+(- POST /api/ai/generate-next-adaptive-block/{macrocycle_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/translation.py) Tj
+T*
+() Tj
+T*
+(- GET /api/translation/status) Tj
+T*
+(- POST /api/translation/translate) Tj
+T*
+(- POST /api/translation/exercises/{exercise_id}/translate) Tj
+T*
+(- POST /api/translation/exercises/translate-all) Tj
+T*
+(- DELETE /api/translation/cache) Tj
+T*
+() Tj
+T*
+(## api/routers/workout_logs.py) Tj
+T*
+() Tj
+T*
+(- GET /api/workout-logs/next) Tj
+T*
+(- GET /api/workout-logs/progress/microcycle/current) Tj
+T*
+(- POST /api/workout-logs/) Tj
+T*
+(- GET /api/workout-logs/client/{client_id}) Tj
+T*
+(- GET /api/workout-logs/progress/weekly) Tj
+T*
+(- GET /api/workout-logs/today) Tj
+T*
+(- GET /api/workout-logs/missed) Tj
+T*
+(- GET /api/workout-logs/{workout_log_id}) Tj
+T*
+(- GET /api/workout-logs/{workout_log_id}/state) Tj
+T*
+(- PATCH /api/workout-logs/{workout_log_id}) Tj
+T*
+(- POST /api/workout-logs/{workout_log_id}/reopen) Tj
+T*
+(- POST /api/workout-logs/{workout_log_id}/sets) Tj
+T*
+(- POST /api/workout-logs/{workout_log_id}/cardio-blocks) Tj
+T*
+(- PATCH /api/workout-logs/{workout_log_id}/cardio-blocks/{cardio_log_id}) Tj
+T*
+(- DELETE /api/workout-logs/{workout_log_id}/cardio-blocks/{cardio_log_id}) Tj
+T*
+(- POST /api/workout-logs/{workout_log_id}/movement-blocks) Tj
+T*
+(- PATCH /api/workout-logs/{workout_log_id}/movement-blocks/{movement_log_id}) Tj
+T*
+(- DELETE /api/workout-logs/{workout_log_id}/movement-blocks/{movement_log_id}) Tj
+T*
+(- PATCH /api/workout-logs/{workout_log_id}/sets/{set_log_id}) Tj
+T*
+(- DELETE /api/workout-logs/{workout_log_id}/sets/{set_log_id}) Tj
+T*
+(- DELETE /api/workout-logs/{workout_log_id}/day-exercises/{day_exercise_id}/sets/{set_number}) Tj
+T*
+() Tj
+T*
+(## api/routers/workout_analytics.py) Tj
+T*
+() Tj
+T*
+(- GET /api/workout-analytics/me/preferences) Tj
+T*
+(- PUT /api/workout-analytics/me/preferences) Tj
+T*
+(- GET /api/workout-analytics/me/modules) Tj
+T*
+(- GET /api/workout-analytics/me/dashboard) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 14 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+31 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 30 0 R >>
+endobj
+32 0 obj
+<< /Length 2300 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- GET /api/workout-analytics/me/history) Tj
+T*
+(- GET /api/workout-analytics/me/exercises/{exercise_id}) Tj
+T*
+(- GET /api/workout-analytics/clients/{client_id}/preferences) Tj
+T*
+(- GET /api/workout-analytics/clients/{client_id}/dashboard) Tj
+T*
+(- GET /api/workout-analytics/clients/{client_id}/history) Tj
+T*
+(- GET /api/workout-analytics/clients/{client_id}/modules) Tj
+T*
+(- GET /api/workout-analytics/clients/{client_id}/workout-logs/{workout_log_id}) Tj
+T*
+(- GET /api/workout-analytics/clients/{client_id}/exercises/{exercise_id}) Tj
+T*
+() Tj
+T*
+(## api/routers/trainer.py) Tj
+T*
+() Tj
+T*
+(- GET /api/trainer/clients/summary) Tj
+T*
+() Tj
+T*
+(# API Nutrition - Controladores y Endpoints Detectados) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## src/admin-reports/admin-reports.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /admin/reports/overview) Tj
+T*
+(- GET /admin/reports/users) Tj
+T*
+(- GET /admin/reports/subscriptions) Tj
+T*
+(- GET /admin/reports/professionals) Tj
+T*
+(- GET /admin/reports/appointments) Tj
+T*
+(- GET /admin/reports/operations) Tj
+T*
+() Tj
+T*
+(## src/affiliate-codes/affiliate-codes.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /affiliate-codes/) Tj
+T*
+(- GET /affiliate-codes/stripe/coupons) Tj
+T*
+(- POST /affiliate-codes/) Tj
+T*
+(- POST /affiliate-codes/coupon/sync) Tj
+T*
+(- POST /affiliate-codes/coupon/delete) Tj
+T*
+() Tj
+T*
+(## src/ai-usage/ai-usage.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /ai-usage/attempts) Tj
+T*
+(- GET /ai-usage/summary) Tj
+T*
+(- POST /ai-usage/feedback) Tj
+T*
+(- GET /ai-usage/pricing) Tj
+T*
+(- POST /ai-usage/pricing) Tj
+T*
+(- PATCH /ai-usage/pricing/:id) Tj
+T*
+() Tj
+T*
+(## src/allergens/allergens.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /allergens/) Tj
+T*
+(- GET /allergens/) Tj
+T*
+(- GET /allergens/:id) Tj
+T*
+(- PATCH /allergens/:id) Tj
+T*
+(- DELETE /allergens/:id) Tj
+T*
+() Tj
+T*
+(## src/announcements/announcements.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /announcements/) Tj
+T*
+(- GET /announcements/professional) Tj
+T*
+(- GET /announcements/client) Tj
+T*
+(- GET /announcements/unread-count) Tj
+T*
+(- GET /announcements/professional-feed) Tj
+T*
+(- GET /announcements/professional-unread-count) Tj
+T*
+(- POST /announcements/system) Tj
+T*
+(- GET /announcements/system) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 15 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+33 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 32 0 R >>
+endobj
+34 0 obj
+<< /Length 2079 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- PATCH /announcements/:id/read) Tj
+T*
+(- POST /announcements/read-all) Tj
+T*
+(- DELETE /announcements/:id) Tj
+T*
+() Tj
+T*
+(## src/app.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET //) Tj
+T*
+(- GET //health) Tj
+T*
+() Tj
+T*
+(## src/appointments/appointments.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /appointments/) Tj
+T*
+(- GET /appointments/) Tj
+T*
+(- GET /appointments/:id) Tj
+T*
+(- GET /appointments/professional/:id) Tj
+T*
+(- PATCH /appointments/:id) Tj
+T*
+(- POST /appointments/:id/draft) Tj
+T*
+(- GET /appointments/:id/draft) Tj
+T*
+(- PATCH /appointments/:id/draft) Tj
+T*
+(- DELETE /appointments/:id) Tj
+T*
+() Tj
+T*
+(## src/auth/auth.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /auth/signup) Tj
+T*
+(- POST /auth/login) Tj
+T*
+(- POST /auth/forgot-password) Tj
+T*
+(- POST /auth/reset-password/validate) Tj
+T*
+(- POST /auth/reset-password) Tj
+T*
+(- POST /auth/check-phone-availability) Tj
+T*
+(- POST /auth/send-email-verification) Tj
+T*
+(- POST /auth/verify-email) Tj
+T*
+(- POST /auth/email-verification-session/restore) Tj
+T*
+(- POST /auth/send-verification) Tj
+T*
+(- POST /auth/verify-phone) Tj
+T*
+(- POST /auth/verification-session/restore) Tj
+T*
+(- POST /auth/hash-password) Tj
+T*
+(- POST /auth/refresh) Tj
+T*
+(- GET /auth/profile) Tj
+T*
+(- POST /auth/change-password) Tj
+T*
+(- POST /auth/logout) Tj
+T*
+(- POST /auth/logout-all) Tj
+T*
+(- GET /auth/sessions) Tj
+T*
+(- DELETE /auth/sessions/:id) Tj
+T*
+(- GET /auth/me) Tj
+T*
+() Tj
+T*
+(## src/availability-slots/availability-slots.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /availability-slots/) Tj
+T*
+(- GET /availability-slots/) Tj
+T*
+(- GET /availability-slots/professional/:professionalId) Tj
+T*
+(- GET /availability-slots/:id) Tj
+T*
+(- PATCH /availability-slots/:id) Tj
+T*
+(- DELETE /availability-slots/:id) Tj
+T*
+() Tj
+T*
+(## src/billing/billing.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /billing/checkout-session) Tj
+T*
+(- GET /billing/checkout-session) Tj
+T*
+(- POST /billing/portal-session) Tj
+T*
+(- POST /billing/subscription/cancel) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 16 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+35 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 34 0 R >>
+endobj
+36 0 obj
+<< /Length 2265 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- POST /billing/subscription/resume) Tj
+T*
+(- GET /billing/checkout-session/:id) Tj
+T*
+(- POST /billing/webhook/stripe) Tj
+T*
+() Tj
+T*
+(## src/chat/chat.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /chat/conversations) Tj
+T*
+(- POST /chat/conversations) Tj
+T*
+(- GET /chat/conversations/:id/messages) Tj
+T*
+(- POST /chat/conversations/:id/messages) Tj
+T*
+(- PATCH /chat/conversations/:id/delivered) Tj
+T*
+(- PATCH /chat/conversations/:id/read) Tj
+T*
+(- DELETE /chat/conversations/:conversationId/messages/:messageId) Tj
+T*
+() Tj
+T*
+(## src/client-context/client-context.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /client-context/config) Tj
+T*
+(- GET /client-context/:clientId) Tj
+T*
+(- PUT /client-context/:clientId) Tj
+T*
+() Tj
+T*
+(## src/client-health-metrics/client-health-metrics.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /client-health-metrics/me) Tj
+T*
+(- GET /client-health-metrics/me) Tj
+T*
+(- GET /client-health-metrics/me/:id) Tj
+T*
+(- PATCH /client-health-metrics/me/:id) Tj
+T*
+(- DELETE /client-health-metrics/me/:id) Tj
+T*
+(- POST /client-health-metrics/) Tj
+T*
+(- GET /client-health-metrics/) Tj
+T*
+(- GET /client-health-metrics/:id) Tj
+T*
+(- PATCH /client-health-metrics/:id) Tj
+T*
+(- DELETE /client-health-metrics/:id) Tj
+T*
+() Tj
+T*
+(## src/client-metabolic-profiles/client-metabolic-profiles.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /client-metabolic-profiles/:userId) Tj
+T*
+(- PUT /client-metabolic-profiles/:userId) Tj
+T*
+() Tj
+T*
+(## src/client-metrics/client-metrics.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /client-metrics/) Tj
+T*
+(- GET /client-metrics/) Tj
+T*
+(- GET /client-metrics/:id) Tj
+T*
+(- PATCH /client-metrics/:id) Tj
+T*
+(- DELETE /client-metrics/:id) Tj
+T*
+() Tj
+T*
+(## src/connected-health/connected-health.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /connected-health/sync) Tj
+T*
+(- GET /connected-health/me/summary) Tj
+T*
+(- GET /connected-health/clients/:clientId/detail) Tj
+T*
+(- PATCH /connected-health/me/sharing) Tj
+T*
+(- PATCH /connected-health/me/setup) Tj
+T*
+() Tj
+T*
+(## src/consultation/consultation.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /consultation/transcribe) Tj
+T*
+() Tj
+T*
+(## src/daily-targets/daily-targets.controller.ts) Tj
+T*
+() Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 17 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+37 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 36 0 R >>
+endobj
+38 0 obj
+<< /Length 2015 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- POST /daily-targets/) Tj
+T*
+(- GET /daily-targets/) Tj
+T*
+(- GET /daily-targets/:id) Tj
+T*
+(- PATCH /daily-targets/:id) Tj
+T*
+(- DELETE /daily-targets/:id) Tj
+T*
+() Tj
+T*
+(## src/data-sources/data-sources.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /data-sources/) Tj
+T*
+(- GET /data-sources/) Tj
+T*
+(- GET /data-sources/:id) Tj
+T*
+(- PATCH /data-sources/:id) Tj
+T*
+(- DELETE /data-sources/:id) Tj
+T*
+() Tj
+T*
+(## src/exchange-groups/exchange-groups.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /exchange-groups/) Tj
+T*
+(- GET /exchange-groups/) Tj
+T*
+(- GET /exchange-groups/:id) Tj
+T*
+(- PATCH /exchange-groups/:id) Tj
+T*
+(- DELETE /exchange-groups/:id) Tj
+T*
+() Tj
+T*
+(## src/exchange-subgroups/exchange-subgroups.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /exchange-subgroups/) Tj
+T*
+(- GET /exchange-subgroups/) Tj
+T*
+(- GET /exchange-subgroups/:id) Tj
+T*
+(- PATCH /exchange-subgroups/:id) Tj
+T*
+(- DELETE /exchange-subgroups/:id) Tj
+T*
+() Tj
+T*
+(## src/exchange-systems/exchange-systems.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /exchange-systems/) Tj
+T*
+(- GET /exchange-systems/) Tj
+T*
+(- GET /exchange-systems/:id) Tj
+T*
+(- PATCH /exchange-systems/:id) Tj
+T*
+(- DELETE /exchange-systems/:id) Tj
+T*
+() Tj
+T*
+(## src/food-categories/food-categories.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /food-categories/) Tj
+T*
+(- GET /food-categories/) Tj
+T*
+(- GET /food-categories/:id) Tj
+T*
+(- PATCH /food-categories/:id) Tj
+T*
+(- DELETE /food-categories/:id) Tj
+T*
+() Tj
+T*
+(## src/food-logs/food-logs.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /food-logs/) Tj
+T*
+(- GET /food-logs/) Tj
+T*
+(- GET /food-logs/:id) Tj
+T*
+(- PATCH /food-logs/:id) Tj
+T*
+(- DELETE /food-logs/:id) Tj
+T*
+() Tj
+T*
+(## src/food-nutrition-values/food-nutrition-values.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /food-nutrition-values/) Tj
+T*
+(- GET /food-nutrition-values/) Tj
+T*
+(- GET /food-nutrition-values/food/:foodId) Tj
+T*
+(- GET /food-nutrition-values/:id) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 18 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+39 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 38 0 R >>
+endobj
+40 0 obj
+<< /Length 1847 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- PATCH /food-nutrition-values/:id) Tj
+T*
+(- DELETE /food-nutrition-values/:id) Tj
+T*
+() Tj
+T*
+(## src/foods/foods.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /foods/) Tj
+T*
+(- GET /foods/) Tj
+T*
+(- GET /foods/search) Tj
+T*
+(- GET /foods/exchange-group/:id) Tj
+T*
+(- GET /foods/custom) Tj
+T*
+(- POST /foods/custom) Tj
+T*
+(- PATCH /foods/custom/:id) Tj
+T*
+(- DELETE /foods/custom/:id) Tj
+T*
+(- GET /foods/:id) Tj
+T*
+(- PATCH /foods/:id) Tj
+T*
+(- DELETE /foods/:id) Tj
+T*
+() Tj
+T*
+(## src/goals/goals.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /goals/) Tj
+T*
+(- GET /goals/) Tj
+T*
+(- GET /goals/:id) Tj
+T*
+(- PATCH /goals/:id) Tj
+T*
+(- DELETE /goals/:id) Tj
+T*
+() Tj
+T*
+(## src/meal-plans/meal-plans.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /meal-plans/) Tj
+T*
+(- GET /meal-plans/) Tj
+T*
+(- GET /meal-plans/:id) Tj
+T*
+(- PATCH /meal-plans/:id) Tj
+T*
+(- DELETE /meal-plans/:id) Tj
+T*
+() Tj
+T*
+(## src/measurements/measurements.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /measurements/me) Tj
+T*
+(- POST /measurements/) Tj
+T*
+(- GET /measurements/me) Tj
+T*
+(- GET /measurements/me/:id) Tj
+T*
+(- PATCH /measurements/me/:id) Tj
+T*
+(- GET /measurements/:id) Tj
+T*
+(- PATCH /measurements/:id) Tj
+T*
+(- DELETE /measurements/:id) Tj
+T*
+(- POST /measurements/:id/recalculate) Tj
+T*
+() Tj
+T*
+(## src/menus/menus.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /menus/palette-search) Tj
+T*
+(- POST /menus/draft) Tj
+T*
+(- PATCH /menus/draft/:id) Tj
+T*
+(- GET /menus/draft/:id) Tj
+T*
+(- GET /menus/draft) Tj
+T*
+(- POST /menus/) Tj
+T*
+(- GET /menus/) Tj
+T*
+(- GET /menus/reusable/summary) Tj
+T*
+(- GET /menus/daily) Tj
+T*
+(- GET /menus/daily/batch) Tj
+T*
+(- GET /menus/client-professional-summary) Tj
+T*
+(- GET /menus/weekly-planning) Tj
+T*
+(- POST /menus/weekly-planning/assignments) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 19 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+41 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 40 0 R >>
+endobj
+42 0 obj
+<< /Length 2403 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- POST /menus/weekly-planning/range-assignments) Tj
+T*
+(- PATCH /menus/weekly-planning/assignments/:id) Tj
+T*
+(- DELETE /menus/weekly-planning/assignments/:id) Tj
+T*
+(- POST /menus/weekly-planning/pdf) Tj
+T*
+(- GET /menus/pool) Tj
+T*
+(- GET /menus/pool/summary) Tj
+T*
+(- GET /menus/pool/calendar) Tj
+T*
+(- GET /menus/pool/calendar/summary) Tj
+T*
+(- PUT /menus/:id/items/:itemId/client-swap) Tj
+T*
+(- DELETE /menus/:id/items/:itemId/client-swap) Tj
+T*
+(- PATCH /menus/daily/primary-selection) Tj
+T*
+(- GET /menus/:id) Tj
+T*
+(- PATCH /menus/:id) Tj
+T*
+(- DELETE /menus/:id) Tj
+T*
+(- POST /menus/ai-generate) Tj
+T*
+() Tj
+T*
+(## src/micronutrients/micronutrients.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /micronutrients/) Tj
+T*
+(- GET /micronutrients/:id) Tj
+T*
+() Tj
+T*
+(## src/notifications/notifications.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /users/push-token) Tj
+T*
+(- POST /users/send) Tj
+T*
+(- POST /users/assignment-notifications) Tj
+T*
+(- GET /users/notification-preferences) Tj
+T*
+(- POST /users/notification-preferences) Tj
+T*
+() Tj
+T*
+(## src/plans/plans.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /plans/) Tj
+T*
+(- GET /plans/) Tj
+T*
+(- GET /plans/:id) Tj
+T*
+(- PATCH /plans/:id) Tj
+T*
+(- DELETE /plans/:id) Tj
+T*
+() Tj
+T*
+(## src/professional-clients/professional-clients.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /professional-clients/palette-search) Tj
+T*
+(- POST /professional-clients/) Tj
+T*
+(- POST /professional-clients/onboarding) Tj
+T*
+(- PATCH /professional-clients/:id/nutrition-profile) Tj
+T*
+(- GET /professional-clients/history-client/:id) Tj
+T*
+(- GET /professional-clients/:id) Tj
+T*
+(- GET /professional-clients/) Tj
+T*
+(- GET /professional-clients/professional/:professional_id) Tj
+T*
+(- PATCH /professional-clients/:id) Tj
+T*
+(- DELETE /professional-clients/:id) Tj
+T*
+() Tj
+T*
+(## src/professional-profiles/professional-profiles.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /professional-profiles/onboarding) Tj
+T*
+(- GET /professional-profiles/me) Tj
+T*
+(- PATCH /professional-profiles/me) Tj
+T*
+(- GET /professional-profiles/profile-activity) Tj
+T*
+(- GET /professional-profiles/me/session-packages) Tj
+T*
+(- POST /professional-profiles/me/session-packages) Tj
+T*
+(- PATCH /professional-profiles/me/session-packages/:id) Tj
+T*
+(- DELETE /professional-profiles/me/session-packages/:id) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 20 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+43 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 42 0 R >>
+endobj
+44 0 obj
+<< /Length 2728 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- GET /professional-profiles/me/monthly-plans) Tj
+T*
+(- POST /professional-profiles/me/monthly-plans) Tj
+T*
+(- PATCH /professional-profiles/me/monthly-plans/:id) Tj
+T*
+(- DELETE /professional-profiles/me/monthly-plans/:id) Tj
+T*
+(- GET /professional-profiles/contact-requests/unread-count) Tj
+T*
+(- GET /professional-profiles/contact-requests) Tj
+T*
+(- PATCH /professional-profiles/contact-requests/:id) Tj
+T*
+(- POST /professional-profiles/contact-requests/:id/propose-schedule) Tj
+T*
+(- POST /professional-profiles/contact-requests/:id/schedule) Tj
+T*
+(- POST /professional-profiles/contact-requests/:id/confirm-schedule) Tj
+T*
+(- POST /professional-profiles/contact-requests/:id/convert) Tj
+T*
+(- GET /professional-profiles/public) Tj
+T*
+(- GET /professional-profiles/client-directory) Tj
+T*
+(- POST /professional-profiles/client-directory/:username/appointments) Tj
+T*
+(- GET /professional-profiles/client-directory/:username) Tj
+T*
+(- POST /professional-profiles/public/:username/view) Tj
+T*
+(- POST /professional-profiles/public/:username/contact-requests) Tj
+T*
+(- POST /professional-profiles/:username/contact) Tj
+T*
+(- GET /professional-profiles/public/:username/availability) Tj
+T*
+(- GET /professional-profiles/public/:username) Tj
+T*
+() Tj
+T*
+(## src/professional-settings/professional-settings.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /professional-settings/) Tj
+T*
+(- GET /professional-settings/) Tj
+T*
+(- GET /professional-settings/:professional_id) Tj
+T*
+(- PATCH /professional-settings/:professional_id) Tj
+T*
+(- DELETE /professional-settings/:professional_id) Tj
+T*
+() Tj
+T*
+(## src/recipe-foods/recipe-foods.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /recipe-foods/) Tj
+T*
+(- GET /recipe-foods/) Tj
+T*
+(- GET /recipe-foods/recipe/:recipe_id) Tj
+T*
+(- GET /recipe-foods/:id) Tj
+T*
+(- PATCH /recipe-foods/:id) Tj
+T*
+(- DELETE /recipe-foods/:id) Tj
+T*
+() Tj
+T*
+(## src/recipes/recipes.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /recipes/palette-search) Tj
+T*
+(- POST /recipes/ai-generate) Tj
+T*
+(- POST /recipes/) Tj
+T*
+(- GET /recipes/) Tj
+T*
+(- GET /recipes/:id) Tj
+T*
+(- PUT /recipes/:id/ingredients/:ingredientId/client-swap) Tj
+T*
+(- DELETE /recipes/:id/ingredients/:ingredientId/client-swap) Tj
+T*
+(- GET /recipes/:id/image-content) Tj
+T*
+(- PATCH /recipes/:id) Tj
+T*
+(- POST /recipes/:id/duplicate) Tj
+T*
+(- PATCH /recipes/:id/image) Tj
+T*
+(- DELETE /recipes/:id/image) Tj
+T*
+(- DELETE /recipes/:id) Tj
+T*
+() Tj
+T*
+(## src/refresh-tokens/refresh-tokens.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /refresh-tokens/) Tj
+T*
+(- GET /refresh-tokens/) Tj
+T*
+(- GET /refresh-tokens/:id) Tj
+T*
+(- PATCH /refresh-tokens/:id) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 21 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+45 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 44 0 R >>
+endobj
+46 0 obj
+<< /Length 2127 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- DELETE /refresh-tokens/:id) Tj
+T*
+() Tj
+T*
+(## src/serving-units/serving-units.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /serving-units/) Tj
+T*
+(- GET /serving-units/) Tj
+T*
+(- GET /serving-units/:id) Tj
+T*
+(- PATCH /serving-units/:id) Tj
+T*
+(- DELETE /serving-units/:id) Tj
+T*
+() Tj
+T*
+(## src/shopping-lists/shopping-lists.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /shopping-lists/generate) Tj
+T*
+(- GET /shopping-lists/current) Tj
+T*
+(- GET /shopping-lists/:id) Tj
+T*
+(- POST /shopping-lists/:id/items) Tj
+T*
+(- PATCH /shopping-lists/:id/items/:itemId) Tj
+T*
+(- DELETE /shopping-lists/:id/items/:itemId) Tj
+T*
+() Tj
+T*
+(## src/signup-access-codes/signup-access-codes.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /signup-access-codes/) Tj
+T*
+(- POST /signup-access-codes/beta) Tj
+T*
+() Tj
+T*
+(## src/storage/storage.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /storage/upload) Tj
+T*
+(- GET /storage/:key) Tj
+T*
+(- DELETE /storage/:key) Tj
+T*
+() Tj
+T*
+(## src/subscriptions/subscriptions.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /subscriptions/) Tj
+T*
+(- GET /subscriptions/) Tj
+T*
+(- GET /subscriptions/:id) Tj
+T*
+(- PATCH /subscriptions/:id) Tj
+T*
+(- DELETE /subscriptions/:id) Tj
+T*
+() Tj
+T*
+(## src/user-activation-tokens/user-activation-tokens.controller.ts) Tj
+T*
+() Tj
+T*
+(- GET /user-activation-tokens/:token) Tj
+T*
+(- POST /user-activation-tokens/:token/send-email-verification) Tj
+T*
+(- POST /user-activation-tokens/:token/verify-email) Tj
+T*
+(- POST /user-activation-tokens/:token/activate) Tj
+T*
+() Tj
+T*
+(## src/users/users.controller.ts) Tj
+T*
+() Tj
+T*
+(- POST /users/professional-client) Tj
+T*
+(- POST /users/professional-client/:id/reissue-activation) Tj
+T*
+(- GET /users/) Tj
+T*
+(- GET /users/me/account-deletion) Tj
+T*
+(- POST /users/me/account-deletion) Tj
+T*
+(- DELETE /users/me/account-deletion) Tj
+T*
+(- GET /users/:id) Tj
+T*
+(- PATCH /users/me) Tj
+T*
+(- POST /users/me/phone/verify) Tj
+T*
+(- PATCH /users/:id) Tj
+T*
+(- PATCH /users/me/profile-picture) Tj
+T*
+(- DELETE /users/:id) Tj
+T*
+(- POST /users/phone/validate) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 22 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+47 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 46 0 R >>
+endobj
+48 0 obj
+<< /Length 3756 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- POST /users/check-username) Tj
+T*
+() Tj
+T*
+(# Modelos de Datos) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## Nutrition Prisma Models) Tj
+T*
+() Tj
+T*
+(Total modelos detectados: 101) Tj
+T*
+(- client_menu_calendar, shopping_lists, shopping_list_days, shopping_list_items, client_records,) Tj
+T*
+(client_metabolic_profiles, ai_model_pricing, ai_generation_attempts) Tj
+T*
+(- ai_generation_feedback, ai_user_generation_preferences, connected_health_connections,) Tj
+T*
+(connected_health_records, connected_health_daily_summaries, connected_health_sync_runs, daily_targets,) Tj
+T*
+(data_sources) Tj
+T*
+(- exchange_groups, exchange_subgroups, exchange_systems, exchange_system_citations, food_categories,) Tj
+T*
+(food_logs, food_micronutrient_values, food_nutrition_values) Tj
+T*
+(- foods, food_search_index, meal_plan_exchanges, meal_plan_meals, meal_plans, menu_drafts, menu_items,) Tj
+T*
+(menu_meals) Tj
+T*
+(- menus, micronutrients, professional_settings, recipe_exchanges, recipe_foods,) Tj
+T*
+(client_recipe_food_swaps, client_menu_item_food_swaps, recipes) Tj
+T*
+(- serving_units, affiliate_codes, allergens, appointment_drafts, appointments, availability_slots,) Tj
+T*
+(client_allergens, client_goals) Tj
+T*
+(- client_health_metrics, client_injuries, client_metrics, measurement_calculation_results,) Tj
+T*
+(measurement_calculation_runs, frisancho_cama_reference_percentiles, goals, influencer_profiles) Tj
+T*
+(- intake_submissions, phone_verification_codes, phone_verification_sessions,) Tj
+T*
+(signup_email_verification_sessions, password_reset_tokens, plans, professional_clients,) Tj
+T*
+(professional_onboarding_submissions) Tj
+T*
+(- professional_profiles, professional_session_packages, professional_monthly_plans,) Tj
+T*
+(professional_contact_requests, professional_profile_views, refresh_tokens, sms_rate_limits,) Tj
+T*
+(sms_ip_phone_attempts) Tj
+T*
+(- signup_access_codes, subscriptions, subscription_invoices, subscription_events,) Tj
+T*
+(user_activation_tokens, user_professional_roles, users, notification_preferences) Tj
+T*
+(- announcements, announcement_receipts, chat_conversations, chat_conversation_participants,) Tj
+T*
+(chat_messages, chat_message_attachments, equiv_exchange_systems, equiv_exchange_bucket_profiles) Tj
+T*
+(- equiv_food_geo_weights, equiv_food_profile_tags, equiv_generated_plan_recommendations,) Tj
+T*
+(equiv_generated_plans, equiv_subgroup_classification_rules, equiv_subgroup_selection_policies,) Tj
+T*
+(country_states, exchange_source_priorities) Tj
+T*
+(- kcal_formulas, kcal_selection_policies, leads, tracking_events, device_tokens) Tj
+T*
+() Tj
+T*
+(## Training SQLAlchemy Tables) Tj
+T*
+() Tj
+T*
+(Total tablas/modelos detectados por __tablename__: 25) Tj
+T*
+(- ai_generation_attempts, ai_generation_debug_artifacts, client_interviews, client_metrics, exercises,) Tj
+T*
+(exercise_coach_metadata, exercise_mechanics, exercise_muscles) Tj
+T*
+(- exercise_search_documents, macrocycle_ai_save_validation, macrocycles, mesocycles, microcycles,) Tj
+T*
+(training_days, day_exercises, muscles) Tj
+T*
+(- patient_context_snapshots, professional_clients, users, user_professional_roles,) Tj
+T*
+(client_workout_analytics_preferences, workout_logs, exercise_set_logs, exercise_cardio_logs) Tj
+T*
+(- exercise_movement_logs) Tj
+T*
+() Tj
+T*
+(# Variables de Entorno Documentadas) Tj
+T*
+() Tj
+T*
+(Solo se listan nombres de variables desde plantillas versionadas. Valores reales omitidos.) Tj
+T*
+() Tj
+T*
+(## FitPilot-frontend) Tj
+T*
+() Tj
+T*
+(- VITE_NUTRITION_API_URL, VITE_TRAINING_API_URL, VITE_TURNSTILE_SITE_KEY) Tj
+T*
+() Tj
+T*
+(## Fitpilot_mobile) Tj
+T*
+() Tj
+T*
+(- APP_ENV, EXPO_PUBLIC_NUTRITION_API_URL, EXPO_PUBLIC_TRAINING_API_URL,) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 23 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+49 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 48 0 R >>
+endobj
+50 0 obj
+<< /Length 3665 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(EXPO_PUBLIC_TURNSTILE_BRIDGE_URL, EXPO_PUBLIC_TERMS_URL, EXPO_PUBLIC_PRIVACY_URL) Tj
+T*
+(- EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL, EXPO_PUBLIC_ACCOUNT_DELETION_URL) Tj
+T*
+() Tj
+T*
+(## Fitpilot_training_backend) Tj
+T*
+() Tj
+T*
+(- DATABASE_URL, DATABASE_POOL_SIZE, DATABASE_MAX_OVERFLOW, DATABASE_POOL_TIMEOUT_SECONDS,) Tj
+T*
+(DATABASE_POOL_RECYCLE_SECONDS, REDIS_URL) Tj
+T*
+(- FRONTEND_URL, CORS_ALLOWED_ORIGINS, NUTRITION_API_URL, NUTRITION_JWT_SECRETS, NUTRITION_JWT_ALGORITHM,) Tj
+T*
+(SECRET_KEY) Tj
+T*
+(- ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, OPENAI_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_MODEL,) Tj
+T*
+(VOYAGE_API_KEY) Tj
+T*
+(- EXERCISE_SEARCH_EMBEDDING_MODEL, EXERCISE_SEARCH_EMBEDDING_DIM, AI_USE_PROMPT_CACHING,) Tj
+T*
+(AI_USE_COMPRESSED_OUTPUT, AI_FILTER_CATALOG, AI_USE_PHASED_GENERATION) Tj
+T*
+(- AI_USE_SEMANTIC_EXERCISE_RETRIEVAL_GENERATE, AI_USE_SEMANTIC_EXERCISE_RETRIEVAL_PREVIEW,) Tj
+T*
+(AI_SEMANTIC_EXERCISE_RETRIEVAL_TOP_K_GENERATE, AI_SEMANTIC_EXERCISE_RETRIEVAL_TOP_K_PREVIEW,) Tj
+T*
+(AI_SEMANTIC_EXERCISE_RETRIEVAL_FINAL_K_GENERATE, AI_SEMANTIC_EXERCISE_RETRIEVAL_FINAL_K_PREVIEW) Tj
+T*
+(- AI_SEMANTIC_EXERCISE_RETRIEVAL_MIN_RESULTS_GENERATE,) Tj
+T*
+(AI_SEMANTIC_EXERCISE_RETRIEVAL_MIN_RESULTS_PREVIEW, AI_SEMANTIC_EXERCISE_RETRIEVAL_FALLBACK_MODE,) Tj
+T*
+(ENABLE_COACH_ENGINE_COMPOSER_V2, ENABLE_COACH_ENGINE_CAUSAL_REPAIR, OLLAMA_HOST) Tj
+T*
+(- OLLAMA_MODEL, R2_ENDPOINT, R2_REGION, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) Tj
+T*
+(- R2_PUBLIC_BASE_URL, AI_MAX_MICROCYCLE_SPAN_DAYS, AI_DEBUG_CAPTURE_ENABLED,) Tj
+T*
+(AI_DEBUG_CAPTURE_INCLUDE_PASSED, AI_DEBUG_CAPTURE_RETENTION_DAYS, AI_DEBUG_CAPTURE_MAX_RAW_CHARS) Tj
+T*
+() Tj
+T*
+(## fitpilot-admin) Tj
+T*
+() Tj
+T*
+(- VITE_NUTRITION_API_URL, VITE_TURNSTILE_SITE_KEY) Tj
+T*
+() Tj
+T*
+(## fitpilot-frontend-client) Tj
+T*
+() Tj
+T*
+(Sin plantillas .env.example detectadas.) Tj
+T*
+() Tj
+T*
+(## fitpilot-landingpage) Tj
+T*
+() Tj
+T*
+(Sin plantillas .env.example detectadas.) Tj
+T*
+() Tj
+T*
+(## fitpilot-nutrition-backend) Tj
+T*
+() Tj
+T*
+(- DATABASE_URL, DIRECT_URL, DATABASE_POOL_MAX, DATABASE_POOL_IDLE_TIMEOUT_MS,) Tj
+T*
+(DATABASE_POOL_CONNECTION_TIMEOUT_MS, NODE_ENV) Tj
+T*
+(- PORT, REDIS_URL, REDIS_CONNECT_TIMEOUT_MS, REDIS_FOODS_CACHE_TTL_SECONDS, TRAINING_API_URL, JWT_SECRET) Tj
+T*
+(- JWT_REFRESH_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN, AUTH_REFRESH_COOKIE_NAME,) Tj
+T*
+(AUTH_REFRESH_COOKIE_SAMESITE, AUTH_REFRESH_COOKIE_SECURE) Tj
+T*
+(- AUTH_REFRESH_COOKIE_PATH, AUTH_REFRESH_COOKIE_DOMAIN, CLIENT_COMPLETE_REGISTRATION_URL,) Tj
+T*
+(FITPILOT_CLIENT_APP_URL, FITPILOT_PROFESSIONAL_APP_URL, PASSWORD_RESET_TTL_MINUTES) Tj
+T*
+(- RESEND_API_KEY, RESEND_FROM_EMAIL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME) Tj
+T*
+(- R2_PUBLIC_BASE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_WEBHOOK_SECRETS,) Tj
+T*
+(STRIPE_CHECKOUT_SUCCESS_URL, STRIPE_CHECKOUT_CANCEL_URL) Tj
+T*
+(- STRIPE_PORTAL_RETURN_URL, STRIPE_REQUEST_TIMEOUT_MS, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,) Tj
+T*
+(TWILIO_VERIFICATION_SERVICE_SID, TWILIO_VERIFY_RISK_CHECK_ENABLED) Tj
+T*
+(- TWILIO_VERIFY_RATE_LIMITS_ENABLED, SMS_VERIFY_ALLOWED_COUNTRIES, TURNSTILE_SECRET_KEY, OPENAI_API_KEY,) Tj
+T*
+(GEMINI_API_KEY, XAI_API_KEY) Tj
+T*
+(- DEEPSEEK_API_KEY, GROQ_API_KEY, FOOD_SEARCH_DEFAULT_MODE, FOOD_SEARCH_EMBEDDINGS_ENABLED,) Tj
+T*
+(FOOD_SEARCH_EMBEDDING_MODEL, FOOD_SEARCH_HYBRID_ALPHA) Tj
+T*
+(- SMAE_BASE_URL, SMAE_CONCURRENCY, SMAE_EMAIL, SMAE_PASSWORD) Tj
+T*
+() Tj
+T*
+(# Estado Local y Riesgos de Workspace) Tj
+T*
+() Tj
+T*
+() Tj
+T*
+(## FitPilot-frontend) Tj
+T*
+() Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 24 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+51 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 50 0 R >>
+endobj
+52 0 obj
+<< /Length 3446 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- M src/features/professional-profiles/api.ts) Tj
+T*
+(-  M src/features/professional-profiles/queries.ts) Tj
+T*
+(-  M src/features/professional-profiles/types.ts) Tj
+T*
+(-  M src/pages/ProfilePage.tsx) Tj
+T*
+() Tj
+T*
+(## Fitpilot_mobile) Tj
+T*
+() Tj
+T*
+(- M app/professionals/[username].tsx) Tj
+T*
+(-  M src/services/professionalDiscovery.ts) Tj
+T*
+(- ?? FitPilot-production.aab) Tj
+T*
+() Tj
+T*
+(## Fitpilot_training_backend) Tj
+T*
+() Tj
+T*
+(- M backend/Dockerfile) Tj
+T*
+(-  M docker-compose.development.yml) Tj
+T*
+() Tj
+T*
+(## fitpilot-nutrition-backend) Tj
+T*
+() Tj
+T*
+(- M prisma/schema.prisma) Tj
+T*
+(-  M src/notifications/notifications.service.ts) Tj
+T*
+(-  M src/professional-profiles/dto/create-professional-contact-request.dto.ts) Tj
+T*
+(-  M src/professional-profiles/professional-profiles.controller.ts) Tj
+T*
+(-  M src/professional-profiles/professional-profiles.service.spec.ts) Tj
+T*
+(-  M src/professional-profiles/professional-profiles.service.ts) Tj
+T*
+(- ?? prisma/migrations/20260602_add_professional_session_packages/) Tj
+T*
+(- ?? prisma/migrations/20260604_add_professional_monthly_plans/) Tj
+T*
+(- ?? src/professional-profiles/dto/monthly-plan.dto.ts) Tj
+T*
+(- ?? src/professional-profiles/dto/session-package.dto.ts) Tj
+T*
+() Tj
+T*
+(- No se leyeron ni copiaron valores secretos de .env al reporte. Solo se listan nombres de variables) Tj
+T*
+(desde plantillas .env.example cuando existen.) Tj
+T*
+(- Hay archivos .env locales y artefactos de build en algunos repos. Conviene mantenerlos fuera del PDF y) Tj
+T*
+(revisar .gitignore si alguno aparece como tracked o untracked.) Tj
+T*
+(- Nutrition Backend contiene integraciones sensibles: JWT, Stripe, Twilio, R2, Redis y proveedores AI.) Tj
+T*
+(Training Backend contiene JWT shared secrets, R2 y claves AI.) Tj
+T*
+(- Mobile contiene google-services.json y builds AAB; para notas se documenta su existencia funcional, no) Tj
+T*
+(su contenido.) Tj
+T*
+() Tj
+T*
+(Observacion: el reporte se genero leyendo el estado actual del workspace. Si estos cambios locales se) Tj
+T*
+(modifican, la lectura historica/funcional podria cambiar.) Tj
+T*
+() Tj
+T*
+(# Pruebas y Calidad) Tj
+T*
+() Tj
+T*
+(- FitPilot-frontend contiene tests unitarios/flujo con Vitest y Playwright config, incluyendo) Tj
+T*
+(mediciones, nutrition profile, command palette, recetas, menus, subscriptions, clinical summary y) Tj
+T*
+(training templates.) Tj
+T*
+(- Fitpilot_mobile tiene scripts de TypeScript, lint y check de mojibake; no se detecto suite extensa de) Tj
+T*
+(tests en la muestra de archivos.) Tj
+T*
+(- Training Backend tiene una suite amplia de pytest para AI generator, coach engine, analytics, client) Tj
+T*
+(scope, schemas, exercises, CORS, media storage y mas.) Tj
+T*
+(- Nutrition Backend tiene Jest/e2e specs para auth/app, users, billing, foods, food logs, health) Tj
+T*
+(metrics, daily targets, exchange systems/groups, professional profiles y professional-client activation.) Tj
+T*
+(- Admin, Client Frontend y Landing tienen scripts build/lint/preview; sus README en admin/client parecen) Tj
+T*
+(aun basados en template Vite y podrian enriquecerse.) Tj
+T*
+() Tj
+T*
+(# Deploy y Operacion) Tj
+T*
+() Tj
+T*
+(- La mayoria de repos web/backend incluyen Dockerfile y/o docker-compose.coolify.yml para deploy en) Tj
+T*
+(Coolify o VPS.) Tj
+T*
+(- Landing compila Astro a dist y se sirve con Nginx.) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 25 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+53 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 52 0 R >>
+endobj
+54 0 obj
+<< /Length 1869 >>
+stream
+BT
+/F1 9 Tf
+12 TL
+42 750 Td
+(- Frontends Vite suelen compilar con tsc/vite build y servirse con Nginx.) Tj
+T*
+(- Nutrition Backend usa Prisma migrations/validate, scripts de schema guard y variantes de compose) Tj
+T*
+(development/coolify/release.) Tj
+T*
+(- Training Backend usa Alembic/scripts Python de schema upgrade y backup, con compose standalone y) Tj
+T*
+(compose Coolify.) Tj
+T*
+(- Ambos backends documentan base de datos remota obligatoria y checks de esquema antes de arrancar en) Tj
+T*
+(flujos compose.) Tj
+T*
+() Tj
+T*
+(# Sugerencias para NotebookLM) Tj
+T*
+() Tj
+T*
+(- Sube este PDF como fuente principal para preguntas de arquitectura y mapa funcional.) Tj
+T*
+(- Si NotebookLM necesita citar detalles de codigo, sube tambien los README de Training Backend y) Tj
+T*
+(Nutrition Backend, mas package.json de cada app.) Tj
+T*
+(- Para preguntas de API, las secciones de endpoints de Training y Nutrition sirven como indice.) Tj
+T*
+(- Para preguntas de producto, usa las secciones Funcionalidades por Producto y Arquitectura y) Tj
+T*
+(Relaciones.) Tj
+T*
+(- Para planeacion tecnica, usa Estado Local, Variables de Entorno, Deploy y Pruebas.) Tj
+T*
+() Tj
+T*
+(# Fuentes Locales Consultadas) Tj
+T*
+() Tj
+T*
+(- fitpilot.code-workspace) Tj
+T*
+(- package.json de apps Node/React/Astro/Nest) Tj
+T*
+(- requirements.txt de Training Backend) Tj
+T*
+(- README.md disponibles en backends/admin/client/landing) Tj
+T*
+(- Git log/status/remote/shortlog de cada repositorio) Tj
+T*
+(- src/App.tsx y router.tsx de frontends) Tj
+T*
+(- app/ de Expo Router en mobile) Tj
+T*
+(- api/main.py y api/routers/*.py de Training Backend) Tj
+T*
+(- src/**/*.controller.ts, src/app.module.ts y prisma/schema.prisma de Nutrition Backend) Tj
+T*
+(- Plantillas .env.example para nombres de variables, sin valores secretos) Tj
+ET
+BT
+/F1 8 Tf
+42 24 Td
+(Pagina 26 de 26 - FitPilot Workspace Analisis) Tj
+ET
+endstream
+endobj
+55 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 54 0 R >>
+endobj
+xref
+0 56
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000295 00000 n 
+0000000392 00000 n 
+0000004341 00000 n 
+0000004467 00000 n 
+0000008654 00000 n 
+0000008780 00000 n 
+0000012636 00000 n 
+0000012762 00000 n 
+0000017119 00000 n 
+0000017247 00000 n 
+0000021369 00000 n 
+0000021497 00000 n 
+0000024821 00000 n 
+0000024949 00000 n 
+0000029718 00000 n 
+0000029846 00000 n 
+0000033856 00000 n 
+0000033984 00000 n 
+0000035998 00000 n 
+0000036126 00000 n 
+0000037861 00000 n 
+0000037989 00000 n 
+0000039432 00000 n 
+0000039560 00000 n 
+0000041843 00000 n 
+0000041971 00000 n 
+0000045307 00000 n 
+0000045435 00000 n 
+0000048287 00000 n 
+0000048415 00000 n 
+0000050768 00000 n 
+0000050896 00000 n 
+0000053028 00000 n 
+0000053156 00000 n 
+0000055474 00000 n 
+0000055602 00000 n 
+0000057670 00000 n 
+0000057798 00000 n 
+0000059698 00000 n 
+0000059826 00000 n 
+0000062282 00000 n 
+0000062410 00000 n 
+0000065191 00000 n 
+0000065319 00000 n 
+0000067499 00000 n 
+0000067627 00000 n 
+0000071436 00000 n 
+0000071564 00000 n 
+0000075282 00000 n 
+0000075410 00000 n 
+0000078909 00000 n 
+0000079037 00000 n 
+0000080959 00000 n 
+trailer
+<< /Size 56 /Root 1 0 R >>
+startxref
+81087
+%%EOF

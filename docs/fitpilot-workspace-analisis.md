@@ -1,0 +1,1336 @@
+FitPilot Workspace - Analisis para NotebookLM
+====================================================
+
+Fecha de generacion: 2026-06-05
+Workspace local analizado: /Users/leeroy/dev-projects/fitpilot
+Archivo workspace detectado: fitpilot.code-workspace
+Repositorio donde se guardo este informe: Fitpilot_mobile/docs
+
+Nota de privacidad: se omitieron valores de .env y secretos. El informe solo menciona nombres de variables desde plantillas versionadas cuando existen.
+
+# Resumen Ejecutivo
+
+FitPilot es una plataforma fitness/nutricion multi-aplicacion. El workspace contiene siete repositorios que juntos cubren adquisicion publica, onboarding, experiencia cliente, experiencia profesional, administracion interna y dos dominios backend separados: Nutrition y Training.
+
+La separacion principal es por experiencia y dominio:
+- Landing page publica para marketing y captacion.
+- Web profesional para nutriologos/entrenadores.
+- App movil y portal web para clientes.
+- Panel admin para operacion interna.
+- Nutrition Backend como identidad/plataforma/nutricion/comunicacion/billing.
+- Training Backend como entrenamiento/programacion/logs/analitica/generacion AI.
+
+En conjunto el producto permite: registrar usuarios, verificar telefono/email, configurar profesionales, captar prospectos, gestionar clientes, crear menus y recetas, generar listas de compra, manejar mediciones y salud conectada, construir programas de entrenamiento, ejecutar workouts, analizar progreso, chatear, enviar notificaciones, cobrar suscripciones y observar reportes administrativos.
+
+# Apps y Repositorios del Workspace
+
+
+## FitPilot Frontend Profesional (FitPilot-frontend)
+
+Rol: Aplicacion web principal para profesionales. Une flujos de nutricion, entrenamiento, clientes, chat, agenda, suscripciones y perfil profesional.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/FitPilot-frontend
+Remoto: https://github.com/fitpilot-team/FitPilot-frontend.git
+Branch local: feature/session-packages-v1
+Creado segun primer commit local: af415cf | 2025-12-04 22:19:19 -0600 | Ale-mtz-2 | Initial commit: FitPilot Frontend
+Ultimo commit local: 030b32c | 2026-06-02 13:26:47 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull request #64 from fitpilot-team/wip/chat-main-sync-2026-05-28
+Total commits locales: 274
+Contribuidores por commits: 130 Ale-mtz-2; 90 Leeroy Garcia; 53 Leeroy Uziel Garcia Gonzalez; 1 Codex
+Archivos analizados aprox.: 511 totales, 457 fuente, 69 tests/specs.
+Extensiones principales: .ts=274, .tsx=180, .json=20, [sin extension]=8, .svg=7, .md=5, .txt=3, .yml=3
+Package: fit-pilot-frontend@1.0.0
+Docker/deploy files: Dockerfile, docker-compose.coolify.yml, docker-compose.yml
+Estado git local: M src/features/professional-profiles/api.ts;  M src/features/professional-profiles/queries.ts;  M src/features/professional-profiles/types.ts;  M src/pages/ProfilePage.tsx
+Resumen funcional:
+- Web app React + Vite + TypeScript para profesionales de nutricion y entrenamiento.
+- Rutas protegidas por sesion y por acceso a productos, con i18n por prefijo de idioma.
+- Incluye editor de programas, generador AI de training, clientes, historial clinico, menus, recetas, consulta, chat, anuncios, perfil y suscripciones.
+- Consume Nutrition API y Training API mediante variables Vite separadas.
+
+## FitPilot Mobile (Fitpilot_mobile)
+
+Rol: Aplicacion movil para clientes/pacientes en Expo React Native. Es la experiencia diaria de entrenamientos, dieta, mediciones, chat, salud conectada y perfil.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/Fitpilot_mobile
+Remoto: https://github.com/fitpilot-team/Fitpilot_mobile.git
+Branch local: feature/session-packages-v1
+Creado segun primer commit local: 3c243e8 | 2026-02-18 15:12:08 -0600 | Ale-mtz-2 | feat(mobile): initialize fitpilot mobile app
+Ultimo commit local: 7b06c4c | 2026-06-01 18:31:25 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull request #31 from fitpilot-team/wip/chat-main-sync-2026-05-28
+Total commits locales: 117
+Contribuidores por commits: 81 Ale-mtz-2; 26 Leeroy Garcia; 10 Leeroy Uziel Garcia Gonzalez
+Archivos analizados aprox.: 294 totales, 214 fuente, 3 tests/specs.
+Extensiones principales: .tsx=115, .ts=87, .json=12, .xml=12, [sin extension]=8, .js=7, .properties=7, .bin=7
+Package: fitpilot-mobile@1.0.0
+Estado git local: M app/professionals/[username].tsx;  M src/services/professionalDiscovery.ts; ?? FitPilot-production.aab
+Resumen funcional:
+- App Expo Router con tabs principales: Inicio, Entrenamientos, Dieta, Mediciones y Chat.
+- Gestiona login/registro, onboarding, perfil, configuracion de tema/notificaciones, salud conectada, profesionales, recetas y sesiones de workout.
+- Usa Zustand para estado, Secure Store para sesion, Expo Notifications, Expo Print, Expo Video y Socket.IO.
+- Contiene proyectos nativos iOS y Android generados/configurados para builds de tienda.
+
+## FitPilot Training Backend (Fitpilot_training_backend)
+
+Rol: API Python/FastAPI de entrenamiento: ejercicios, programas, mesociclos, microciclos, logs, analitica y generacion AI de rutinas.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/Fitpilot_training_backend
+Remoto: https://github.com/fitpilot-team/Fitpilot_training_backend.git
+Branch local: main
+Creado segun primer commit local: 6c34157 | 2025-11-20 19:21:00 -0600 | Ale-mtz-2 | feat: Initial Fit Pilot project setup
+Ultimo commit local: 2353ee7 | 2026-05-27 12:21:03 -0600 | Ale-mtz-2 | feat(workout-log): add mesocycle and microcycle fields to program context
+Total commits locales: 170
+Contribuidores por commits: 127 Ale-mtz-2; 31 Leeroy Garcia; 6 Codex Automation; 6 Leeroy Uziel Garcia Gonzalez
+Archivos analizados aprox.: 278 totales, 248 fuente, 74 tests/specs.
+Extensiones principales: .py=248, .json=8, .md=6, [sin extension]=4, .yml=4, .example=3, .txt=1, .ini=1
+Docker/deploy files: docker-compose.coolify.yml, docker-compose.development.yml, docker-compose.yml
+Estado git local: M backend/Dockerfile;  M docker-compose.development.yml
+Resumen funcional:
+- FastAPI con SQLAlchemy/Alembic, PostgreSQL remoto obligatorio, Redis y storage R2 para media.
+- Responsable del dominio de entrenamiento: catalogo de ejercicios, musculos, programas, mesociclos, microciclos, dias, ejercicios por dia, workout logs y analitica.
+- Valida JWT emitidos por Nutrition usando secretos compartidos; /api/auth/login queda deprecado para operacion real segun README.
+- Incluye generacion AI de programas y Coach Engine con scoring, reparacion y retrieval semantico.
+
+## FitPilot Admin (fitpilot-admin)
+
+Rol: Panel interno administrativo para monitorear usuarios, reportes, notificaciones, uso de AI y codigos de acceso.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-admin
+Remoto: https://github.com/fitpilot-team/fitpilot-admin.git
+Branch local: main
+Creado segun primer commit local: becb981 | 2026-05-09 17:48:26 -0600 | Leeroy Garcia | first commit
+Ultimo commit local: 2c61d78 | 2026-05-15 03:26:18 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull request #2 from fitpilot-team/fix/admin-pnpm-lockfile
+Total commits locales: 12
+Contribuidores por commits: 10 Leeroy Garcia; 2 Leeroy Uziel Garcia Gonzalez
+Archivos analizados aprox.: 162 totales, 22 fuente, 1 tests/specs.
+Extensiones principales: .md=115, .tsx=13, .ts=8, .json=7, [sin extension]=6, .svg=4, .yaml=2, .html=1
+Package: fitpilot-admin@0.0.0
+Docker/deploy files: Dockerfile, docker-compose.coolify.yml
+Estado git local: clean
+Resumen funcional:
+- Vite React con TanStack Router para administracion interna.
+- Modulos: dashboard, usuarios, reportes, notificaciones, uso de AI y codigos beta/de acceso.
+- Autenticacion de administrador local via adminAuth y guardas de ruta.
+- Consume Nutrition API y Turnstile.
+
+## FitPilot Frontend Client (fitpilot-frontend-client)
+
+Rol: Portal web para clientes. Cubre registro/login, onboarding, dashboard, menus/dietas, composicion corporal, perfil y baja de cuenta.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-frontend-client
+Remoto: https://github.com/fitpilot-team/fitpilot-frontend-client.git
+Branch local: main
+Creado segun primer commit local: d93d6cb | 2026-01-27 15:21:26 -0600 | Leeroy Garcia | client app creation
+Ultimo commit local: cbdbc7d | 2026-05-29 09:22:33 -0600 | Ale-mtz-2 | Refactor color scheme to use primary color variables across components
+Total commits locales: 31
+Contribuidores por commits: 22 Leeroy Garcia; 6 Leeroy Uziel Garcia Gonzalez; 3 Ale-mtz-2
+Archivos analizados aprox.: 86 totales, 55 fuente, 0 tests/specs.
+Extensiones principales: .tsx=30, .ts=24, [sin extension]=8, .svg=7, .json=6, .yaml=2, .yml=2, .md=2
+Package: fitpilot-frontend-client@0.0.0
+Docker/deploy files: Dockerfile, docker-compose.coolify.yml, docker-compose.yml
+Estado git local: clean
+Resumen funcional:
+- Portal web React + Vite + TanStack Router para clientes.
+- Flujos de auth, registro por link, onboarding, dashboard, composicion, menus/dietas, perfil y eliminacion de cuenta.
+- Tiene i18n ES/EN y prefetch/loaders para rutas.
+- Complementa la app movil como experiencia web para clientes.
+
+## FitPilot Landing Page (fitpilot-landingpage)
+
+Rol: Sitio publico/marketing en Astro con paginas bilingues para explorar FitPilot, profesionales, app y contacto.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-landingpage
+Remoto: https://github.com/fitpilot-team/fitpilot-landingpage.git
+Branch local: main
+Creado segun primer commit local: af5a3c0 | 2025-12-13 18:07:14 -0600 | houston[bot] | Initial commit from Astro
+Ultimo commit local: 836e0bf | 2026-05-28 00:46:16 -0600 | Leeroy Uziel Garcia Gonzalez | Merge pull request #5 from fitpilot-team/feature/professional-discovery-v1
+Total commits locales: 22
+Contribuidores por commits: 14 Leeroy Garcia; 4 Ale-mtz-2; 3 Leeroy Uziel Garcia Gonzalez; 1 houston[bot]
+Archivos analizados aprox.: 60 totales, 36 fuente, 0 tests/specs.
+Extensiones principales: .astro=31, [sin extension]=6, .svg=5, .json=4, .yaml=3, .tsx=3, .md=2, .ts=2
+Package: fitpilot-landingpage@0.0.1
+Docker/deploy files: Dockerfile, compose.yaml, docker-compose.coolify.yml
+Estado git local: clean
+Resumen funcional:
+- Sitio Astro estatico con React embebido para componentes interactivos.
+- Paginas publicas en raiz, /es y /en: home, app, platform, trainers, nutritionists, explore, contact, help-center y success.
+- Build servido por Nginx via Docker/Coolify.
+- Funciona como entrada comercial y catalogo publico de profesionales.
+
+## FitPilot Nutrition Backend (fitpilot-nutrition-backend)
+
+Rol: API NestJS/Prisma de nutricion y plataforma: auth, usuarios, profesionales, menus, recetas, alimentos, billing, chat, notificaciones y salud conectada.
+Ruta local: /Users/leeroy/dev-projects/fitpilot/fitpilot-nutrition-backend
+Remoto: https://github.com/fitpilot-team/fitpilot-nutrition-backend.git
+Branch local: feature/session-packages-v1
+Creado segun primer commit local: 99db273 | 2025-12-16 18:47:45 -0600 | Leeroy Garcia | add prisma config
+Ultimo commit local: 1241e84 | 2026-06-02 09:23:35 -0600 | Codex | Merge branch 'main' of https://github.com/fitpilot-team/fitpilot-nutrition-backend
+Total commits locales: 278
+Contribuidores por commits: 118 Leeroy Garcia; 86 Codex; 51 Leeroy Uziel Garcia Gonzalez; 16 Ale-mtz-2; 7 Codex Automation
+Archivos analizados aprox.: 736 totales, 517 fuente, 101 tests/specs.
+Extensiones principales: .ts=513, .md=101, .sql=53, .txt=21, .json=12, [sin extension]=9, .yml=8, .example=4
+Package: fitpilot-nutrition-backend@0.0.1
+Docker/deploy files: Dockerfile, docker-compose.coolify.yml, docker-compose.development.yml, docker-compose.release.yml, docker-compose.yml
+Estado git local: M prisma/schema.prisma;  M src/notifications/notifications.service.ts;  M src/professional-profiles/dto/create-professional-contact-request.dto.ts;  M src/professional-profiles/professional-profiles.controller.ts;  M src/professional-profiles/professional-profiles.service.spec.ts;  M src/professional-profiles/professional-profiles.service.ts; ?? prisma/migrations/20260602_add_professional_session_packages/; ?? prisma/migrations/20260604_add_professional_monthly_plans/; ?? src/professional-profiles/dto/monthly-plan.dto.ts; ?? src/professional-profiles/dto/session-package.dto.ts
+Resumen funcional:
+- NestJS + Prisma + PostgreSQL, con Redis, Socket.IO, Stripe, Twilio, R2 y proveedores AI.
+- Centro de auth y plataforma: emite JWT, maneja usuarios, perfiles profesionales, clientes, planes, billing, chat y notificaciones.
+- Dominio nutricional amplio: alimentos, SMAE/import, equivalentes, recetas, menus, listas de compra, mediciones, metas y targets diarios.
+- Expone endpoints publicos de directorio profesional y contacto, mas APIs admin/reporting.
+
+# Linea de Tiempo de Creacion
+
+Fechas tomadas del primer commit disponible en cada repositorio local:
+- Fitpilot_mobile: 3c243e8 | 2026-02-18 15:12:08 -0600 | Ale-mtz-2 | feat(mobile): initialize fitpilot mobile app
+- Fitpilot_training_backend: 6c34157 | 2025-11-20 19:21:00 -0600 | Ale-mtz-2 | feat: Initial Fit Pilot project setup
+- fitpilot-nutrition-backend: 99db273 | 2025-12-16 18:47:45 -0600 | Leeroy Garcia | add prisma config
+- FitPilot-frontend: af415cf | 2025-12-04 22:19:19 -0600 | Ale-mtz-2 | Initial commit: FitPilot Frontend
+- fitpilot-landingpage: af5a3c0 | 2025-12-13 18:07:14 -0600 | houston[bot] | Initial commit from Astro
+- fitpilot-admin: becb981 | 2026-05-09 17:48:26 -0600 | Leeroy Garcia | first commit
+- fitpilot-frontend-client: d93d6cb | 2026-01-27 15:21:26 -0600 | Leeroy Garcia | client app creation
+
+Lectura rapida: el backend de training aparece primero en noviembre de 2025; el frontend profesional y landing nacen en diciembre de 2025; nutrition backend arranca tambien en diciembre de 2025; el portal cliente llega en enero de 2026; mobile en febrero de 2026; admin en mayo de 2026.
+
+# Arquitectura y Relaciones
+
+- Nutrition Backend es el centro de identidad: emite access/refresh tokens y Training Backend acepta esos JWT mediante NUTRITION_JWT_SECRETS.
+- FitPilot Frontend Profesional habla con Nutrition API para auth, nutricion, profesionales, billing, chat y reportes; y con Training API para programas, ejercicios, logs y analitica.
+- FitPilot Mobile usa EXPO_PUBLIC_NUTRITION_API_URL y EXPO_PUBLIC_TRAINING_API_URL para combinar dieta, mediciones, profesionales, chat y entrenamientos.
+- Admin consume principalmente Nutrition API para operacion interna: usuarios, reportes, notificaciones, AI usage y codigos de acceso.
+- Client Frontend consume Nutrition API para auth/onboarding, menus, composicion y perfil.
+- Landing Page es publica y sirve como captacion; enlaza al ecosistema de app/profesionales.
+- Ambos backends tienen guardrail de base de datos remote-only; el desarrollo/deploy espera PostgreSQL remoto y Redis compartido.
+- R2/Cloudflare se usa para almacenamiento publico de media, especialmente avatares y media de ejercicios.
+
+Mapa mental simplificado:
+Landing -> captacion publica -> profesional/cliente
+Profesional Web -> Nutrition API + Training API
+Mobile Cliente -> Nutrition API + Training API
+Client Web -> Nutrition API
+Admin -> Nutrition API
+Nutrition API -> Postgres remoto + Redis + R2 + Stripe + Twilio + AI providers + Socket.IO
+Training API -> Postgres remoto + Redis + R2 + OpenAI/Anthropic/Voyage/Ollama + pgvector
+
+# Stacks Tecnicos
+
+
+## FitPilot-frontend
+
+Dependencias runtime destacadas: @dnd-kit/core, @dnd-kit/modifiers, @dnd-kit/sortable, @dnd-kit/utilities, @headlessui/react, @heroicons/react, @hookform/resolvers, @tailwindcss/vite, @tanstack/react-query, @tanstack/react-query-devtools, @tiptap/core, @tiptap/react, @tiptap/starter-kit, @toon-format/toon, axios, date-fns, framer-motion, i18next, i18next-browser-languagedetector, jspdf, jspdf-autotable, lucide-react, motion-utils, react, react-dom, react-hook-form, react-hot-toast, react-i18next, react-router-dom, recharts, socket.io-client, use-sync-external-store, ...
+Dependencias dev destacadas: @playwright/test, @tailwindcss/forms, @types/node, @types/react, @types/react-dom, @typescript-eslint/eslint-plugin, @typescript-eslint/parser, @vitejs/plugin-react, autoprefixer, eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh, postcss, prettier, tailwindcss, typescript, vite, vite-plugin-svgr, vitest
+Scripts principales:
+  - dev: vite --mode development
+  - build: tsc && vite build
+  - lint: eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0
+  - preview: vite preview
+  - test: vitest
+
+## Fitpilot_mobile
+
+Dependencias runtime destacadas: @expo/vector-icons, @react-native-masked-view/masked-view, @react-navigation/bottom-tabs, @react-navigation/native, @react-navigation/native-stack, axios, expo, expo-asset, expo-audio, expo-blur, expo-constants, expo-dev-client, expo-device, expo-document-picker, expo-font, expo-image-picker, expo-linear-gradient, expo-linking, expo-navigation-bar, expo-notifications, expo-print, expo-router, expo-screen-orientation, expo-secure-store, expo-splash-screen, expo-status-bar, expo-video, lucide-react-native, react, react-dom, react-native, react-native-country-codes-picker, ...
+Dependencias dev destacadas: @babel/core, @types/react, babel-plugin-module-resolver, eslint, eslint-config-expo, react-native-svg-transformer, typescript
+Scripts principales:
+  - start: expo start
+  - android: expo run:android
+  - ios: expo run:ios
+  - web: expo start --web
+  - build:android:production:local: pnpm dlx eas-cli@19.1.0 build --platform android --profile production --local
+  - validate:android:host: powershell -ExecutionPolicy Bypass -File ./scripts/validate-android-host.ps1
+  - lint: eslint .
+  - typescript: tsc --noEmit
+  - check:text-encoding: node scripts/check-mojibake.mjs
+
+## Fitpilot_training_backend
+
+Stack principal desde requirements.txt: FastAPI, Uvicorn, SQLAlchemy, Alembic, psycopg, pgvector, Pydantic, python-jose, Redis, Celery, httpx/requests, OpenAI, Anthropic, boto3, Pillow, pytest, pandas y numpy.
+
+## fitpilot-admin
+
+Dependencias runtime destacadas: @tailwindcss/vite, @tanstack/react-query, @tanstack/react-query-devtools, @tanstack/react-router, @tanstack/router-devtools, @tiptap/core, @tiptap/react, @tiptap/starter-kit, framer-motion, lucide-react, react, react-dom, recharts, tailwindcss
+Dependencias dev destacadas: @eslint/js, @types/node, @types/react, @types/react-dom, @vitejs/plugin-react, eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, typescript, typescript-eslint, vite
+Scripts principales:
+  - dev: vite
+  - build: tsc -b && vite build
+  - lint: eslint .
+  - preview: vite preview
+
+## fitpilot-frontend-client
+
+Dependencias runtime destacadas: @tailwindcss/vite, @tanstack/react-query, @tanstack/react-router, axios, framer-motion, i18next, i18next-browser-languagedetector, jwt-decode, lucide-react, react, react-dom, react-i18next, recharts, tailwindcss
+Dependencias dev destacadas: @eslint/js, @tanstack/react-query-devtools, @tanstack/router-devtools, @tanstack/router-plugin, @types/node, @types/react, @types/react-dom, @vitejs/plugin-react-swc, eslint, eslint-plugin-react-hooks, eslint-plugin-react-refresh, globals, typescript, typescript-eslint, vite
+Scripts principales:
+  - dev: vite
+  - build: tsc -b && vite build
+  - lint: eslint .
+  - preview: vite preview
+
+## fitpilot-landingpage
+
+Dependencias runtime destacadas: @astrojs/react, @tailwindcss/vite, @types/aos, aos, astro, framer-motion, react, react-dom, tailwindcss
+Dependencias dev destacadas: @types/react, @types/react-dom
+Scripts principales:
+  - dev: astro dev
+  - build: astro build
+  - preview: astro preview
+  - astro: astro
+
+## fitpilot-nutrition-backend
+
+Dependencias runtime destacadas: @aws-sdk/client-s3, @aws-sdk/s3-request-presigner, @google/generative-ai, @nestjs/common, @nestjs/config, @nestjs/core, @nestjs/jwt, @nestjs/mapped-types, @nestjs/passport, @nestjs/platform-express, @nestjs/platform-socket.io, @nestjs/schedule, @nestjs/swagger, @nestjs/websockets, @prisma/adapter-pg, @prisma/client, @toon-format/toon, axios, bcrypt, class-transformer, class-validator, expo-server-sdk, jsonwebtoken, libphonenumber-js, nanoid, openai, passport, passport-jwt, pdfkit, pg, redis, reflect-metadata, ...
+Dependencias dev destacadas: @eslint/eslintrc, @eslint/js, @nestjs/cli, @nestjs/schematics, @nestjs/testing, @types/bcrypt, @types/express, @types/jest, @types/multer, @types/node, @types/passport-jwt, @types/pdfkit, @types/supertest, dotenv-cli, env-cmd, eslint, eslint-config-prettier, eslint-plugin-prettier, globals, jest, prettier, prisma, source-map-support, supertest, ...
+Scripts principales:
+  - build: node ./node_modules/@nestjs/cli/bin/nest.js build
+  - format: node ./node_modules/prettier/bin/prettier.cjs --write "src/**/*.ts" "test/**/*.ts"
+  - start: node ./node_modules/@nestjs/cli/bin/nest.js start
+  - start:dev: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v NODE_ENV=development -v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/@nestjs/cli/bin/nest.js start --watch
+  - start:debug: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v NODE_ENV=development -v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/@nestjs/cli/bin/nest.js start --debug --watch
+  - start:prod: node dist/src/main.js
+  - start:dev:prod-env: node ./node_modules/dotenv-cli/cli.js -e .env.production -v NODE_ENV=development -v FITPILOT_ENV_CONTEXT=production -- node ./node_modules/@nestjs/cli/bin/nest.js start --watch
+  - lint: node ./node_modules/eslint/bin/eslint.js "{src,apps,libs,test}/**/*.ts" --fix
+  - test: node ./node_modules/jest/bin/jest.js
+  - test:watch: node ./node_modules/jest/bin/jest.js --watch
+  - test:cov: node ./node_modules/jest/bin/jest.js --coverage
+  - test:debug: node --inspect-brk -r tsconfig-paths/register -r ts-node/register ./node_modules/jest/bin/jest.js --runInBand
+  - test:e2e: node ./node_modules/env-cmd/bin/env-cmd.js -f .env.test.local -- node ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json --runInBand
+  - db:seed: node ./node_modules/prisma/build/index.js db seed
+  - db:migrations:validate: node scripts/validate-prisma-migrations.js
+  - db:schema:guard: node scripts/check-prisma-schema-change.js
+  - db:migrate:dev: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/prisma/build/index.js migrate deploy
+  - db:migrate:deploy: node scripts/validate-prisma-migrations.js && node ./node_modules/prisma/build/index.js migrate deploy
+  - menus:drafts:clean-placeholders: node ./node_modules/ts-node/dist/bin.js scripts/clean-menu-draft-placeholders.ts
+  - menus:backfill-exchange-systems: node ./node_modules/ts-node/dist/bin.js scripts/backfill-menu-exchange-systems.ts
+  - foods:smae:reset-import: node ./node_modules/ts-node/dist/bin.js scripts/reset-food-domain-and-import-smae.ts
+  - foods:smae:backfill-weights: node ./node_modules/ts-node/dist/bin.js scripts/backfill-food-nutrition-weight-fields.ts
+  - foods:search-index:backfill: node ./node_modules/ts-node/dist/bin.js scripts/backfill-food-search-index.ts
+  - foods:search:golden-report: node ./node_modules/ts-node/dist/bin.js scripts/report-food-search-golden-queries.ts
+  - db:push:dev: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/prisma/build/index.js db push
+  - db:push:prod: node ./node_modules/dotenv-cli/cli.js -e .env.production.local -v FITPILOT_ENV_CONTEXT=production -- node ./node_modules/prisma/build/index.js db push
+  - studio: node ./node_modules/dotenv-cli/cli.js -e .env.development.local -v FITPILOT_ENV_CONTEXT=development -- node ./node_modules/prisma/build/index.js studio
+  - studio:prod: node ./node_modules/dotenv-cli/cli.js -e .env.production.local -v FITPILOT_ENV_CONTEXT=production -- node ./node_modules/prisma/build/index.js studio
+
+# Funcionalidades por Producto
+
+
+## Experiencia Profesional Web - FitPilot-frontend
+
+- Autenticacion: login, registro, forgot/reset password, Turnstile y rutas legales publicas.
+- Onboarding profesional y perfil publico/profesional, incluida actividad de perfil y disponibilidad de username.
+- Training: catalogo de ejercicios, plantillas/programas, editor de mesociclos, generador AI, logs y planes de clientes.
+- Nutrition: dashboard, agenda, clientes, intake, historial medico, mediciones, alimentos, recetas, consulta, meal plans, builder, menus reutilizables, weekly view y drafts.
+- Cliente/profesional: clientes, historial clinico, contexto, suscripciones, chat, anuncios, command palette y ajustes profesionales.
+- Reportes/exports: dependencias como jsPDF, jsPDF AutoTable y Recharts sugieren generacion/visualizacion de reportes y graficas.
+
+## Experiencia Mobile - Fitpilot_mobile
+
+- Tabs principales: Home, Workouts, Diet, Measurements y Chat.
+- Login, registro, onboarding y health setup.
+- Home/dashboard con plan del dia, calendario, actividad, tips cientificos, metricas y timeline de microciclo.
+- Workouts: ejecucion de sesion, timers, descanso, cardio, movimientos, sets, abandono, detalle de ejercicio y analitica.
+- Diet: plan semanal, comidas, ingredientes, intercambios, shopping list imprimible, recetas y rich text.
+- Measurements/health metrics: peso, progreso por metrica, glucosa, preferencias de unidades y resumenes.
+- Connected health: setup, resumen, detalle, feedback y sharing.
+- Professional discovery/care team: listado de profesionales, perfil publico, profesionales asignados y contacto.
+- Perfil: datos personales, cambio de password, ayuda, soporte, tema, notificaciones, legales y profesionales.
+
+## Training Backend - Fitpilot_training_backend
+
+- Catalogos: musculos y ejercicios con busqueda, carga de imagen, fetch/generacion de imagen anatomica y traduccion.
+- Programacion: macro/meso/microciclos, dias de entrenamiento, ejercicios por dia, duplicado, reordenamiento y transferencia.
+- Clientes y contexto: clientes, interviews, patient context y resumen trainer-facing.
+- Workout logs: proximo entrenamiento, hoy, missed, progreso semanal/microciclo, sets, cardio blocks, movement blocks y reopening.
+- Analytics: dashboards, history, modules, preferencias y tendencias por ejercicio tanto para cliente propio como clientes profesionales.
+- AI generator: questionnaire config, validacion de interview, preview/generate/save, debug artifacts y bloques adaptativos.
+- Coach Engine: scoring de calidad, composer v2, reparaciones, reglas de dias/volumen y pruebas extensas.
+
+## Nutrition Backend - fitpilot-nutrition-backend
+
+- Auth/identidad: signup, login, refresh, logout, sesiones, verification phone/email, forgot/reset password y user activation tokens.
+- Usuarios/profesionales: perfiles profesionales, directorio publico, contact requests, paquetes de sesiones, planes mensuales, onboarding profesional y clientes profesionales.
+- Nutricion: alimentos, categorias, valores nutricionales, micronutrientes, grupos/sistemas de equivalentes, recetas, recipe foods, menus, drafts, weekly planning, shopping lists y swaps del cliente.
+- Salud y medidas: client metrics, health metrics, metabolic profiles, measurements, connected health sync/summary/detail/sharing/setup.
+- Comunicacion: chat, announcements, notifications push, SMS/Twilio, email y consulta/transcripcion.
+- Comercial/admin: billing Stripe, subscriptions, affiliate codes, signup access codes, admin reports y AI usage/pricing/feedback.
+- Infra: Prisma, Redis cache, R2 storage, Swagger, guards de suscripcion y scripts de validacion/migracion.
+
+## Admin - fitpilot-admin
+
+- Login admin y layout protegido.
+- Dashboard operativo.
+- Usuarios.
+- Reportes: overview, users, subscriptions, professionals, appointments y operations desde Nutrition Backend.
+- Notificaciones.
+- AI usage.
+- Signup access codes/beta.
+
+## Client Web - fitpilot-frontend-client
+
+- Auth: sign-in, sign-up, forgot/reset password y complete registration.
+- Onboarding protegido por estado de usuario.
+- Dashboard, composicion, menus/dietas y perfil.
+- Account deletion publica para cumplimiento.
+- i18n ES/EN y Axios con access token store.
+
+## Landing - fitpilot-landingpage
+
+- Home publica con Hero, features, management, visuales, CTA y footer.
+- Paginas app, platform, trainers, nutritionists, explore, contact, help-center, success y 404.
+- Versiones /es y /en para principales paginas.
+- Catalogo/descubrimiento de profesionales mediante componente ProfessionalsCatalog.
+
+# Rutas Frontend
+
+
+## FitPilot-frontend
+
+- /terms
+- /privacy
+- /turnstile/mobile
+- /auth
+- login
+- register
+- forgot-password
+- reset-password
+- /onboarding
+- /
+- /training
+- exercises
+- programs
+- programs/new
+- programs/:id
+- ai-generator
+- logs
+- logs/:workoutLogId
+- /client-plans
+- /training/client-plans
+- /nutrition/meal-plans/clients-menus
+- /exercises
+- /templates
+- /templates/new
+- /templates/:id
+- /mesocycles/:id
+- /clients
+- /clients/:clientId/*
+- /announcements
+- /chat
+- /profile-activity
+- /profile
+- /subscriptions/plans
+- /subscriptions/success
+- /subscriptions/cancel
+- /ai-generator
+- /nutrition
+- agenda
+- clients
+- clients/new
+- foods
+- recipes
+- recipes/new
+- recipes/:recipeId/edit
+- clients/:clientId/intake
+- clients/:clientId/medical-history
+- clients/:clientId/measurements
+- clients/:clientId
+- consultation/:id
+- meal-plans
+- builder
+- templates
+- create-menu
+- reusable-menus
+- clients-menus/weekly-view/:clientId
+- drafts
+- *
+
+## Fitpilot_mobile
+
+- /(tabs)/_layout
+- /(tabs)/chat
+- /(tabs)/diet
+- /(tabs)
+- /(tabs)/measurements
+- /(tabs)/workouts
+- /_layout
+- /diet/_layout
+- /diet/shopping-list
+- /diet/weekly-plan
+- /health-setup
+- 
+- /login
+- /measurements/_layout
+- /measurements/progress/[metric]
+- /measurements/weight-progress
+- /onboarding
+- /professionals/[username]
+- /professionals/_layout
+- /professionals
+- /profile/_layout
+- /profile/change-password
+- /profile/connected-health
+- /profile/contact-support
+- /profile/help
+- /profile
+- /profile/legal/[document]
+- /profile/notifications-settings
+- /profile/personal-info
+- /profile/professionals
+- /profile/theme-settings
+- /recipes/[recipeId]
+- /recipes/_layout
+- /recommendations/[tipId]
+- /register
+- /workout/[id]
+- /workout/_layout
+- /workouts/_layout
+- /workouts/exercises/[exerciseId]
+
+## fitpilot-admin
+
+- /
+- /auth
+- /login
+- /dashboard
+- /users
+- /reports
+- /notifications
+- /ai-usage
+- /signup-access-codes
+
+## fitpilot-frontend-client
+
+- /onboarding
+- /account-deletion
+- /
+- /diets
+- /dashboard
+- /composition
+- /menus
+- /profile
+- /auth
+- /sign-in
+- /sign-up
+- /forgot-password
+- /reset-password
+- /complete-registration
+
+## fitpilot-landingpage
+
+- /404
+- /app
+- /contact
+- /en/
+- /es/app
+- /es/contact
+- /es/explore
+- /es/help-center
+- /es/
+- /es/nutritionists
+- /es/platform
+- /es/success
+- /es/trainers
+- /explore
+- /help-center
+- /
+- /nutritionists
+- /platform
+- /success
+- /trainers
+
+# API Training - Endpoints Detectados
+
+
+## api/routers/auth.py
+
+- POST /api/auth/register
+- POST /api/auth/login
+- GET /api/auth/me
+- PATCH /api/auth/me
+- POST /api/auth/change-password
+- POST /api/auth/me/upload-photo
+- DELETE /api/auth/me/photo
+
+## api/routers/muscles.py
+
+- GET /api/muscles/
+- GET /api/muscles/categories/list
+- GET /api/muscles/regions/list
+- GET /api/muscles/by-name/{muscle_name}
+- GET /api/muscles/{muscle_id}
+
+## api/routers/exercises.py
+
+- GET /api/exercises/
+- GET /api/exercises/palette-search
+- GET /api/exercises/{exercise_id}
+- POST /api/exercises/
+- PUT /api/exercises/{exercise_id}
+- DELETE /api/exercises/{exercise_id}
+- POST /api/exercises/{exercise_id}/upload-image
+- DELETE /api/exercises/{exercise_id}/image
+- POST /api/exercises/{exercise_id}/fetch-movement-image
+- POST /api/exercises/{exercise_id}/generate-anatomy-image
+
+## api/routers/clients.py
+
+- GET /api/clients/
+- GET /api/clients/palette-search
+- POST /api/clients/
+- GET /api/clients/{client_id}
+- PUT /api/clients/{client_id}
+- DELETE /api/clients/{client_id}
+
+## api/routers/mesocycles.py
+
+- GET /api/mesocycles/
+- GET /api/mesocycles/palette-search
+- GET /api/mesocycles/{macrocycle_id}
+- POST /api/mesocycles/
+- PUT /api/mesocycles/{macrocycle_id}
+- POST /api/mesocycles/{macrocycle_id}/save-as-template
+- POST /api/mesocycles/{macrocycle_id}/activate
+- DELETE /api/mesocycles/{macrocycle_id}
+- GET /api/mesocycles/{macrocycle_id}/mesocycles
+- POST /api/mesocycles/{macrocycle_id}/mesocycles
+- GET /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}
+- PUT /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}
+- DELETE /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}
+- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles
+- PUT /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}
+- DELETE /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}
+- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/duplicate
+- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/reorder
+- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days
+- PUT /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}
+- DELETE /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}
+- POST /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}/exercises
+- PUT /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}/exercises/{exercise_id}
+- DELETE /api/mesocycles/{macrocycle_id}/mesocycles/{mesocycle_id}/microcycles/{microcycle_id}/days/{day_id}/exercises/{exercise_id}
+
+## api/routers/microcycles.py
+
+- GET /api/microcycles/macrocycle/{macrocycle_id}
+- GET /api/microcycles/{microcycle_id}
+- POST /api/microcycles/macrocycle/{macrocycle_id}
+- PUT /api/microcycles/{microcycle_id}
+- DELETE /api/microcycles/{microcycle_id}
+
+## api/routers/training_days.py
+
+- GET /api/training-days/microcycle/{microcycle_id}
+- GET /api/training-days/{training_day_id}/muscle-volume
+- GET /api/training-days/{training_day_id}
+- POST /api/training-days/microcycle/{microcycle_id}
+- PUT /api/training-days/{training_day_id}
+- DELETE /api/training-days/{training_day_id}
+- POST /api/training-days/{training_day_id}/duplicate
+- PATCH /api/training-days/{training_day_id}/reorder
+
+## api/routers/day_exercises.py
+
+- GET /api/day-exercises/training-day/{training_day_id}
+- GET /api/day-exercises/{day_exercise_id}
+- POST /api/day-exercises/training-day/{training_day_id}
+- PUT /api/day-exercises/{day_exercise_id}
+- DELETE /api/day-exercises/{day_exercise_id}
+- POST /api/day-exercises/training-day/{training_day_id}/reorder
+- POST /api/day-exercises/{day_exercise_id}/duplicate
+- POST /api/day-exercises/{day_exercise_id}/transfer
+- PATCH /api/day-exercises/{day_exercise_id}/move
+
+## api/routers/client_interviews.py
+
+- GET /api/client-interviews/{client_id}
+- POST /api/client-interviews/{client_id}
+- PUT /api/client-interviews/{client_id}
+- DELETE /api/client-interviews/{client_id}
+
+## api/routers/client_app.py
+
+- GET /api/client-app/dashboard-bootstrap
+- GET /api/client-app/training-professional-summary
+
+## api/routers/patient_context.py
+
+- GET /api/patients/{client_id}/context
+- POST /api/patients/{client_id}/context
+- GET /api/patients/me/context
+
+## api/routers/ai_generator.py
+
+- GET /api/ai/questionnaire-config
+- GET /api/ai/validate-interview/{client_id}
+- GET /api/ai/interview-data/{client_id}
+- POST /api/ai/test-generate
+- POST /api/ai/generate
+- POST /api/ai/preview
+- GET /api/ai/metrics/structure-quality
+- GET /api/ai/attempts/debug
+- GET /api/ai/attempts/{attempt_id}/debug-artifacts
+- POST /api/ai/save
+- POST /api/ai/generate-next-adaptive-block/{macrocycle_id}
+
+## api/routers/translation.py
+
+- GET /api/translation/status
+- POST /api/translation/translate
+- POST /api/translation/exercises/{exercise_id}/translate
+- POST /api/translation/exercises/translate-all
+- DELETE /api/translation/cache
+
+## api/routers/workout_logs.py
+
+- GET /api/workout-logs/next
+- GET /api/workout-logs/progress/microcycle/current
+- POST /api/workout-logs/
+- GET /api/workout-logs/client/{client_id}
+- GET /api/workout-logs/progress/weekly
+- GET /api/workout-logs/today
+- GET /api/workout-logs/missed
+- GET /api/workout-logs/{workout_log_id}
+- GET /api/workout-logs/{workout_log_id}/state
+- PATCH /api/workout-logs/{workout_log_id}
+- POST /api/workout-logs/{workout_log_id}/reopen
+- POST /api/workout-logs/{workout_log_id}/sets
+- POST /api/workout-logs/{workout_log_id}/cardio-blocks
+- PATCH /api/workout-logs/{workout_log_id}/cardio-blocks/{cardio_log_id}
+- DELETE /api/workout-logs/{workout_log_id}/cardio-blocks/{cardio_log_id}
+- POST /api/workout-logs/{workout_log_id}/movement-blocks
+- PATCH /api/workout-logs/{workout_log_id}/movement-blocks/{movement_log_id}
+- DELETE /api/workout-logs/{workout_log_id}/movement-blocks/{movement_log_id}
+- PATCH /api/workout-logs/{workout_log_id}/sets/{set_log_id}
+- DELETE /api/workout-logs/{workout_log_id}/sets/{set_log_id}
+- DELETE /api/workout-logs/{workout_log_id}/day-exercises/{day_exercise_id}/sets/{set_number}
+
+## api/routers/workout_analytics.py
+
+- GET /api/workout-analytics/me/preferences
+- PUT /api/workout-analytics/me/preferences
+- GET /api/workout-analytics/me/modules
+- GET /api/workout-analytics/me/dashboard
+- GET /api/workout-analytics/me/history
+- GET /api/workout-analytics/me/exercises/{exercise_id}
+- GET /api/workout-analytics/clients/{client_id}/preferences
+- GET /api/workout-analytics/clients/{client_id}/dashboard
+- GET /api/workout-analytics/clients/{client_id}/history
+- GET /api/workout-analytics/clients/{client_id}/modules
+- GET /api/workout-analytics/clients/{client_id}/workout-logs/{workout_log_id}
+- GET /api/workout-analytics/clients/{client_id}/exercises/{exercise_id}
+
+## api/routers/trainer.py
+
+- GET /api/trainer/clients/summary
+
+# API Nutrition - Controladores y Endpoints Detectados
+
+
+## src/admin-reports/admin-reports.controller.ts
+
+- GET /admin/reports/overview
+- GET /admin/reports/users
+- GET /admin/reports/subscriptions
+- GET /admin/reports/professionals
+- GET /admin/reports/appointments
+- GET /admin/reports/operations
+
+## src/affiliate-codes/affiliate-codes.controller.ts
+
+- GET /affiliate-codes/
+- GET /affiliate-codes/stripe/coupons
+- POST /affiliate-codes/
+- POST /affiliate-codes/coupon/sync
+- POST /affiliate-codes/coupon/delete
+
+## src/ai-usage/ai-usage.controller.ts
+
+- GET /ai-usage/attempts
+- GET /ai-usage/summary
+- POST /ai-usage/feedback
+- GET /ai-usage/pricing
+- POST /ai-usage/pricing
+- PATCH /ai-usage/pricing/:id
+
+## src/allergens/allergens.controller.ts
+
+- POST /allergens/
+- GET /allergens/
+- GET /allergens/:id
+- PATCH /allergens/:id
+- DELETE /allergens/:id
+
+## src/announcements/announcements.controller.ts
+
+- POST /announcements/
+- GET /announcements/professional
+- GET /announcements/client
+- GET /announcements/unread-count
+- GET /announcements/professional-feed
+- GET /announcements/professional-unread-count
+- POST /announcements/system
+- GET /announcements/system
+- PATCH /announcements/:id/read
+- POST /announcements/read-all
+- DELETE /announcements/:id
+
+## src/app.controller.ts
+
+- GET //
+- GET //health
+
+## src/appointments/appointments.controller.ts
+
+- POST /appointments/
+- GET /appointments/
+- GET /appointments/:id
+- GET /appointments/professional/:id
+- PATCH /appointments/:id
+- POST /appointments/:id/draft
+- GET /appointments/:id/draft
+- PATCH /appointments/:id/draft
+- DELETE /appointments/:id
+
+## src/auth/auth.controller.ts
+
+- POST /auth/signup
+- POST /auth/login
+- POST /auth/forgot-password
+- POST /auth/reset-password/validate
+- POST /auth/reset-password
+- POST /auth/check-phone-availability
+- POST /auth/send-email-verification
+- POST /auth/verify-email
+- POST /auth/email-verification-session/restore
+- POST /auth/send-verification
+- POST /auth/verify-phone
+- POST /auth/verification-session/restore
+- POST /auth/hash-password
+- POST /auth/refresh
+- GET /auth/profile
+- POST /auth/change-password
+- POST /auth/logout
+- POST /auth/logout-all
+- GET /auth/sessions
+- DELETE /auth/sessions/:id
+- GET /auth/me
+
+## src/availability-slots/availability-slots.controller.ts
+
+- POST /availability-slots/
+- GET /availability-slots/
+- GET /availability-slots/professional/:professionalId
+- GET /availability-slots/:id
+- PATCH /availability-slots/:id
+- DELETE /availability-slots/:id
+
+## src/billing/billing.controller.ts
+
+- POST /billing/checkout-session
+- GET /billing/checkout-session
+- POST /billing/portal-session
+- POST /billing/subscription/cancel
+- POST /billing/subscription/resume
+- GET /billing/checkout-session/:id
+- POST /billing/webhook/stripe
+
+## src/chat/chat.controller.ts
+
+- GET /chat/conversations
+- POST /chat/conversations
+- GET /chat/conversations/:id/messages
+- POST /chat/conversations/:id/messages
+- PATCH /chat/conversations/:id/delivered
+- PATCH /chat/conversations/:id/read
+- DELETE /chat/conversations/:conversationId/messages/:messageId
+
+## src/client-context/client-context.controller.ts
+
+- GET /client-context/config
+- GET /client-context/:clientId
+- PUT /client-context/:clientId
+
+## src/client-health-metrics/client-health-metrics.controller.ts
+
+- POST /client-health-metrics/me
+- GET /client-health-metrics/me
+- GET /client-health-metrics/me/:id
+- PATCH /client-health-metrics/me/:id
+- DELETE /client-health-metrics/me/:id
+- POST /client-health-metrics/
+- GET /client-health-metrics/
+- GET /client-health-metrics/:id
+- PATCH /client-health-metrics/:id
+- DELETE /client-health-metrics/:id
+
+## src/client-metabolic-profiles/client-metabolic-profiles.controller.ts
+
+- GET /client-metabolic-profiles/:userId
+- PUT /client-metabolic-profiles/:userId
+
+## src/client-metrics/client-metrics.controller.ts
+
+- POST /client-metrics/
+- GET /client-metrics/
+- GET /client-metrics/:id
+- PATCH /client-metrics/:id
+- DELETE /client-metrics/:id
+
+## src/connected-health/connected-health.controller.ts
+
+- POST /connected-health/sync
+- GET /connected-health/me/summary
+- GET /connected-health/clients/:clientId/detail
+- PATCH /connected-health/me/sharing
+- PATCH /connected-health/me/setup
+
+## src/consultation/consultation.controller.ts
+
+- POST /consultation/transcribe
+
+## src/daily-targets/daily-targets.controller.ts
+
+- POST /daily-targets/
+- GET /daily-targets/
+- GET /daily-targets/:id
+- PATCH /daily-targets/:id
+- DELETE /daily-targets/:id
+
+## src/data-sources/data-sources.controller.ts
+
+- POST /data-sources/
+- GET /data-sources/
+- GET /data-sources/:id
+- PATCH /data-sources/:id
+- DELETE /data-sources/:id
+
+## src/exchange-groups/exchange-groups.controller.ts
+
+- POST /exchange-groups/
+- GET /exchange-groups/
+- GET /exchange-groups/:id
+- PATCH /exchange-groups/:id
+- DELETE /exchange-groups/:id
+
+## src/exchange-subgroups/exchange-subgroups.controller.ts
+
+- POST /exchange-subgroups/
+- GET /exchange-subgroups/
+- GET /exchange-subgroups/:id
+- PATCH /exchange-subgroups/:id
+- DELETE /exchange-subgroups/:id
+
+## src/exchange-systems/exchange-systems.controller.ts
+
+- POST /exchange-systems/
+- GET /exchange-systems/
+- GET /exchange-systems/:id
+- PATCH /exchange-systems/:id
+- DELETE /exchange-systems/:id
+
+## src/food-categories/food-categories.controller.ts
+
+- POST /food-categories/
+- GET /food-categories/
+- GET /food-categories/:id
+- PATCH /food-categories/:id
+- DELETE /food-categories/:id
+
+## src/food-logs/food-logs.controller.ts
+
+- POST /food-logs/
+- GET /food-logs/
+- GET /food-logs/:id
+- PATCH /food-logs/:id
+- DELETE /food-logs/:id
+
+## src/food-nutrition-values/food-nutrition-values.controller.ts
+
+- POST /food-nutrition-values/
+- GET /food-nutrition-values/
+- GET /food-nutrition-values/food/:foodId
+- GET /food-nutrition-values/:id
+- PATCH /food-nutrition-values/:id
+- DELETE /food-nutrition-values/:id
+
+## src/foods/foods.controller.ts
+
+- POST /foods/
+- GET /foods/
+- GET /foods/search
+- GET /foods/exchange-group/:id
+- GET /foods/custom
+- POST /foods/custom
+- PATCH /foods/custom/:id
+- DELETE /foods/custom/:id
+- GET /foods/:id
+- PATCH /foods/:id
+- DELETE /foods/:id
+
+## src/goals/goals.controller.ts
+
+- POST /goals/
+- GET /goals/
+- GET /goals/:id
+- PATCH /goals/:id
+- DELETE /goals/:id
+
+## src/meal-plans/meal-plans.controller.ts
+
+- POST /meal-plans/
+- GET /meal-plans/
+- GET /meal-plans/:id
+- PATCH /meal-plans/:id
+- DELETE /meal-plans/:id
+
+## src/measurements/measurements.controller.ts
+
+- POST /measurements/me
+- POST /measurements/
+- GET /measurements/me
+- GET /measurements/me/:id
+- PATCH /measurements/me/:id
+- GET /measurements/:id
+- PATCH /measurements/:id
+- DELETE /measurements/:id
+- POST /measurements/:id/recalculate
+
+## src/menus/menus.controller.ts
+
+- GET /menus/palette-search
+- POST /menus/draft
+- PATCH /menus/draft/:id
+- GET /menus/draft/:id
+- GET /menus/draft
+- POST /menus/
+- GET /menus/
+- GET /menus/reusable/summary
+- GET /menus/daily
+- GET /menus/daily/batch
+- GET /menus/client-professional-summary
+- GET /menus/weekly-planning
+- POST /menus/weekly-planning/assignments
+- POST /menus/weekly-planning/range-assignments
+- PATCH /menus/weekly-planning/assignments/:id
+- DELETE /menus/weekly-planning/assignments/:id
+- POST /menus/weekly-planning/pdf
+- GET /menus/pool
+- GET /menus/pool/summary
+- GET /menus/pool/calendar
+- GET /menus/pool/calendar/summary
+- PUT /menus/:id/items/:itemId/client-swap
+- DELETE /menus/:id/items/:itemId/client-swap
+- PATCH /menus/daily/primary-selection
+- GET /menus/:id
+- PATCH /menus/:id
+- DELETE /menus/:id
+- POST /menus/ai-generate
+
+## src/micronutrients/micronutrients.controller.ts
+
+- GET /micronutrients/
+- GET /micronutrients/:id
+
+## src/notifications/notifications.controller.ts
+
+- POST /users/push-token
+- POST /users/send
+- POST /users/assignment-notifications
+- GET /users/notification-preferences
+- POST /users/notification-preferences
+
+## src/plans/plans.controller.ts
+
+- POST /plans/
+- GET /plans/
+- GET /plans/:id
+- PATCH /plans/:id
+- DELETE /plans/:id
+
+## src/professional-clients/professional-clients.controller.ts
+
+- GET /professional-clients/palette-search
+- POST /professional-clients/
+- POST /professional-clients/onboarding
+- PATCH /professional-clients/:id/nutrition-profile
+- GET /professional-clients/history-client/:id
+- GET /professional-clients/:id
+- GET /professional-clients/
+- GET /professional-clients/professional/:professional_id
+- PATCH /professional-clients/:id
+- DELETE /professional-clients/:id
+
+## src/professional-profiles/professional-profiles.controller.ts
+
+- POST /professional-profiles/onboarding
+- GET /professional-profiles/me
+- PATCH /professional-profiles/me
+- GET /professional-profiles/profile-activity
+- GET /professional-profiles/me/session-packages
+- POST /professional-profiles/me/session-packages
+- PATCH /professional-profiles/me/session-packages/:id
+- DELETE /professional-profiles/me/session-packages/:id
+- GET /professional-profiles/me/monthly-plans
+- POST /professional-profiles/me/monthly-plans
+- PATCH /professional-profiles/me/monthly-plans/:id
+- DELETE /professional-profiles/me/monthly-plans/:id
+- GET /professional-profiles/contact-requests/unread-count
+- GET /professional-profiles/contact-requests
+- PATCH /professional-profiles/contact-requests/:id
+- POST /professional-profiles/contact-requests/:id/propose-schedule
+- POST /professional-profiles/contact-requests/:id/schedule
+- POST /professional-profiles/contact-requests/:id/confirm-schedule
+- POST /professional-profiles/contact-requests/:id/convert
+- GET /professional-profiles/public
+- GET /professional-profiles/client-directory
+- POST /professional-profiles/client-directory/:username/appointments
+- GET /professional-profiles/client-directory/:username
+- POST /professional-profiles/public/:username/view
+- POST /professional-profiles/public/:username/contact-requests
+- POST /professional-profiles/:username/contact
+- GET /professional-profiles/public/:username/availability
+- GET /professional-profiles/public/:username
+
+## src/professional-settings/professional-settings.controller.ts
+
+- POST /professional-settings/
+- GET /professional-settings/
+- GET /professional-settings/:professional_id
+- PATCH /professional-settings/:professional_id
+- DELETE /professional-settings/:professional_id
+
+## src/recipe-foods/recipe-foods.controller.ts
+
+- POST /recipe-foods/
+- GET /recipe-foods/
+- GET /recipe-foods/recipe/:recipe_id
+- GET /recipe-foods/:id
+- PATCH /recipe-foods/:id
+- DELETE /recipe-foods/:id
+
+## src/recipes/recipes.controller.ts
+
+- GET /recipes/palette-search
+- POST /recipes/ai-generate
+- POST /recipes/
+- GET /recipes/
+- GET /recipes/:id
+- PUT /recipes/:id/ingredients/:ingredientId/client-swap
+- DELETE /recipes/:id/ingredients/:ingredientId/client-swap
+- GET /recipes/:id/image-content
+- PATCH /recipes/:id
+- POST /recipes/:id/duplicate
+- PATCH /recipes/:id/image
+- DELETE /recipes/:id/image
+- DELETE /recipes/:id
+
+## src/refresh-tokens/refresh-tokens.controller.ts
+
+- POST /refresh-tokens/
+- GET /refresh-tokens/
+- GET /refresh-tokens/:id
+- PATCH /refresh-tokens/:id
+- DELETE /refresh-tokens/:id
+
+## src/serving-units/serving-units.controller.ts
+
+- POST /serving-units/
+- GET /serving-units/
+- GET /serving-units/:id
+- PATCH /serving-units/:id
+- DELETE /serving-units/:id
+
+## src/shopping-lists/shopping-lists.controller.ts
+
+- POST /shopping-lists/generate
+- GET /shopping-lists/current
+- GET /shopping-lists/:id
+- POST /shopping-lists/:id/items
+- PATCH /shopping-lists/:id/items/:itemId
+- DELETE /shopping-lists/:id/items/:itemId
+
+## src/signup-access-codes/signup-access-codes.controller.ts
+
+- GET /signup-access-codes/
+- POST /signup-access-codes/beta
+
+## src/storage/storage.controller.ts
+
+- POST /storage/upload
+- GET /storage/:key
+- DELETE /storage/:key
+
+## src/subscriptions/subscriptions.controller.ts
+
+- POST /subscriptions/
+- GET /subscriptions/
+- GET /subscriptions/:id
+- PATCH /subscriptions/:id
+- DELETE /subscriptions/:id
+
+## src/user-activation-tokens/user-activation-tokens.controller.ts
+
+- GET /user-activation-tokens/:token
+- POST /user-activation-tokens/:token/send-email-verification
+- POST /user-activation-tokens/:token/verify-email
+- POST /user-activation-tokens/:token/activate
+
+## src/users/users.controller.ts
+
+- POST /users/professional-client
+- POST /users/professional-client/:id/reissue-activation
+- GET /users/
+- GET /users/me/account-deletion
+- POST /users/me/account-deletion
+- DELETE /users/me/account-deletion
+- GET /users/:id
+- PATCH /users/me
+- POST /users/me/phone/verify
+- PATCH /users/:id
+- PATCH /users/me/profile-picture
+- DELETE /users/:id
+- POST /users/phone/validate
+- POST /users/check-username
+
+# Modelos de Datos
+
+
+## Nutrition Prisma Models
+
+Total modelos detectados: 101
+- client_menu_calendar, shopping_lists, shopping_list_days, shopping_list_items, client_records, client_metabolic_profiles, ai_model_pricing, ai_generation_attempts
+- ai_generation_feedback, ai_user_generation_preferences, connected_health_connections, connected_health_records, connected_health_daily_summaries, connected_health_sync_runs, daily_targets, data_sources
+- exchange_groups, exchange_subgroups, exchange_systems, exchange_system_citations, food_categories, food_logs, food_micronutrient_values, food_nutrition_values
+- foods, food_search_index, meal_plan_exchanges, meal_plan_meals, meal_plans, menu_drafts, menu_items, menu_meals
+- menus, micronutrients, professional_settings, recipe_exchanges, recipe_foods, client_recipe_food_swaps, client_menu_item_food_swaps, recipes
+- serving_units, affiliate_codes, allergens, appointment_drafts, appointments, availability_slots, client_allergens, client_goals
+- client_health_metrics, client_injuries, client_metrics, measurement_calculation_results, measurement_calculation_runs, frisancho_cama_reference_percentiles, goals, influencer_profiles
+- intake_submissions, phone_verification_codes, phone_verification_sessions, signup_email_verification_sessions, password_reset_tokens, plans, professional_clients, professional_onboarding_submissions
+- professional_profiles, professional_session_packages, professional_monthly_plans, professional_contact_requests, professional_profile_views, refresh_tokens, sms_rate_limits, sms_ip_phone_attempts
+- signup_access_codes, subscriptions, subscription_invoices, subscription_events, user_activation_tokens, user_professional_roles, users, notification_preferences
+- announcements, announcement_receipts, chat_conversations, chat_conversation_participants, chat_messages, chat_message_attachments, equiv_exchange_systems, equiv_exchange_bucket_profiles
+- equiv_food_geo_weights, equiv_food_profile_tags, equiv_generated_plan_recommendations, equiv_generated_plans, equiv_subgroup_classification_rules, equiv_subgroup_selection_policies, country_states, exchange_source_priorities
+- kcal_formulas, kcal_selection_policies, leads, tracking_events, device_tokens
+
+## Training SQLAlchemy Tables
+
+Total tablas/modelos detectados por __tablename__: 25
+- ai_generation_attempts, ai_generation_debug_artifacts, client_interviews, client_metrics, exercises, exercise_coach_metadata, exercise_mechanics, exercise_muscles
+- exercise_search_documents, macrocycle_ai_save_validation, macrocycles, mesocycles, microcycles, training_days, day_exercises, muscles
+- patient_context_snapshots, professional_clients, users, user_professional_roles, client_workout_analytics_preferences, workout_logs, exercise_set_logs, exercise_cardio_logs
+- exercise_movement_logs
+
+# Variables de Entorno Documentadas
+
+Solo se listan nombres de variables desde plantillas versionadas. Valores reales omitidos.
+
+## FitPilot-frontend
+
+- VITE_NUTRITION_API_URL, VITE_TRAINING_API_URL, VITE_TURNSTILE_SITE_KEY
+
+## Fitpilot_mobile
+
+- APP_ENV, EXPO_PUBLIC_NUTRITION_API_URL, EXPO_PUBLIC_TRAINING_API_URL, EXPO_PUBLIC_TURNSTILE_BRIDGE_URL, EXPO_PUBLIC_TERMS_URL, EXPO_PUBLIC_PRIVACY_URL
+- EXPO_PUBLIC_CLIENT_FORGOT_PASSWORD_URL, EXPO_PUBLIC_ACCOUNT_DELETION_URL
+
+## Fitpilot_training_backend
+
+- DATABASE_URL, DATABASE_POOL_SIZE, DATABASE_MAX_OVERFLOW, DATABASE_POOL_TIMEOUT_SECONDS, DATABASE_POOL_RECYCLE_SECONDS, REDIS_URL
+- FRONTEND_URL, CORS_ALLOWED_ORIGINS, NUTRITION_API_URL, NUTRITION_JWT_SECRETS, NUTRITION_JWT_ALGORITHM, SECRET_KEY
+- ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, OPENAI_API_KEY, ANTHROPIC_API_KEY, ANTHROPIC_MODEL, VOYAGE_API_KEY
+- EXERCISE_SEARCH_EMBEDDING_MODEL, EXERCISE_SEARCH_EMBEDDING_DIM, AI_USE_PROMPT_CACHING, AI_USE_COMPRESSED_OUTPUT, AI_FILTER_CATALOG, AI_USE_PHASED_GENERATION
+- AI_USE_SEMANTIC_EXERCISE_RETRIEVAL_GENERATE, AI_USE_SEMANTIC_EXERCISE_RETRIEVAL_PREVIEW, AI_SEMANTIC_EXERCISE_RETRIEVAL_TOP_K_GENERATE, AI_SEMANTIC_EXERCISE_RETRIEVAL_TOP_K_PREVIEW, AI_SEMANTIC_EXERCISE_RETRIEVAL_FINAL_K_GENERATE, AI_SEMANTIC_EXERCISE_RETRIEVAL_FINAL_K_PREVIEW
+- AI_SEMANTIC_EXERCISE_RETRIEVAL_MIN_RESULTS_GENERATE, AI_SEMANTIC_EXERCISE_RETRIEVAL_MIN_RESULTS_PREVIEW, AI_SEMANTIC_EXERCISE_RETRIEVAL_FALLBACK_MODE, ENABLE_COACH_ENGINE_COMPOSER_V2, ENABLE_COACH_ENGINE_CAUSAL_REPAIR, OLLAMA_HOST
+- OLLAMA_MODEL, R2_ENDPOINT, R2_REGION, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
+- R2_PUBLIC_BASE_URL, AI_MAX_MICROCYCLE_SPAN_DAYS, AI_DEBUG_CAPTURE_ENABLED, AI_DEBUG_CAPTURE_INCLUDE_PASSED, AI_DEBUG_CAPTURE_RETENTION_DAYS, AI_DEBUG_CAPTURE_MAX_RAW_CHARS
+
+## fitpilot-admin
+
+- VITE_NUTRITION_API_URL, VITE_TURNSTILE_SITE_KEY
+
+## fitpilot-frontend-client
+
+Sin plantillas .env.example detectadas.
+
+## fitpilot-landingpage
+
+Sin plantillas .env.example detectadas.
+
+## fitpilot-nutrition-backend
+
+- DATABASE_URL, DIRECT_URL, DATABASE_POOL_MAX, DATABASE_POOL_IDLE_TIMEOUT_MS, DATABASE_POOL_CONNECTION_TIMEOUT_MS, NODE_ENV
+- PORT, REDIS_URL, REDIS_CONNECT_TIMEOUT_MS, REDIS_FOODS_CACHE_TTL_SECONDS, TRAINING_API_URL, JWT_SECRET
+- JWT_REFRESH_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_EXPIRES_IN, AUTH_REFRESH_COOKIE_NAME, AUTH_REFRESH_COOKIE_SAMESITE, AUTH_REFRESH_COOKIE_SECURE
+- AUTH_REFRESH_COOKIE_PATH, AUTH_REFRESH_COOKIE_DOMAIN, CLIENT_COMPLETE_REGISTRATION_URL, FITPILOT_CLIENT_APP_URL, FITPILOT_PROFESSIONAL_APP_URL, PASSWORD_RESET_TTL_MINUTES
+- RESEND_API_KEY, RESEND_FROM_EMAIL, R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
+- R2_PUBLIC_BASE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_WEBHOOK_SECRETS, STRIPE_CHECKOUT_SUCCESS_URL, STRIPE_CHECKOUT_CANCEL_URL
+- STRIPE_PORTAL_RETURN_URL, STRIPE_REQUEST_TIMEOUT_MS, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFICATION_SERVICE_SID, TWILIO_VERIFY_RISK_CHECK_ENABLED
+- TWILIO_VERIFY_RATE_LIMITS_ENABLED, SMS_VERIFY_ALLOWED_COUNTRIES, TURNSTILE_SECRET_KEY, OPENAI_API_KEY, GEMINI_API_KEY, XAI_API_KEY
+- DEEPSEEK_API_KEY, GROQ_API_KEY, FOOD_SEARCH_DEFAULT_MODE, FOOD_SEARCH_EMBEDDINGS_ENABLED, FOOD_SEARCH_EMBEDDING_MODEL, FOOD_SEARCH_HYBRID_ALPHA
+- SMAE_BASE_URL, SMAE_CONCURRENCY, SMAE_EMAIL, SMAE_PASSWORD
+
+# Estado Local y Riesgos de Workspace
+
+
+## FitPilot-frontend
+
+- M src/features/professional-profiles/api.ts
+-  M src/features/professional-profiles/queries.ts
+-  M src/features/professional-profiles/types.ts
+-  M src/pages/ProfilePage.tsx
+
+## Fitpilot_mobile
+
+- M app/professionals/[username].tsx
+-  M src/services/professionalDiscovery.ts
+- ?? FitPilot-production.aab
+
+## Fitpilot_training_backend
+
+- M backend/Dockerfile
+-  M docker-compose.development.yml
+
+## fitpilot-nutrition-backend
+
+- M prisma/schema.prisma
+-  M src/notifications/notifications.service.ts
+-  M src/professional-profiles/dto/create-professional-contact-request.dto.ts
+-  M src/professional-profiles/professional-profiles.controller.ts
+-  M src/professional-profiles/professional-profiles.service.spec.ts
+-  M src/professional-profiles/professional-profiles.service.ts
+- ?? prisma/migrations/20260602_add_professional_session_packages/
+- ?? prisma/migrations/20260604_add_professional_monthly_plans/
+- ?? src/professional-profiles/dto/monthly-plan.dto.ts
+- ?? src/professional-profiles/dto/session-package.dto.ts
+
+- No se leyeron ni copiaron valores secretos de .env al reporte. Solo se listan nombres de variables desde plantillas .env.example cuando existen.
+- Hay archivos .env locales y artefactos de build en algunos repos. Conviene mantenerlos fuera del PDF y revisar .gitignore si alguno aparece como tracked o untracked.
+- Nutrition Backend contiene integraciones sensibles: JWT, Stripe, Twilio, R2, Redis y proveedores AI. Training Backend contiene JWT shared secrets, R2 y claves AI.
+- Mobile contiene google-services.json y builds AAB; para notas se documenta su existencia funcional, no su contenido.
+
+Observacion: el reporte se genero leyendo el estado actual del workspace. Si estos cambios locales se modifican, la lectura historica/funcional podria cambiar.
+
+# Pruebas y Calidad
+
+- FitPilot-frontend contiene tests unitarios/flujo con Vitest y Playwright config, incluyendo mediciones, nutrition profile, command palette, recetas, menus, subscriptions, clinical summary y training templates.
+- Fitpilot_mobile tiene scripts de TypeScript, lint y check de mojibake; no se detecto suite extensa de tests en la muestra de archivos.
+- Training Backend tiene una suite amplia de pytest para AI generator, coach engine, analytics, client scope, schemas, exercises, CORS, media storage y mas.
+- Nutrition Backend tiene Jest/e2e specs para auth/app, users, billing, foods, food logs, health metrics, daily targets, exchange systems/groups, professional profiles y professional-client activation.
+- Admin, Client Frontend y Landing tienen scripts build/lint/preview; sus README en admin/client parecen aun basados en template Vite y podrian enriquecerse.
+
+# Deploy y Operacion
+
+- La mayoria de repos web/backend incluyen Dockerfile y/o docker-compose.coolify.yml para deploy en Coolify o VPS.
+- Landing compila Astro a dist y se sirve con Nginx.
+- Frontends Vite suelen compilar con tsc/vite build y servirse con Nginx.
+- Nutrition Backend usa Prisma migrations/validate, scripts de schema guard y variantes de compose development/coolify/release.
+- Training Backend usa Alembic/scripts Python de schema upgrade y backup, con compose standalone y compose Coolify.
+- Ambos backends documentan base de datos remota obligatoria y checks de esquema antes de arrancar en flujos compose.
+
+# Sugerencias para NotebookLM
+
+- Sube este PDF como fuente principal para preguntas de arquitectura y mapa funcional.
+- Si NotebookLM necesita citar detalles de codigo, sube tambien los README de Training Backend y Nutrition Backend, mas package.json de cada app.
+- Para preguntas de API, las secciones de endpoints de Training y Nutrition sirven como indice.
+- Para preguntas de producto, usa las secciones Funcionalidades por Producto y Arquitectura y Relaciones.
+- Para planeacion tecnica, usa Estado Local, Variables de Entorno, Deploy y Pruebas.
+
+# Fuentes Locales Consultadas
+
+- fitpilot.code-workspace
+- package.json de apps Node/React/Astro/Nest
+- requirements.txt de Training Backend
+- README.md disponibles en backends/admin/client/landing
+- Git log/status/remote/shortlog de cada repositorio
+- src/App.tsx y router.tsx de frontends
+- app/ de Expo Router en mobile
+- api/main.py y api/routers/*.py de Training Backend
+- src/**/*.controller.ts, src/app.module.ts y prisma/schema.prisma de Nutrition Backend
+- Plantillas .env.example para nombres de variables, sin valores secretos
