@@ -105,6 +105,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       package: 'com.fitpilot.mobile',
       googleServicesFile: './google-services.json',
+      permissions: ['android.permission.POST_NOTIFICATIONS'],
     },
     web: {
       bundler: 'metro',

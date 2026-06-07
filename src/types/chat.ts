@@ -1,5 +1,11 @@
 export type ChatAttachmentType = 'IMAGE' | 'PDF' | 'AUDIO' | 'LINK';
 export type ChatDeliveryStatus = 'SENT' | 'DELIVERED' | 'READ';
+export type ChatChannel =
+  | 'IN_APP'
+  | 'WHATSAPP'
+  | 'MESSENGER'
+  | 'INSTAGRAM'
+  | 'TELEGRAM';
 export type ChatContactRequestStatus =
   | 'new'
   | 'read'
@@ -17,10 +23,28 @@ export type ChatUserSummary = {
   profile_picture: string | null;
 };
 
+export type ExternalContactSummary = {
+  id: number;
+  display_name: string;
+  phone_number: string | null;
+  email: string | null;
+  status: string;
+  converted_user_id: number | null;
+};
+
+export type ChatAvailableChannel = {
+  channel: ChatChannel;
+  enabled: boolean;
+  connected: boolean;
+  label: string;
+  service_window_expires_at: string | null;
+};
+
 export type ChatAttachment = {
   id: number;
   type: ChatAttachmentType;
   url: string | null;
+  external_media_id: string | null;
   file_name: string | null;
   mime_type: string | null;
   size_bytes: number | null;
@@ -30,11 +54,17 @@ export type ChatAttachment = {
 export type ChatMessage = {
   id: number;
   conversation_id: number;
-  sender_id: number;
+  sender_id: number | null;
+  external_sender_contact_id: number | null;
+  sender_type: 'USER' | 'EXTERNAL_CONTACT';
+  channel: ChatChannel;
   reply_to_message_id: number | null;
   reply_to: ChatMessageReply | null;
   body: string | null;
   client_message_id: string | null;
+  external_message_id: string | null;
+  external_status: string | null;
+  external_error: string | null;
   created_at: string;
   is_deleted: boolean;
   deleted_at: string | null;
@@ -45,7 +75,9 @@ export type ChatMessage = {
 
 export type ChatMessageReply = {
   id: number;
-  sender_id: number;
+  sender_id: number | null;
+  external_sender_contact_id: number | null;
+  sender_type: 'USER' | 'EXTERNAL_CONTACT';
   body: string | null;
   created_at: string;
   is_deleted: boolean;
@@ -57,8 +89,11 @@ export type ChatMessageReply = {
 export type ChatConversation = {
   id: number;
   professional_id: number;
-  client_id: number;
+  client_id: number | null;
+  external_contact_id: number | null;
   participant: ChatUserSummary;
+  external_contact: ExternalContactSummary | null;
+  available_channels: ChatAvailableChannel[];
   last_message: ChatMessage | null;
   unread_count: number;
   can_send: boolean;

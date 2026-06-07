@@ -408,7 +408,7 @@ const MessageBubble = ({
 }: {
   message: ChatMessage;
   isMine: boolean;
-  senderLabel: (senderId: number) => string;
+  senderLabel: (senderId: number | null) => string;
   onReply: (message: ChatMessage) => void;
   onDelete: (message: ChatMessage) => void;
   onReferencePress: (messageId: number) => void;
@@ -874,8 +874,8 @@ export default function ChatScreen() {
   );
 
   const getSenderLabel = useCallback(
-    (senderId: number) =>
-      senderId === currentUserId
+    (senderId: number | null) =>
+      senderId && senderId === currentUserId
         ? 'Tú'
         : activeConversation
           ? buildDisplayName(activeConversation.participant)

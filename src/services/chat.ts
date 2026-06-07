@@ -2,6 +2,7 @@ import Constants from 'expo-constants';
 import { nutritionApi, nutritionClient, getAccessToken } from './api';
 import type {
   ChatConversation,
+  ChatChannel,
   ChatDeliveryReceipt,
   ChatMessage,
   ChatReadReceipt,
@@ -40,6 +41,7 @@ export const sendChatMessage = async (
   conversationId: number,
   payload: {
     body?: string;
+    channel?: ChatChannel;
     files?: ChatUploadFile[];
     clientMessageId?: string;
     replyToMessageId?: number;
@@ -49,6 +51,9 @@ export const sendChatMessage = async (
 
   if (payload.body) {
     formData.append('body', payload.body);
+  }
+  if (payload.channel) {
+    formData.append('channel', payload.channel);
   }
   if (payload.clientMessageId) {
     formData.append('client_message_id', payload.clientMessageId);
