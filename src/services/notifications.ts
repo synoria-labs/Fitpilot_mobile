@@ -6,6 +6,10 @@ import * as SecureStore from 'expo-secure-store';
 
 const PUSH_TOKEN_FINGERPRINT_KEY = 'fitpilot_push_token_fingerprint';
 
+type RegisterDevicePushTokenOptions = {
+  force?: boolean;
+};
+
 // Configure how notifications behave when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -88,21 +92,25 @@ export async function sendPushTokenToBackend(pushToken: string): Promise<boolean
   }
 }
 
-export async function registerDevicePushTokenForUser(userId: string): Promise<void> {
+export async function registerDevicePushTokenForUser(
+  userId: string,
+  options: RegisterDevicePushTokenOptions = {},
+): Promise<boolean> {
   const pushToken = await registerForPushNotificationsAsync();
   if (!pushToken) {
-    return;
+    return false;
   }
 
   const fingerprint = `${userId}:${pushToken}`;
   const previousFingerprint = await SecureStore.getItemAsync(PUSH_TOKEN_FINGERPRINT_KEY);
-  if (previousFingerprint === fingerprint) {
-    return;
+  if (!options.force && previousFingerprint === fingerprint) {
+    return true;
   }
 
   const wasRegistered = await sendPushTokenToBackend(pushToken);
   if (!wasRegistered) {
-    return;
+    return false;
   }
   await SecureStore.setItemAsync(PUSH_TOKEN_FINGERPRINT_KEY, fingerprint);
+  return true;
 }

@@ -6,6 +6,8 @@ import { ProfileDetailScreen } from '../../src/components/profile/ProfileDetailS
 import { borderRadius, fontSize, shadows, spacing } from '../../src/constants/colors';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
 import { nutritionClient } from '../../src/services/api';
+import { registerDevicePushTokenForUser } from '../../src/services/notifications';
+import { useAuthStore } from '../../src/store/authStore';
 
 type NotificationPreferences = {
   push_enabled: boolean;
@@ -18,6 +20,7 @@ type NotificationPreferences = {
 export default function NotificationsSettingsScreen() {
   const styles = useThemedStyles(createStyles);
   const { theme } = useAppTheme();
+  const userId = useAuthStore((state) => state.user?.id);
   const [preferences, setPreferences] = useState<NotificationPreferences>({
     push_enabled: true,
     meals_enabled: true,
@@ -60,7 +63,26 @@ export default function NotificationsSettingsScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await nutritionClient.post('/users/notification-preferences', preferences);
+      let nextPreferences = preferences;
+
+      if (preferences.push_enabled) {
+        const registeredPushToken = userId
+          ? await registerDevicePushTokenForUser(userId, { force: true })
+          : false;
+
+        if (!registeredPushToken) {
+          nextPreferences = { ...preferences, push_enabled: false };
+          setPreferences(nextPreferences);
+          await nutritionClient.post('/users/notification-preferences', nextPreferences);
+          Alert.alert(
+            'Notificaciones',
+            'No se pudieron activar las notificaciones en este dispositivo. Revisa los permisos de Android para FitPilot, tu conexion e intenta de nuevo.',
+          );
+          return;
+        }
+      }
+
+      await nutritionClient.post('/users/notification-preferences', nextPreferences);
       Alert.alert(
         'Éxito',
         'Tus preferencias de notificaciones se guardaron correctamente.',
