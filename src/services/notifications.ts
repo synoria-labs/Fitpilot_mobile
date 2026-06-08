@@ -10,6 +10,30 @@ type RegisterDevicePushTokenOptions = {
   force?: boolean;
 };
 
+type PublicExtra = {
+  appEnv?: string;
+  nutritionApiUrl?: string;
+  eas?: {
+    projectId?: string;
+  };
+};
+
+const getPushRegistrationScope = () => {
+  const extra = (Constants.expoConfig?.extra ?? {}) as PublicExtra;
+  const projectId =
+    extra.eas?.projectId ??
+    Constants?.easConfig?.projectId ??
+    'unknown-project';
+  const appEnv = extra.appEnv ?? 'unknown-env';
+  const nutritionApiUrl = (
+    process.env.EXPO_PUBLIC_NUTRITION_API_URL ??
+    extra.nutritionApiUrl ??
+    'unknown-api'
+  ).replace(/\/+$/, '');
+
+  return `${appEnv}:${projectId}:${nutritionApiUrl}`;
+};
+
 // Configure how notifications behave when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -101,7 +125,7 @@ export async function registerDevicePushTokenForUser(
     return false;
   }
 
-  const fingerprint = `${userId}:${pushToken}`;
+  const fingerprint = `${getPushRegistrationScope()}:${userId}:${pushToken}`;
   const previousFingerprint = await SecureStore.getItemAsync(PUSH_TOKEN_FINGERPRINT_KEY);
   if (!options.force && previousFingerprint === fingerprint) {
     return true;
