@@ -28,32 +28,41 @@ export const RestTimer: React.FC<RestTimerProps> = ({
   const [seconds, setSeconds] = useState(initialSeconds);
   const progress = useSharedValue(1);
 
+  // Cuenta atras anclada a una fecha limite real (Date.now), no a ticks de
+  // setInterval: en background o con la pantalla bloqueada los timers de JS
+  // se congelan, y un descanso de 90s contaria solo el tiempo en primer
+  // plano. Al volver, el siguiente tick recalcula contra el reloj y el timer
+  // queda correcto (igual que los timers de cardio/movimiento del controller).
   useEffect(() => {
-    if (visible) {
-      setSeconds(initialSeconds);
-      progress.value = 1;
-      progress.value = withTiming(0, {
-        duration: initialSeconds * 1000,
+    if (!visible) {
+      return;
+    }
+
+    const endAtMs = Date.now() + initialSeconds * 1000;
+    setSeconds(initialSeconds);
+
+    const syncRemaining = () => {
+      const remainingSeconds = Math.max(0, Math.ceil((endAtMs - Date.now()) / 1000));
+
+      setSeconds((previousSeconds) =>
+        previousSeconds === remainingSeconds ? previousSeconds : remainingSeconds,
+      );
+
+      // La barra se re-sincroniza en cada tick (en vez de una sola animacion
+      // larga) para que tambien se corrija tras una congelacion en background.
+      const fraction = initialSeconds > 0 ? remainingSeconds / initialSeconds : 0;
+      progress.value = withTiming(Math.max(0, Math.min(1, fraction)), {
+        duration: 260,
         easing: Easing.linear,
       });
-    }
-  }, [initialSeconds, progress, visible]);
+    };
 
-  useEffect(() => {
-    if (!visible) return;
-
-    const interval = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    progress.value = 1;
+    syncRemaining();
+    const interval = setInterval(syncRemaining, 250);
 
     return () => clearInterval(interval);
-  }, [visible]);
+  }, [initialSeconds, progress, visible]);
 
   useEffect(() => {
     if (visible && seconds === 0) {
