@@ -94,7 +94,15 @@ const isClosedWorkoutEditError = (error: { status?: number; message?: string } |
   typeof error.message === 'string' &&
   CLOSED_WORKOUT_ERROR_MARKERS.some((marker) => error.message!.toLowerCase().includes(marker));
 
-const isRouteNotFoundError = (error: { status?: number } | null | undefined) => error?.status === 404;
+// Distingue "la ruta no existe en este backend" (404 generico de FastAPI,
+// detail "Not Found") de "el recurso no existe" (404 con mensaje propio,
+// p. ej. workout log borrado). Solo el primero justifica degradar al endpoint
+// legacy: el fallback descarta duracion/calorias/distancia, y un 404 de
+// recurso lo fijaba como 'unsupported' para toda la sesion de la app.
+const isRouteMissingError = (error: { status?: number; message?: string } | null | undefined) =>
+  error?.status === 404 &&
+  typeof error.message === 'string' &&
+  error.message.trim().toLowerCase() === 'not found';
 
 const saveWorkoutSet = async (
   workoutLogId: string,
@@ -195,7 +203,9 @@ const saveWorkoutCardioBlock = async (
       cardioBlock,
     };
   } catch (error: any) {
-    if (!isRouteNotFoundError(error)) {
+    if (cardioBlockRouteSupport === 'supported' || !isRouteMissingError(error)) {
+      // Errores de recurso/red se propagan tal cual; y si la ruta ya demostro
+      // existir en esta sesion, ningun 404 posterior debe degradarla.
       throw error;
     }
 
@@ -470,13 +480,19 @@ const resolveMutationError = async (
 ): Promise<WorkoutMutationResult> => {
   if (isClosedWorkoutEditError(error)) {
     try {
-      const state = prepareWorkoutState(await fetchWorkoutState(currentWorkout.workout_log.id));
+      const refreshedState = prepareWorkoutState(
+        await fetchWorkoutState(currentWorkout.workout_log.id),
+      );
 
-      setState({
-        currentWorkout: state,
+      setState((state) => ({
+        // Guard de identidad: no pisar un workout distinto si el usuario
+        // cambio de sesion mientras se refrescaba el estado.
+        ...(state.currentWorkout?.workout_log.id === currentWorkout.workout_log.id
+          ? { currentWorkout: refreshedState }
+          : {}),
         isSavingSet: false,
         error: CLOSED_WORKOUT_CLIENT_MESSAGE,
-      });
+      }));
     } catch {
       setState({
         isSavingSet: false,
@@ -507,25 +523,45 @@ const commitWorkoutMutation = async <TResponse>(
     return { ok: false };
   }
 
+  const workoutLogId = currentWorkout.workout_log.id;
   setState({ isSavingSet: true, error: null });
 
   try {
-    const response = await run(currentWorkout.workout_log.id);
-    const nextWorkoutState = patchWorkoutState(currentWorkout, response);
+    const response = await run(workoutLogId);
     latestWorkoutMutationRevision += 1;
     const revision = latestWorkoutMutationRevision;
 
-    setState((state) => ({
-      currentWorkout: nextWorkoutState,
-      isSavingSet: false,
-      workoutLogsVersion: state.workoutLogsVersion + 1,
-    }));
+    // El patch se aplica sobre el estado VIVO dentro del updater, no sobre el
+    // snapshot capturado al inicio: con mutaciones solapadas (guardar una
+    // serie mientras otra esta en vuelo), patchear el snapshot pisaba el
+    // patch optimista de la mutacion anterior y la serie "desaparecia" de la
+    // UI hasta el siguiente sync.
+    let committedWorkoutState: CurrentWorkoutState | null = null;
+    setState((state) => {
+      const liveWorkout = state.currentWorkout;
+      if (!liveWorkout || liveWorkout.workout_log.id !== workoutLogId) {
+        // El workout cambio o se cerro mientras la request volaba: no
+        // resucitar estado viejo.
+        return { isSavingSet: false };
+      }
 
-    syncWorkoutStateInBackground(setState, getState, currentWorkout.workout_log.id, revision);
+      committedWorkoutState = patchWorkoutState(liveWorkout, response);
+      return {
+        currentWorkout: committedWorkoutState,
+        isSavingSet: false,
+        workoutLogsVersion: state.workoutLogsVersion + 1,
+      };
+    });
+
+    if (!committedWorkoutState) {
+      return { ok: false };
+    }
+
+    syncWorkoutStateInBackground(setState, getState, workoutLogId, revision);
 
     return {
       ok: true,
-      state: nextWorkoutState,
+      state: committedWorkoutState,
     };
   } catch (error: any) {
     return resolveMutationError(setState, currentWorkout, error, fallbackMessage);
@@ -558,8 +594,9 @@ export const useWorkoutStore = create<WorkoutState>((set, get) => ({
         isLoading: false,
       }));
     } catch (error: any) {
+      // Conservar el bootstrap previo: un pull-to-refresh fallido por red
+      // flaky no debe vaciar el dashboard que ya estaba cargado.
       set({
-        dashboardBootstrap: null,
         isLoading: false,
         error: error.message || 'Error al cargar el dashboard',
       });
