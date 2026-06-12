@@ -1,5 +1,8 @@
 import { trainingClient } from './api';
 import type {
+  DayTypeScopeKind,
+  DayTypeSeriesDetail,
+  DayTypeSeriesListResponse,
   ExerciseTrendDetail,
   Macrocycle,
   MacrocycleListResponse,
@@ -139,3 +142,47 @@ export const updateWorkoutAnalyticsPreferences = (preferences: WorkoutAnalyticsP
     '/workout-analytics/me/preferences',
     preferences,
   );
+
+export const getDayTypeSeriesList = ({
+  scopeKind = 'program',
+  macrocycleId,
+  mesocycleId,
+}: {
+  scopeKind?: DayTypeScopeKind;
+  macrocycleId?: string | null;
+  mesocycleId?: string | null;
+} = {}) =>
+  trainingClient.get<DayTypeSeriesListResponse>('/workout-analytics/me/day-types', {
+    params: {
+      scope_kind: scopeKind,
+      ...(macrocycleId ? { macrocycle_id: macrocycleId } : {}),
+      ...(mesocycleId ? { mesocycle_id: mesocycleId } : {}),
+    },
+  });
+
+export const getDayTypeSeriesDetail = (
+  dayType: string,
+  {
+    variant,
+    limit,
+    scopeKind = 'program',
+    macrocycleId,
+    mesocycleId,
+  }: {
+    variant?: string | null;
+    limit?: number | null;
+    scopeKind?: DayTypeScopeKind;
+    macrocycleId?: string | null;
+    mesocycleId?: string | null;
+  } = {},
+) =>
+  trainingClient.get<DayTypeSeriesDetail>('/workout-analytics/me/day-types/series', {
+    params: {
+      day_type: dayType,
+      scope_kind: scopeKind,
+      ...(variant ? { variant } : {}),
+      ...(limit ? { limit } : {}),
+      ...(macrocycleId ? { macrocycle_id: macrocycleId } : {}),
+      ...(mesocycleId ? { mesocycle_id: mesocycleId } : {}),
+    },
+  });
