@@ -830,6 +830,79 @@ export interface ExerciseTrendDetail {
   display_hints?: DisplayHints | null;
 }
 
+// Day-type progress types (compare rotations of the same day, e.g. push-A)
+// from GET /workout-analytics/me/day-types[/series]
+export type DayTypeScopeKind = 'program' | 'mesocycle';
+
+export interface DayTypeSeriesSummary {
+  day_type: string | null;
+  variant: string | null;
+  label: string | null;
+  display_name: string;
+  rotations_count: number;
+  last_performed_on: string | null;
+  trend_status: ExerciseTrendStatus | null;
+}
+
+export interface DayTypeSeriesListResponse {
+  scope_kind: string;
+  macrocycle_id: string | null;
+  mesocycle_id: string | null;
+  series: DayTypeSeriesSummary[];
+}
+
+export interface DayTypeExercisePoint {
+  rotation_index: number;
+  performed_on_date: string | null;
+  microcycle_number: number | null;
+  performed: boolean;
+  best_weight_kg?: number | null;
+  e1rm_kg?: number | null;
+  volume_kg?: number | null;
+  top_set_weight_kg?: number | null;
+  top_set_reps?: number | null;
+  avg_effort?: number | null;
+  total_reps?: number | null;
+  primary_metric_value?: number | null;
+}
+
+export interface DayTypeExerciseProgress {
+  exercise_id: string;
+  exercise_name: string;
+  analytics_profile?: AnalyticsProfileId | null;
+  primary_metric?: string | null;
+  primary_unit?: string | null;
+  points: DayTypeExercisePoint[];
+  delta_vs_prev?: number | null;
+  delta_pct_vs_prev?: number | null;
+  trend_status: ExerciseTrendStatus;
+}
+
+export interface DayTypeRotation {
+  rotation_index: number;
+  workout_log_id: string;
+  performed_on_date: string | null;
+  microcycle_number: number | null;
+  microcycle_name: string | null;
+  status: string;
+  session_volume_kg: number;
+  total_sets: number;
+  exercises_count: number;
+  avg_effort: number | null;
+}
+
+export interface DayTypeSeriesDetail {
+  day_type: string | null;
+  variant: string | null;
+  label: string | null;
+  display_name: string;
+  scope_kind: string;
+  rotations_count: number;
+  trend_status: ExerciseTrendStatus | null;
+  rotations: DayTypeRotation[];
+  exercises: DayTypeExerciseProgress[];
+}
+
 // Muscle Volume types (from GET /api/training-days/{id}/muscle-volume)
 export interface MuscleVolumeItem {
   muscle_name: string;

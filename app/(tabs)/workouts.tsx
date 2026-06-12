@@ -30,6 +30,7 @@ import { RepRangeEditorModal } from '../../src/components/workout-analytics/RepR
 import { RepRangeVolumeChart } from '../../src/components/workout-analytics/RepRangeVolumeChart';
 import { WorkoutAnalyticsComparisonGroup } from '../../src/components/workout-analytics/WorkoutAnalyticsComparisonGroup';
 import { WorkoutAnalyticsContextNavigator } from '../../src/components/workout-analytics/WorkoutAnalyticsContextNavigator';
+import { DayTypeProgressSection } from '../../src/components/workout-analytics/DayTypeProgressSection';
 import { WorkoutAnalyticsContextPickerModal } from '../../src/components/workout-analytics/WorkoutAnalyticsContextPickerModal';
 import { WorkoutAnalyticsDailySessionComparisonChart } from '../../src/components/workout-analytics/WorkoutAnalyticsDailySessionComparisonChart';
 import { WorkoutAnalyticsHero, type WorkoutAnalyticsHeroMetric } from '../../src/components/workout-analytics/WorkoutAnalyticsHero';
@@ -1744,6 +1745,18 @@ export default function WorkoutsScreen() {
                   description={overviewEmptyState.description}
                 />
               </View>
+            )}
+            ListFooterComponent={(
+              overviewSections.length ? (
+                <View
+                  style={[
+                    styles.sectionShell,
+                    { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
+                  ]}
+                >
+                  <DayTypeProgressSection />
+                </View>
+              ) : null
             )}
           />
         ) : null}
