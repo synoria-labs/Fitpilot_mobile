@@ -16,6 +16,7 @@ web-build/
 service-account-key*.json
 firebase-adminsdk*.json
 modules/**/android/build/
+modules/**/android/.gradle/
 
 # Metro
 .metro-health-check*
