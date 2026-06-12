@@ -1121,10 +1121,28 @@ export default function ChatScreen() {
       });
       socketRef.current = socket;
 
+      let hasConnectedBefore = false;
       socket.on('connect', () => {
         if (activeConversationId) {
           socket?.emit('conversation:join', { conversation_id: activeConversationId });
         }
+
+        // En una RECONEXION (tunel, cambio de red), el stream no tiene replay:
+        // los mensajes llegados durante la desconexion se perdieron del socket.
+        // Recargamos la conversacion activa y la lista para cerrar el hueco.
+        if (hasConnectedBefore) {
+          if (activeConversationId) {
+            getChatMessages(activeConversationId)
+              .then((response) => {
+                if (isMounted) {
+                  setMessages(response);
+                }
+              })
+              .catch(() => undefined);
+          }
+          loadConversations().catch(() => undefined);
+        }
+        hasConnectedBefore = true;
       });
 
       socket.on('message:new', (message: ChatMessage) => {
@@ -1141,10 +1159,10 @@ export default function ChatScreen() {
               () => undefined,
             );
           }
-          void markChatConversationRead(activeConversationId);
+          void markChatConversationRead(activeConversationId).catch(() => undefined);
         }
 
-        void loadConversations();
+        void loadConversations().catch(() => undefined);
       });
 
       socket.on('message:deleted', (message: ChatMessage) => {
