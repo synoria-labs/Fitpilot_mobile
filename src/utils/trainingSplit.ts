@@ -9,12 +9,14 @@ import type {
 } from '../types';
 import { getWorkoutSetTypeDefinition } from '../constants/workoutSetTypes';
 import {
+  formatDurationSeconds,
   getCardioEffectiveSets,
   getCardioSummaryLabel,
   getExerciseName,
   getMovementSummaryLabel,
   isCardioExercise,
   isMovementExercise,
+  isTimedStrengthExercise,
 } from './formatters';
 
 export type SplitDayStatus = 'rest' | 'completed' | 'in_progress' | 'abandoned' | 'pending';
@@ -135,6 +137,10 @@ export const formatExercisePrescription = (exercise: DayExercise): string => {
     const summary = getMovementSummaryLabel(exercise);
     const sets = exercise.sets ?? 0;
     return sets > 1 ? `${sets} × ${summary}` : summary;
+  }
+
+  if (isTimedStrengthExercise(exercise)) {
+    return `${exercise.sets} × ${formatDurationSeconds(exercise.duration_seconds ?? 0)}`;
   }
 
   const reps = formatRepRange(exercise.reps_min, exercise.reps_max);

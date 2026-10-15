@@ -17,15 +17,34 @@ import {
   isPlyometricExercise,
   isEditableEffortType,
   isMobilityOrWarmupExercise,
+  isTimedStrengthExercise,
   shouldShowStrengthEffort,
 } from './formatters';
 
 export type WorkoutSetSegmentDraft = {
   segment_index: number;
   reps_completed: number;
+  /** Seconds held; set only for a strength exercise prescribed by time, which ignores reps. */
+  duration_seconds: number | null;
   weight_kg: number;
   effort_value: number | null;
 };
+
+type SourceSegment = {
+  segment_index?: number | null;
+  reps_completed?: number | null;
+  duration_seconds?: number | null;
+  weight_kg?: number | null;
+  effort_value?: number | null;
+};
+
+const getHoldSecondsDefault = (
+  dayExercise: DayExercise | undefined,
+  sourceSegment?: SourceSegment | null,
+): number | null =>
+  isTimedStrengthExercise(dayExercise)
+    ? (sourceSegment?.duration_seconds ?? dayExercise?.duration_seconds ?? null)
+    : null;
 
 export type WorkoutExecutionKey = {
   dayExerciseId: string;
@@ -196,21 +215,19 @@ export const getExerciseTargetSetNumber = (
 const cloneSegmentDraft = (segment: WorkoutSetSegmentDraft, segmentIndex: number): WorkoutSetSegmentDraft => ({
   segment_index: segmentIndex,
   reps_completed: segment.reps_completed,
+  duration_seconds: segment.duration_seconds,
   weight_kg: segment.weight_kg,
   effort_value: segment.effort_value,
 });
 
 const buildBaseSegmentDraft = (
   dayExercise?: DayExercise,
-  sourceSegment?: {
-    reps_completed?: number | null;
-    weight_kg?: number | null;
-    effort_value?: number | null;
-  } | null,
+  sourceSegment?: SourceSegment | null,
   suggestedWeightKg?: number | null,
 ): WorkoutSetSegmentDraft => ({
   segment_index: 1,
   reps_completed: sourceSegment?.reps_completed ?? (dayExercise?.reps_min ?? 12),
+  duration_seconds: getHoldSecondsDefault(dayExercise, sourceSegment),
   weight_kg: sourceSegment?.weight_kg ?? suggestedWeightKg ?? 0,
   effort_value: sourceSegment?.effort_value ?? getExerciseEffortDefault(dayExercise),
 });
@@ -229,12 +246,7 @@ const getAdaptiveSuggestedWeight = (
 
 const normalizeSegmentDrafts = (
   dayExercise: DayExercise | undefined,
-  sourceSegments?: readonly {
-    segment_index?: number | null;
-    reps_completed?: number | null;
-    weight_kg?: number | null;
-    effort_value?: number | null;
-  }[] | null,
+  sourceSegments?: readonly SourceSegment[] | null,
 ): WorkoutSetSegmentDraft[] => {
   const { captureMode, minimumSegments } = getWorkoutSetTypeDefinition(dayExercise?.set_type);
   let normalizedSegments = (sourceSegments ?? [])
@@ -243,6 +255,7 @@ const normalizeSegmentDrafts = (
     .map((segment, index) => ({
       segment_index: index + 1,
       reps_completed: segment.reps_completed ?? (dayExercise?.reps_min ?? 12),
+      duration_seconds: getHoldSecondsDefault(dayExercise, segment),
       weight_kg: segment.weight_kg ?? 0,
       effort_value: segment.effort_value ?? getExerciseEffortDefault(dayExercise),
     }));
@@ -467,7 +480,10 @@ export const hydrateWorkoutExecutionDraft = (
 export const toWorkoutSetSegmentInputs = (segments: WorkoutSetSegmentDraft[]): WorkoutSetSegmentInput[] =>
   segments.map((segment, index) => ({
     segment_index: index + 1,
-    reps_completed: Math.max(0, Math.round(segment.reps_completed)),
+    // A hold records the seconds held and no repetitions.
+    ...(segment.duration_seconds != null
+      ? { duration_seconds: Math.max(1, Math.round(segment.duration_seconds)) }
+      : { reps_completed: Math.max(0, Math.round(segment.reps_completed)) }),
     weight_kg: segment.weight_kg > 0 ? segment.weight_kg : 0,
     effort_value: segment.effort_value ?? undefined,
   }));

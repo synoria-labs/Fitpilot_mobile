@@ -166,6 +166,24 @@ export function isTimedMovementExercise(
   return (dayExercise?.duration_seconds ?? fallbackDurationSeconds ?? 0) > 0;
 }
 
+/**
+ * Strength exercise prescribed in seconds per set (plank, dead hang): a duration with no
+ * repetition window. Cardio and movement classes keep their own timed flows.
+ */
+export function isTimedStrengthExercise(
+  dayExercise: Partial<DayExercise> | null | undefined,
+): boolean {
+  if (!dayExercise || isCardioExercise(dayExercise) || isMovementExercise(dayExercise)) {
+    return false;
+  }
+
+  return (
+    (dayExercise.duration_seconds ?? 0) > 0 &&
+    dayExercise.reps_min == null &&
+    dayExercise.reps_max == null
+  );
+}
+
 export function isHiitCardioExercise(
   dayExercise: Partial<DayExercise> | null | undefined,
 ): boolean {

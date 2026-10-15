@@ -12,6 +12,7 @@ import {
   isCardioExercise,
   isMovementExercise,
   isTimedMovementExercise,
+  isTimedStrengthExercise,
   usesSteadyStateCardioTimer,
 } from '../utils/formatters';
 import {
@@ -48,7 +49,7 @@ import {
 import type { WorkoutMutationResult } from '../store/workoutStore';
 import { hapticError, hapticSuccess } from '../utils/haptics';
 
-type StrengthMetricField = 'reps' | 'weight' | 'effort';
+type StrengthMetricField = 'reps' | 'seconds' | 'weight' | 'effort';
 type CardioMetricField = 'duration' | 'calories' | 'distance' | 'effort';
 type MovementMetricField = 'duration' | 'contacts' | 'height_cm' | 'distance_cm';
 
@@ -86,6 +87,8 @@ type CardioTimerState = {
 
 type MovementTimerState = {
   visible: boolean;
+  /** 'hold' times a strength set prescribed in seconds (plank); 'movement' a mobility block. */
+  kind: 'movement' | 'hold';
   keyString: string | null;
   exerciseIndex: number | null;
   setNumber: number | null;
@@ -236,6 +239,7 @@ const HIDDEN_CARDIO_TIMER_STATE: CardioTimerState = {
 
 const HIDDEN_MOVEMENT_TIMER_STATE: MovementTimerState = {
   visible: false,
+  kind: 'movement',
   keyString: null,
   exerciseIndex: null,
   setNumber: null,
@@ -456,6 +460,14 @@ export const useWorkoutExecutionController = ({
     movementTimerState.visible,
   ]);
 
+  // Buzz once when a block or hold reaches its target, so a client holding a plank need not
+  // watch the screen.
+  useEffect(() => {
+    if (movementTimerState.visible && movementTimerState.isComplete) {
+      hapticSuccess();
+    }
+  }, [movementTimerState.isComplete, movementTimerState.visible]);
+
   const currentExerciseIndex = activeExecution?.currentExerciseIndex ?? 0;
   const currentSetNumber = activeExecution?.currentSetNumber ?? 1;
 
@@ -542,22 +554,30 @@ export const useWorkoutExecutionController = ({
   }, []);
 
   const startMovementTimer = useCallback((resolvedExecution: ResolvedExecution) => {
-    if (!isMovementExecutionDraft(resolvedExecution.draft) || resolvedExecution.draft.durationSeconds == null) {
+    const { draft } = resolvedExecution;
+    // A strength hold times its first segment's target; a mobility block its own duration.
+    const plannedDurationSeconds = isMovementExecutionDraft(draft)
+      ? draft.durationSeconds
+      : isStrengthExecutionDraft(draft)
+        ? (draft.currentSegments[0]?.duration_seconds ?? null)
+        : null;
+    if (plannedDurationSeconds == null || plannedDurationSeconds <= 0) {
       return;
     }
 
     setMovementTimerState({
       visible: true,
+      kind: isStrengthExecutionDraft(draft) ? 'hold' : 'movement',
       keyString: resolvedExecution.keyString,
       exerciseIndex: resolvedExecution.context.exerciseIndex,
-      setNumber: resolvedExecution.draft.currentSetNumber,
+      setNumber: draft.currentSetNumber,
       exerciseName: getExerciseDisplayName(
         resolvedExecution.context.exercise,
         resolvedExecution.context.progress.exercise_name,
       ),
-      plannedDurationSeconds: resolvedExecution.draft.durationSeconds,
+      plannedDurationSeconds,
       startedAtMs: Date.now(),
-      remainingSeconds: resolvedExecution.draft.durationSeconds,
+      remainingSeconds: plannedDurationSeconds,
       elapsedSeconds: 0,
       isComplete: false,
     });
@@ -657,6 +677,10 @@ export const useWorkoutExecutionController = ({
                   field === 'reps'
                     ? adjustWorkoutMetricValue('reps', segment.reps_completed, delta) ?? segment.reps_completed
                     : segment.reps_completed,
+                duration_seconds:
+                  field === 'seconds'
+                    ? adjustWorkoutMetricValue('seconds', segment.duration_seconds, delta) ?? segment.duration_seconds
+                    : segment.duration_seconds,
                 weight_kg:
                   field === 'weight'
                     ? adjustWorkoutMetricValue('weight', segment.weight_kg ?? 0, delta) ?? segment.weight_kg
@@ -692,6 +716,7 @@ export const useWorkoutExecutionController = ({
             ? {
                 ...segment,
                 reps_completed: field === 'reps' ? normalizedValue : segment.reps_completed,
+                duration_seconds: field === 'seconds' ? normalizedValue : segment.duration_seconds,
                 weight_kg: field === 'weight' ? normalizedValue : segment.weight_kg,
                 effort_value: field === 'effort' ? normalizedValue : segment.effort_value,
               }
@@ -847,15 +872,21 @@ export const useWorkoutExecutionController = ({
         nextSetNumber?: number;
         cardioDurationSeconds?: number;
         movementDurationSeconds?: number;
+        holdDurationSeconds?: number;
         draftOptions?: WorkoutExecutionDraftOptions;
       },
     ) => {
       const { draft } = resolvedExecution;
+      const holdDurationSeconds = options?.holdDurationSeconds;
       const mutationResult = isStrengthExecutionDraft(draft)
         ? await saveStrengthSet({
             dayExerciseId: draft.key.dayExerciseId,
             setNumber: draft.currentSetNumber,
-            segments: toWorkoutSetSegmentInputs(draft.currentSegments),
+            segments: toWorkoutSetSegmentInputs(
+              holdDurationSeconds != null
+                ? draft.currentSegments.map((segment) => ({ ...segment, duration_seconds: holdDurationSeconds }))
+                : draft.currentSegments,
+            ),
           })
         : isCardioExecutionDraft(draft)
           ? await saveCardioBlock(
@@ -905,6 +936,7 @@ export const useWorkoutExecutionController = ({
       options?: {
         cardioDurationSeconds?: number;
         movementDurationSeconds?: number;
+        holdDurationSeconds?: number;
         clearCardioTimer?: boolean;
         clearMovementTimer?: boolean;
       },
@@ -933,6 +965,7 @@ export const useWorkoutExecutionController = ({
             : Math.min(resolvedExecution.draft.currentSetNumber + 1, totalSets),
         cardioDurationSeconds: options?.cardioDurationSeconds,
         movementDurationSeconds: options?.movementDurationSeconds,
+        holdDurationSeconds: options?.holdDurationSeconds,
         draftOptions: shouldPrefillNextStrengthSet
           ? { strengthPrefillStrategy: 'previousCompletedSet' }
           : undefined,
@@ -1073,11 +1106,15 @@ export const useWorkoutExecutionController = ({
           resolvedExecution.draft.durationSeconds,
         );
       const shouldUseMovementTimer =
-        isMovementExecutionDraft(resolvedExecution.draft) &&
-        isTimedMovementExercise(
-          resolvedExecution.context.exercise,
-          resolvedExecution.draft.durationSeconds,
-        );
+        (isMovementExecutionDraft(resolvedExecution.draft) &&
+          isTimedMovementExercise(
+            resolvedExecution.context.exercise,
+            resolvedExecution.draft.durationSeconds,
+          )) ||
+        // A strength hold (plank) runs the same countdown and saves the seconds actually held.
+        (isStrengthExecutionDraft(resolvedExecution.draft) &&
+          isTimedStrengthExercise(resolvedExecution.context.exercise) &&
+          (resolvedExecution.draft.currentSegments[0]?.duration_seconds ?? 0) > 0);
 
       if (!isInProgress) {
         setExecutionInProgress((previous) => ({ ...previous, [executionKey]: true }));
@@ -1181,12 +1218,24 @@ export const useWorkoutExecutionController = ({
     }
 
     const resolvedExecution = resolveExecution(movementTimerState.exerciseIndex, movementTimerState.setNumber);
-    if (!resolvedExecution || !isMovementExecutionDraft(resolvedExecution.draft)) {
+    if (!resolvedExecution) {
       return;
     }
 
     const totalSets = resolvedExecution.context.exercise.sets;
     const elapsedSeconds = Math.max(1, movementTimerState.elapsedSeconds);
+
+    if (isStrengthExecutionDraft(resolvedExecution.draft)) {
+      await finalizeLiveExecution(resolvedExecution, totalSets, {
+        holdDurationSeconds: elapsedSeconds,
+        clearMovementTimer: true,
+      });
+      return;
+    }
+
+    if (!isMovementExecutionDraft(resolvedExecution.draft)) {
+      return;
+    }
 
     await finalizeLiveExecution(resolvedExecution, totalSets, {
       movementDurationSeconds: elapsedSeconds,
