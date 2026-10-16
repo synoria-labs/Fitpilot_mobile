@@ -5,6 +5,7 @@ import { borderRadius, fontSize, spacing } from '../../constants/colors';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 import type { ExerciseDetailMetric, ExerciseTrendPoint, DisplayHints, RepRangeBucket } from '../../types';
 import { formatLocalDate } from '../../utils/date';
+import { formatDurationSeconds } from '../../utils/formatters';
 import { formatMetricContext, getPointMetricContext } from '../../utils/analyticsProfiles';
 import {
   buildLineCoordinates,
@@ -104,6 +105,20 @@ const METRIC_CONFIG: Record<ExerciseDetailMetric, {
     emptyText: 'No hay distancia registrada en este rango.',
     formatValue: (v) => formatDistance(v),
   },
+  best_hold_seconds: {
+    lineLabel: 'Mejor tiempo',
+    barLabel: '',
+    showBars: false,
+    emptyText: 'No hay series sostenidas registradas en este rango.',
+    formatValue: (v) => (v != null ? formatDurationSeconds(Math.round(v)) : '-- s'),
+  },
+  total_hold_seconds: {
+    lineLabel: 'Tiempo total',
+    barLabel: '',
+    showBars: false,
+    emptyText: 'No hay series sostenidas registradas en este rango.',
+    formatValue: (v) => (v != null ? formatDurationSeconds(Math.round(v)) : '-- s'),
+  },
 };
 
 const extractMetricValue = (point: ExerciseTrendPoint, metric: ExerciseDetailMetric): number | null => {
@@ -128,13 +143,19 @@ const extractMetricValue = (point: ExerciseTrendPoint, metric: ExerciseDetailMet
       return point.calories_burned ?? null;
     case 'distance':
       return point.distance_meters ?? null;
+    case 'best_hold_seconds':
+      return point.best_hold_seconds ?? null;
+    case 'total_hold_seconds':
+      return point.total_hold_seconds ?? null;
     default:
       return point.best_weight_kg ?? null;
   }
 };
 
+const HOLD_METRICS = new Set<ExerciseDetailMetric>(['best_hold_seconds', 'total_hold_seconds']);
+
 export const ExerciseTrendChart: React.FC<ExerciseTrendChartProps> = ({
-  series,
+  series: allSeries,
   repRanges,
   contentWidth = 360,
   metric = 'best_weight',
@@ -143,6 +164,11 @@ export const ExerciseTrendChart: React.FC<ExerciseTrendChartProps> = ({
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const config = METRIC_CONFIG[metric] ?? METRIC_CONFIG.best_weight;
+  // Sessions of a plank logged in reps, before holds could be timed, have no seconds: leave them
+  // off the hold line instead of plotting them as 0 s.
+  const series = HOLD_METRICS.has(metric)
+    ? allSeries.filter((point) => extractMetricValue(point, metric) != null)
+    : allSeries;
 
   // displayHints can override bar visibility
   const shouldShowBars = displayHints

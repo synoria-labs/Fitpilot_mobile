@@ -546,13 +546,16 @@ export type ExerciseDetailMetric =
   | 'total_reps'
   | 'duration'
   | 'calories'
-  | 'distance';
+  | 'distance'
+  | 'best_hold_seconds'
+  | 'total_hold_seconds';
 export type AnalyticsProfileId =
   | 'double_progression_hypertrophy'
   | 'percentage_1rm_strength'
   | 'rpe_strength'
   | 'bodyweight_progression'
-  | 'cardio_progression';
+  | 'cardio_progression'
+  | 'isometric_hold';
 
 export interface RepRangeBucket {
   id: string;
@@ -792,6 +795,9 @@ export interface ExerciseTrendPoint {
   adherence_ratio?: number | null;
   top_set_backoff_delta_kg?: number | null;
   backoff_volume_kg?: number | null;
+  // Strength holds logged in seconds: longest single hold and seconds held in the session.
+  best_hold_seconds?: number | null;
+  total_hold_seconds?: number | null;
   metric_contexts?: Partial<Record<ExerciseDetailMetric, WorkoutAnalyticsMetricContext>>;
 }
 
