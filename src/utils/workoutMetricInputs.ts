@@ -3,6 +3,7 @@ import { clampEffortValue } from './formatters';
 export type WorkoutMetricField =
   | 'reps'
   | 'contacts'
+  | 'seconds'
   | 'weight'
   | 'effort'
   | 'duration'
@@ -83,6 +84,9 @@ export const normalizeWorkoutMetricValue = (
     case 'reps':
     case 'contacts':
       return Math.max(1, Math.round(parsedValue));
+    case 'seconds':
+      // Seconds held in a set; the backend accepts up to two hours.
+      return Math.min(7200, Math.max(1, Math.round(parsedValue)));
     case 'weight':
       return Math.max(0, roundToDecimals(parsedValue, 2));
     case 'effort':
@@ -110,7 +114,7 @@ export const formatWorkoutMetricValue = (
     return '';
   }
 
-  if (field === 'reps' || field === 'contacts') {
+  if (field === 'reps' || field === 'contacts' || field === 'seconds') {
     return `${normalizedValue}`;
   }
 

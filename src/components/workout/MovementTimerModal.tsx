@@ -8,6 +8,8 @@ import { formatTime } from '../../utils/formatters';
 
 interface MovementTimerModalProps {
   visible: boolean;
+  /** 'hold' labels it as a strength set held in seconds (plank) instead of a movement block. */
+  kind?: 'movement' | 'hold';
   exerciseName: string;
   plannedDurationSeconds: number;
   remainingSeconds: number;
@@ -18,6 +20,7 @@ interface MovementTimerModalProps {
 
 export const MovementTimerModal: React.FC<MovementTimerModalProps> = ({
   visible,
+  kind = 'movement',
   exerciseName,
   plannedDurationSeconds,
   remainingSeconds,
@@ -25,6 +28,7 @@ export const MovementTimerModal: React.FC<MovementTimerModalProps> = ({
   isComplete,
   onFinish,
 }) => {
+  const isHold = kind === 'hold';
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const primaryGradientColors = theme.isDark
@@ -55,7 +59,7 @@ export const MovementTimerModal: React.FC<MovementTimerModalProps> = ({
             {exerciseName}
           </Text>
           <Text style={[styles.statusText, isComplete && styles.statusTextComplete]}>
-            {isComplete ? 'Tiempo cumplido' : 'Bloque de movimiento en curso'}
+            {isComplete ? 'Tiempo cumplido' : isHold ? 'Sostén la posición' : 'Bloque de movimiento en curso'}
           </Text>
 
           <Text style={styles.timerValue}>{formatTime(remainingSeconds)}</Text>
@@ -85,7 +89,7 @@ export const MovementTimerModal: React.FC<MovementTimerModalProps> = ({
               end={{ x: 1, y: 0.85 }}
               style={styles.finishButtonGradient}
             >
-              <Text style={styles.finishButtonText}>Finalizar bloque</Text>
+              <Text style={styles.finishButtonText}>{isHold ? 'Finalizar serie' : 'Finalizar bloque'}</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>

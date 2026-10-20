@@ -635,6 +635,7 @@ export default function WorkoutSessionScreen() {
 
       <MovementTimerModal
         visible={movementTimerState.visible}
+        kind={movementTimerState.kind}
         exerciseName={movementTimerState.exerciseName}
         plannedDurationSeconds={movementTimerState.plannedDurationSeconds}
         remainingSeconds={movementTimerState.remainingSeconds}

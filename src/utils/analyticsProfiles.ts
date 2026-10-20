@@ -14,6 +14,7 @@ import type {
   ExerciseTrendSummary,
   WorkoutAnalyticsMetricContext,
 } from '../types';
+import { formatDurationSeconds } from './formatters';
 import { formatCalories, formatDistance } from './workoutAnalytics';
 
 export interface ProfileConfig {
@@ -84,6 +85,17 @@ const PROFILE_CONFIGS: Record<AnalyticsProfileId, ProfileConfig> = {
     showEffortComparison: true,
     chartType: 'line_only',
   },
+  isometric_hold: {
+    id: 'isometric_hold',
+    label: 'Isométrico (tiempo)',
+    primaryMetric: 'best_hold_seconds',
+    secondaryMetrics: ['total_hold_seconds', 'best_weight', 'effort'],
+    primaryUnit: 's',
+    showVolumeBars: false,
+    showRepRangeBuckets: false,
+    showEffortComparison: false,
+    chartType: 'line_only',
+  },
 };
 
 const DEFAULT_PROFILE: AnalyticsProfileId = 'double_progression_hypertrophy';
@@ -102,6 +114,8 @@ const METRIC_EXTRACTORS: Record<
   duration: (point) => point.duration_minutes,
   calories: (point) => point.calories_burned,
   distance: (point) => point.distance_meters,
+  best_hold_seconds: (point) => point.best_hold_seconds,
+  total_hold_seconds: (point) => point.total_hold_seconds,
 };
 
 const CONTEXTUAL_METRICS = new Set<ExerciseDetailMetric>([
@@ -122,6 +136,8 @@ const METRIC_LABELS: Record<ExerciseDetailMetric, string> = {
   duration: 'Duración',
   calories: 'Calorías',
   distance: 'Distancia',
+  best_hold_seconds: 'Mejor tiempo',
+  total_hold_seconds: 'Tiempo total',
 };
 
 const METRIC_CHART_SUBTITLES: Record<ExerciseDetailMetric, string> = {
@@ -137,6 +153,8 @@ const METRIC_CHART_SUBTITLES: Record<ExerciseDetailMetric, string> = {
   duration: 'Duración total ejecutada por sesión.',
   calories: 'Calorías registradas por sesión.',
   distance: 'Distancia recorrida por sesión.',
+  best_hold_seconds: 'El mayor tiempo sostenido en un set por sesión.',
+  total_hold_seconds: 'Segundos sostenidos sumando todos los sets de la sesión.',
 };
 
 export type MetricContextVariant =
@@ -161,6 +179,8 @@ const METRIC_UNITS: Record<ExerciseDetailMetric, string> = {
   duration: 'min',
   calories: 'cal',
   distance: 'm',
+  best_hold_seconds: 's',
+  total_hold_seconds: 's',
 };
 
 export const getProfileConfig = (
@@ -310,6 +330,10 @@ export const getProfileContextCopy = (
     return 'La lectura principal sigue duración, calorías y distancia; las métricas de fuerza dejan de aplicar.';
   }
 
+  if (profile.id === 'isometric_hold') {
+    return 'La señal principal es el tiempo sostenido por set; las repeticiones no aplican a un isométrico.';
+  }
+
   return 'La lectura principal sigue la mejor carga, pero mantiene el volumen repartido por rangos de reps.';
 };
 
@@ -368,6 +392,10 @@ export const formatMetricValue = (
 
   if (unit === 'reps') {
     return `${Math.round(value)} reps`;
+  }
+
+  if (unit === 's') {
+    return formatDurationSeconds(Math.round(value));
   }
 
   if (unit === 'cal') {

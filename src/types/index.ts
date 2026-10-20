@@ -269,7 +269,10 @@ export interface ExerciseSetLog {
   day_exercise_id: string;
   set_number: number;
   segment_index: number;
-  reps_completed: number;
+  /** Null for a hold logged in seconds. */
+  reps_completed: number | null;
+  /** Seconds held, for a strength exercise prescribed by time (plank, dead hang). */
+  duration_seconds?: number | null;
   weight_kg?: number | null;
   effort_value?: number | null;
   completed_at: string;
@@ -280,6 +283,7 @@ export interface WorkoutSetGroup {
   set_number: number;
   segment_count: number;
   total_reps_completed: number;
+  total_duration_seconds?: number | null;
   best_weight_kg?: number | null;
   completed_at?: string | null;
   segments: ExerciseSetLog[];
@@ -311,7 +315,9 @@ export interface MovementBlockLog {
 
 export interface WorkoutSetSegmentInput {
   segment_index: number;
-  reps_completed: number;
+  /** Omitted for a hold, which sends duration_seconds instead. */
+  reps_completed?: number;
+  duration_seconds?: number;
   weight_kg?: number | null;
   effort_value?: number | null;
 }
@@ -540,13 +546,16 @@ export type ExerciseDetailMetric =
   | 'total_reps'
   | 'duration'
   | 'calories'
-  | 'distance';
+  | 'distance'
+  | 'best_hold_seconds'
+  | 'total_hold_seconds';
 export type AnalyticsProfileId =
   | 'double_progression_hypertrophy'
   | 'percentage_1rm_strength'
   | 'rpe_strength'
   | 'bodyweight_progression'
-  | 'cardio_progression';
+  | 'cardio_progression'
+  | 'isometric_hold';
 
 export interface RepRangeBucket {
   id: string;
@@ -786,6 +795,9 @@ export interface ExerciseTrendPoint {
   adherence_ratio?: number | null;
   top_set_backoff_delta_kg?: number | null;
   backoff_volume_kg?: number | null;
+  // Strength holds logged in seconds: longest single hold and seconds held in the session.
+  best_hold_seconds?: number | null;
+  total_hold_seconds?: number | null;
   metric_contexts?: Partial<Record<ExerciseDetailMetric, WorkoutAnalyticsMetricContext>>;
 }
 

@@ -562,6 +562,26 @@ export default function ExerciseTrendDetailScreen() {
                           { variant: 'record_detail' },
                         ),
                       },
+                      point.total_hold_seconds != null &&
+                      point.total_hold_seconds > 0 &&
+                      profileConfig.primaryMetric !== 'total_hold_seconds'
+                        ? {
+                            key: 'total_hold_seconds',
+                            label: 'Tiempo total',
+                            value: formatMetricValue(point.total_hold_seconds, 's'),
+                            context: null,
+                          }
+                        : null,
+                      profileConfig.id === 'isometric_hold' &&
+                      point.best_weight_kg != null &&
+                      point.best_weight_kg > 0
+                        ? {
+                            key: 'hold_weight',
+                            label: 'Lastre',
+                            value: formatWeightKg(point.best_weight_kg),
+                            context: null,
+                          }
+                        : null,
                       point.volume_kg > 0 && profileConfig.primaryMetric !== 'volume'
                         ? {
                             key: 'volume',

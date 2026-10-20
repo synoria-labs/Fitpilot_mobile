@@ -33,6 +33,7 @@ import {
   isEditableEffortType,
   isPlyometricExercise,
   isTimedMovementExercise,
+  isTimedStrengthExercise,
   shouldShowStrengthEffort,
 } from '../../utils/formatters';
 import {
@@ -62,7 +63,7 @@ const DIAGONAL_WIDTH = 80;
 
 type PrimaryButtonGradientColors = readonly [string, string, string];
 
-type StrengthMetricField = 'reps' | 'weight' | 'effort';
+type StrengthMetricField = 'reps' | 'seconds' | 'weight' | 'effort';
 type CardioMetricField = 'duration' | 'calories' | 'distance' | 'effort';
 type MovementMetricField = 'duration' | 'contacts' | 'height_cm' | 'distance_cm';
 
@@ -563,6 +564,12 @@ const StrengthExerciseBody = ({
     dayExercise.effort_type,
     primarySegment?.effort_value ?? dayExercise.effort_value,
   );
+  // A hold (plank) is prescribed and logged in seconds per set instead of repetitions.
+  const isHold = isTimedStrengthExercise(dayExercise);
+  const holdTargetSeconds = dayExercise.duration_seconds ?? 0;
+  const targetLabel = isHold
+    ? `Tiempo ${formatDurationSeconds(holdTargetSeconds)}`
+    : `Reps ${dayExercise.reps_min ?? '-'}-${dayExercise.reps_max ?? '-'}`;
 
   if (!isEditing) {
     return (
@@ -571,8 +578,12 @@ const StrengthExerciseBody = ({
           <View style={styles.inlineStaticMetricsStack}>
             <InlineStaticMetric
               styles={styles}
-              label={`Reps ${dayExercise.reps_min ?? '-'}-${dayExercise.reps_max ?? '-'}`}
-              value={`${primarySegment?.reps_completed ?? dayExercise.reps_min ?? 0}`}
+              label={targetLabel}
+              value={
+                isHold
+                  ? formatDurationSeconds(primarySegment?.duration_seconds ?? holdTargetSeconds)
+                  : `${primarySegment?.reps_completed ?? dayExercise.reps_min ?? 0}`
+              }
             />
             <View style={styles.inlineDivider} />
             <InlineStaticMetric
@@ -596,19 +607,35 @@ const StrengthExerciseBody = ({
   return (
     <View style={styles.inlineEditorSection}>
       <View style={styles.inlineMetricsStack}>
-        <EditableStepperMetric
-          field="reps"
-          metricId={`strength-reps-${draft.currentSetNumber}`}
-          label={`Reps ${dayExercise.reps_min ?? '-'}-${dayExercise.reps_max ?? '-'}`}
-          value={primarySegment?.reps_completed}
-          onAdjust={(delta) => onStrengthMetricChange(0, 'reps', delta)}
-          onCommitValue={(value) => onStrengthMetricCommit(0, 'reps', value)}
-          step={1}
-          disabled={isSavingSet}
-          styles={styles}
-          accentColor={accentColor}
-          placeholderColor={placeholderColor}
-        />
+        {isHold ? (
+          <EditableStepperMetric
+            field="seconds"
+            metricId={`strength-seconds-${draft.currentSetNumber}`}
+            label={`Segundos (meta ${holdTargetSeconds})`}
+            value={primarySegment?.duration_seconds}
+            onAdjust={(delta) => onStrengthMetricChange(0, 'seconds', delta)}
+            onCommitValue={(value) => onStrengthMetricCommit(0, 'seconds', value)}
+            step={5}
+            disabled={isSavingSet}
+            styles={styles}
+            accentColor={accentColor}
+            placeholderColor={placeholderColor}
+          />
+        ) : (
+          <EditableStepperMetric
+            field="reps"
+            metricId={`strength-reps-${draft.currentSetNumber}`}
+            label={targetLabel}
+            value={primarySegment?.reps_completed}
+            onAdjust={(delta) => onStrengthMetricChange(0, 'reps', delta)}
+            onCommitValue={(value) => onStrengthMetricCommit(0, 'reps', value)}
+            step={1}
+            disabled={isSavingSet}
+            styles={styles}
+            accentColor={accentColor}
+            placeholderColor={placeholderColor}
+          />
+        )}
         <View style={styles.inlineDivider} />
         <EditableStepperMetric
           field="weight"
@@ -1186,6 +1213,9 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
               props.draft.currentSegments[0]?.effort_value ?? props.dayExercise.effort_value,
             );
       }
+      if ((setGroup.total_duration_seconds ?? 0) > 0) {
+        return formatDurationSeconds(setGroup.total_duration_seconds ?? 0);
+      }
       if (setGroup.segment_count > 1) {
         return `${setGroup.segment_count} seg`;
       }
@@ -1263,7 +1293,9 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
                   ? getCardioSummaryLabel(props.dayExercise)
                   : isMovement
                     ? getMovementSummaryLabel(props.dayExercise)
-                    : setTypeDefinition.label}
+                    : isTimedStrengthExercise(props.dayExercise)
+                      ? `Sostener ${formatDurationSeconds(props.dayExercise.duration_seconds ?? 0)} por serie`
+                      : setTypeDefinition.label}
               </Text>
               {isCardio ? (
                 <View style={styles.cardioMetaRow}>

@@ -55,8 +55,9 @@ const buildPrimaryMetricValue = (exercise: ExerciseTrendSummary) => {
   const profile = getProfileConfig(exercise.analytics_profile);
   const isBodyweight = profile.id === 'bodyweight_progression';
   const isCardio = profile.id === 'cardio_progression';
+  const isHold = profile.id === 'isometric_hold';
 
-  if (isBodyweight || isCardio) {
+  if (isBodyweight || isCardio || isHold) {
     if (exercise.primary_metric_value == null) {
       return `-- ${exercise.primary_metric_unit ?? profile.primaryUnit}`;
     }
