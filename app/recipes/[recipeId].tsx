@@ -23,6 +23,7 @@ import {
   spacing,
 } from '../../src/constants/colors';
 import {
+  getClientDietRecipeInMenu,
   getDietRecipeDetail,
   getFoodsByExchangeGroup,
   resetDietRecipeIngredientSwap,
@@ -33,9 +34,11 @@ import { useAppTheme, useThemedStyles } from '../../src/theme';
 import type {
   ApiError,
   ClientDietIngredientRow,
+  ClientDietRecipeCard,
   ClientDietRecipeDetail,
   ClientFoodSwapCandidate,
 } from '../../src/types';
+import { parseDietRecipeMenuContext } from '../../src/utils/dietRecipeRoute';
 import { getRecipeRichTextBlocks } from '../../src/utils/recipeRichText';
 
 type RecipeTab = 'description' | 'ingredients';
@@ -57,6 +60,20 @@ const formatMeasureValue = (value: number | null, suffix: string) => {
 };
 
 const METRIC_MEASURE_PATTERN = /(^|\s)(g|gr|gramo|gramos|kg|kilo|kilos|ml|mililitro|mililitros|l|litro|litros)$/i;
+
+// The recipe endpoint carries the description and the recipe's base quantities;
+// when the screen was opened from a menu, the ingredients come from that menu.
+const mergeMenuRecipe = (
+  recipeDetail: ClientDietRecipeDetail,
+  menuRecipe: ClientDietRecipeCard | null,
+): ClientDietRecipeDetail =>
+  menuRecipe
+    ? {
+        ...recipeDetail,
+        ingredientCount: menuRecipe.ingredientCount,
+        ingredients: menuRecipe.ingredients,
+      }
+    : recipeDetail;
 
 const getIngredientMeasure = (ingredient: ClientDietIngredientRow) => {
   if (ingredient.portion.grams !== null) {
@@ -179,12 +196,21 @@ export default function RecipeDetailScreen() {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const { user, isInitialized } = useAuthStore();
-  const { recipeId } = useLocalSearchParams<{ recipeId?: string | string[] }>();
+  const { recipeId, menuId, date, mealId } = useLocalSearchParams<{
+    recipeId?: string | string[];
+    menuId?: string | string[];
+    date?: string | string[];
+    mealId?: string | string[];
+  }>();
   const parsedRecipeId = useMemo(() => {
     const rawRecipeId = Array.isArray(recipeId) ? recipeId[0] : recipeId;
     const nextValue = Number.parseInt(rawRecipeId ?? '', 10);
     return Number.isFinite(nextValue) ? nextValue : null;
   }, [recipeId]);
+  const menuContext = useMemo(
+    () => parseDietRecipeMenuContext({ menuId, date, mealId }),
+    [date, mealId, menuId],
+  );
   const [activeTab, setActiveTab] = useState<RecipeTab>('description');
   const [detail, setDetail] = useState<ClientDietRecipeDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -201,6 +227,25 @@ export default function RecipeDetailScreen() {
     () => detail?.ingredients.find((ingredient) => ingredient.id === selectedIngredientId) ?? null,
     [detail?.ingredients, selectedIngredientId],
   );
+
+  // Without a resolvable menu the screen keeps the recipe's base quantities.
+  const loadMenuRecipe = useCallback(async () => {
+    if (!menuContext || !user || !parsedRecipeId) {
+      return null;
+    }
+
+    try {
+      return await getClientDietRecipeInMenu(
+        user.id,
+        menuContext.menuId,
+        menuContext.date,
+        parsedRecipeId,
+        menuContext.mealId,
+      );
+    } catch {
+      return null;
+    }
+  }, [menuContext, parsedRecipeId, user]);
 
   const loadDetail = useCallback(
     async (options?: { refresh?: boolean }) => {
@@ -222,8 +267,11 @@ export default function RecipeDetailScreen() {
       }
 
       try {
-        const response = await getDietRecipeDetail(parsedRecipeId);
-        setDetail(response);
+        const [response, menuRecipe] = await Promise.all([
+          getDietRecipeDetail(parsedRecipeId),
+          loadMenuRecipe(),
+        ]);
+        setDetail(mergeMenuRecipe(response, menuRecipe));
         setError(null);
       } catch (loadError) {
         const apiError = loadError as ApiError;
@@ -233,7 +281,7 @@ export default function RecipeDetailScreen() {
         setIsRefreshing(false);
       }
     },
-    [isInitialized, parsedRecipeId, user],
+    [isInitialized, loadMenuRecipe, parsedRecipeId, user],
   );
 
   useEffect(() => {
@@ -328,7 +376,8 @@ export default function RecipeDetailScreen() {
         selectedIngredient.recipeIngredientId,
         food.id,
       );
-      setDetail(response);
+      // Re-read the menu after saving so the swapped food shows the client's portion.
+      setDetail(mergeMenuRecipe(response, await loadMenuRecipe()));
       setError(null);
       setIsSwapModalVisible(false);
       setSelectedIngredientId(null);
@@ -338,7 +387,7 @@ export default function RecipeDetailScreen() {
     } finally {
       setIsSavingSwap(false);
     }
-  }, [parsedRecipeId, selectedIngredient?.recipeIngredientId]);
+  }, [loadMenuRecipe, parsedRecipeId, selectedIngredient?.recipeIngredientId]);
 
   const handleResetSwap = useCallback(async () => {
     if (!parsedRecipeId || !selectedIngredient?.recipeIngredientId) {
@@ -353,7 +402,7 @@ export default function RecipeDetailScreen() {
         parsedRecipeId,
         selectedIngredient.recipeIngredientId,
       );
-      setDetail(response);
+      setDetail(mergeMenuRecipe(response, await loadMenuRecipe()));
       setError(null);
       setIsSwapModalVisible(false);
       setSelectedIngredientId(null);
@@ -363,7 +412,7 @@ export default function RecipeDetailScreen() {
     } finally {
       setIsSavingSwap(false);
     }
-  }, [parsedRecipeId, selectedIngredient?.recipeIngredientId]);
+  }, [loadMenuRecipe, parsedRecipeId, selectedIngredient?.recipeIngredientId]);
 
   if (!isInitialized) {
     return <LoadingSpinner fullScreen text="Validando sesión..." />;
