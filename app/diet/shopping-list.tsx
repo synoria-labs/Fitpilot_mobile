@@ -1,3 +1,4 @@
+import { shoppingItemPresentation } from '../../src/utils/shoppingListPresentation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -515,6 +516,7 @@ export default function ShoppingListScreen() {
                 <Text style={styles.sectionTitle}>{section.category}</Text>
                 <View style={styles.sectionItems}>
                   {section.items.map((item) => {
+                    const presentation = shoppingItemPresentation(item);
                     const isManual = item.source_type === 'manual';
                     return (
                       <View key={item.id} style={styles.itemRow}>
@@ -545,7 +547,7 @@ export default function ShoppingListScreen() {
                               ]}
                               numberOfLines={2}
                             >
-                              {item.name}
+                              {presentation.name}
                             </Text>
                             {isManual ? (
                               <View style={styles.manualBadge}>
@@ -553,16 +555,10 @@ export default function ShoppingListScreen() {
                               </View>
                             ) : null}
                           </View>
-                          {item.quantity_label ? (
-                            <Text style={styles.itemMeta} numberOfLines={1}>
-                              {item.quantity_label}
-                            </Text>
-                          ) : null}
-                          {item.raw_quantity_label ? (
-                            <Text style={styles.itemRawMeta} numberOfLines={1}>
-                              Crudo: {item.raw_quantity_label}
-                            </Text>
-                          ) : null}
+                          {presentation.quantity ? <Text style={styles.itemMeta}>{presentation.quantity}</Text> : null}
+                          {presentation.reference ? <Text style={styles.itemRawMeta}>{presentation.reference}</Text> : null}
+                          {presentation.note ? <Text style={styles.itemMeta}>{presentation.note}</Text> : null}
+                          {presentation.suggestion ? <Text style={styles.itemRawMeta}>{presentation.suggestion}</Text> : null}
                           {item.note ? (
                             <Text style={styles.itemNote} numberOfLines={2}>
                               {item.note}
