@@ -13,7 +13,8 @@ import { router } from 'expo-router';
 import { Button } from '../common';
 import { borderRadius, colors, fontSize, spacing } from '../../constants/colors';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
-import type { ClientDietMenu, ClientDietRecipeCard } from '../../types';
+import type { ClientDietMeal, ClientDietMenu, ClientDietRecipeCard } from '../../types';
+import { buildDietRecipeDetailRoute } from '../../utils/dietRecipeRoute';
 import { DietMealCard } from './DietMealCard';
 
 type DietMenuPreviewMode = 'confirm' | 'readonly';
@@ -58,14 +59,15 @@ export const DietMenuPreviewModal: React.FC<DietMenuPreviewModalProps> = ({
     setExpandedMealId(firstMealId);
   }, [firstMealId, menu?.menuId, visible]);
 
-  const handleRecipePress = (recipe: ClientDietRecipeCard) => {
+  const handleRecipePress = (recipe: ClientDietRecipeCard, meal: ClientDietMeal) => {
     onClose();
-    router.push({
-      pathname: '/recipes/[recipeId]',
-      params: {
-        recipeId: String(recipe.recipeId),
-      },
-    });
+    router.push(
+      buildDietRecipeDetailRoute(recipe.recipeId, {
+        menuId: menu?.menuId,
+        assignedDate: menu?.assignedDate,
+        mealId: meal.id,
+      }),
+    );
   };
 
   return (

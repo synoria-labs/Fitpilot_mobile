@@ -144,6 +144,7 @@ type NutritionMenuItemResponse = {
   quantity?: number | string | null;
   equivalent_quantity?: number | string | null;
   recipe_id?: number | null;
+  recipe_food_id?: number | null;
   serving_unit_id?: number | null;
   is_client_swap?: boolean | null;
   original_food_id?: number | null;
@@ -212,7 +213,7 @@ type RecipeGroupAccumulator = {
 };
 
 const DIET_LOOKAHEAD_DAYS = 7;
-const DIET_CALENDAR_CACHE_VERSION = 1;
+const DIET_CALENDAR_CACHE_VERSION = 2;
 const DIET_CALENDAR_CACHE_PREFIX = 'fitpilot:cache:diet-calendar';
 
 const buildDietCalendarCacheKey = (clientId: number, weekStartDate: string) =>
@@ -619,6 +620,19 @@ const mapStandaloneFoodRow = (item: NutritionMenuItemResponse): ClientDietFoodRo
   portion: derivePortionFromMenuItem(item),
 });
 
+// Each recipe ingredient is its own menu row carrying the client's quantity and
+// any swap already applied by the backend; recipe_food_id links it back to the
+// recipe ingredient that the swap endpoints expect.
+const mapRecipeMenuItemRow = (item: NutritionMenuItemResponse): ClientDietIngredientRow => ({
+  ...mapStandaloneFoodRow(item),
+  menuItemId: undefined,
+  recipeIngredientId: item.recipe_food_id ?? undefined,
+  label:
+    item.foods?.name?.trim() ||
+    item.exchange_groups?.name?.trim() ||
+    'Ingrediente',
+});
+
 const mapRecipeIngredientRow = (
   ingredient: NutritionRecipeDetailIngredientResponse,
 ): ClientDietIngredientRow => ({
@@ -640,18 +654,9 @@ const buildRecipeCardFromGroup = (
   const detailSummary = mapRecipeSummaryFromDetail(group.detail);
   const recipeSummary = detailSummary || group.summary;
 
-  const ingredients =
-    group.detail?.ingredients?.length
-      ? group.detail.ingredients.map(mapRecipeIngredientRow)
-      : group.items.map((item) => ({
-          id: String(item.id),
-          label:
-            item.foods?.name?.trim() ||
-            item.exchange_groups?.name?.trim() ||
-            'Ingrediente',
-          exchangeGroupName: item.exchange_groups?.name?.trim() || null,
-          portion: derivePortionFromMenuItem(item),
-        }));
+  // recipe_detail only has the recipe's base quantities, so it is used for the
+  // title and image; the ingredients are the menu rows the client actually eats.
+  const ingredients = group.items.map(mapRecipeMenuItemRow);
 
   return {
     id: `recipe-${recipeSummary.id}-${group.items[0]?.id ?? recipeSummary.id}`,
@@ -1155,4 +1160,56 @@ export const getClientDietMenuPool = async (
   const recipeSummaryMap = await buildRecipeSummaryMap(dedupedPoolMenus);
 
   return dedupedPoolMenus.map((menu) => mapDietMenu(menu, targetDate, recipeSummaryMap));
+};
+
+const findRecipeCardInMenus = (
+  menus: ClientDietMenu[],
+  menuId: number,
+  recipeId: number,
+  mealId: string | null,
+): ClientDietRecipeCard | null => {
+  const menu = menus.find((candidate) => candidate.menuId === menuId);
+  if (!menu) {
+    return null;
+  }
+
+  // The same recipe can sit in more than one meal; prefer the one the user opened.
+  const openedMeal = mealId ? menu.meals.find((meal) => meal.id === mealId) : undefined;
+  const meals = openedMeal
+    ? [openedMeal, ...menu.meals.filter((meal) => meal !== openedMeal)]
+    : menu.meals;
+
+  for (const meal of meals) {
+    const recipe = meal.recipes.find((candidate) => candidate.recipeId === recipeId);
+    if (recipe) {
+      return recipe;
+    }
+  }
+
+  return null;
+};
+
+// The recipe endpoint only knows the recipe's base quantities; this resolves the
+// recipe as it appears in one of the client's menus, with the client's portions.
+export const getClientDietRecipeInMenu = async (
+  clientId: string,
+  menuId: number,
+  date: string,
+  recipeId: number,
+  mealId: string | null = null,
+): Promise<ClientDietRecipeCard | null> => {
+  const calendarMenus = await getClientDietMenuCalendar(clientId, date);
+  const calendarRecipe = findRecipeCardInMenus(
+    Object.values(calendarMenus).flat(),
+    menuId,
+    recipeId,
+    mealId,
+  );
+  if (calendarRecipe) {
+    return calendarRecipe;
+  }
+
+  // Rotated menus come from the pool and may not be assigned to that date.
+  const poolMenus = await getClientDietMenuPool(clientId, date);
+  return findRecipeCardInMenus(poolMenus, menuId, recipeId, mealId);
 };

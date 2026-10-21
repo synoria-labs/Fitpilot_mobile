@@ -74,7 +74,6 @@ import type {
   ClientDietIngredientRow,
   ClientDietMenu,
   ClientDietRecipeCard,
-  ClientDietRecipeDetail,
   ClientDietWeekDay,
   ClientFoodSwapCandidate,
 } from '../../src/types';
@@ -95,82 +94,6 @@ type SelectedSwapTarget = {
   menuId: number;
   ingredient: ClientDietFoodRow;
 } | null;
-
-const applyRecipeDetailToRecipeCard = (
-  recipe: ClientDietRecipeCard,
-  recipeDetail: ClientDietRecipeDetail,
-): ClientDietRecipeCard => {
-  if (recipe.recipeId !== recipeDetail.recipeId) {
-    return recipe;
-  }
-
-  return {
-    ...recipe,
-    ingredientCount: recipeDetail.ingredientCount,
-    ingredients: recipeDetail.ingredients,
-  };
-};
-
-const applyRecipeDetailToMenu = (
-  menu: ClientDietMenu,
-  recipeDetail: ClientDietRecipeDetail,
-): ClientDietMenu => {
-  let hasChanges = false;
-
-  const meals = menu.meals.map((meal) => {
-    let mealChanged = false;
-    const recipes = meal.recipes.map((recipe) => {
-      const nextRecipe = applyRecipeDetailToRecipeCard(recipe, recipeDetail);
-      if (nextRecipe !== recipe) {
-        mealChanged = true;
-      }
-      return nextRecipe;
-    });
-
-    if (!mealChanged) {
-      return meal;
-    }
-
-    hasChanges = true;
-    return {
-      ...meal,
-      recipes,
-    };
-  });
-
-  return hasChanges
-    ? {
-        ...menu,
-        meals,
-      }
-    : menu;
-};
-
-const applyRecipeDetailToWeekDays = (
-  days: ClientDietWeekDay[],
-  recipeDetail: ClientDietRecipeDetail,
-): ClientDietWeekDay[] =>
-  days.map((day) => {
-    if (day.menuOptions.length === 0) {
-      return day;
-    }
-
-    let hasChanges = false;
-    const nextMenuOptions = day.menuOptions.map((menu) => {
-      const nextMenu = applyRecipeDetailToMenu(menu, recipeDetail);
-      if (nextMenu !== menu) {
-        hasChanges = true;
-      }
-      return nextMenu;
-    });
-
-    return !hasChanges
-      ? day
-      : {
-          ...day,
-          menuOptions: nextMenuOptions,
-        };
-  });
 
 const mergeUpdatedMenu = (
   currentMenu: ClientDietMenu,
@@ -763,10 +686,13 @@ export default function DietScreen() {
     void loadSwapFoods(selectedIngredient);
   }, [isSwapModalVisible, loadSwapFoods, selectedIngredient]);
 
-  const applyUpdatedRecipeDetail = useCallback((recipeDetail: ClientDietRecipeDetail) => {
-    setDietDays((currentDays) => applyRecipeDetailToWeekDays(currentDays, recipeDetail));
-    setError(null);
-  }, []);
+  // A recipe swap applies to every menu with that recipe, and the recipe endpoint
+  // answers with the recipe's base quantities; reload the week so each menu row
+  // shows the swapped food at the client's own portion.
+  const reloadAfterRecipeSwap = useCallback(
+    () => loadDiet({ mode: 'refresh', anchorDate, selectedDate }),
+    [anchorDate, loadDiet, selectedDate],
+  );
 
   const applyUpdatedMenu = useCallback((menu: ClientDietMenu) => {
     setDietDays((currentDays) => applyUpdatedMenuToWeekDays(currentDays, menu));
@@ -848,12 +774,12 @@ export default function DietScreen() {
 
     try {
       if (selectedSwapTarget.type === 'recipe' && selectedIngredient.recipeIngredientId) {
-        const response = await swapDietRecipeIngredient(
+        await swapDietRecipeIngredient(
           selectedSwapTarget.recipeId,
           selectedIngredient.recipeIngredientId,
           food.id,
         );
-        applyUpdatedRecipeDetail(response);
+        await reloadAfterRecipeSwap();
       } else if (selectedSwapTarget.type === 'standalone' && selectedIngredient.menuItemId) {
         const response = await swapDietStandaloneFood(
           selectedSwapTarget.menuId,
@@ -874,7 +800,7 @@ export default function DietScreen() {
     } finally {
       setIsSavingSwap(false);
     }
-  }, [applyUpdatedMenu, applyUpdatedRecipeDetail, selectedDate, selectedIngredient, selectedSwapTarget]);
+  }, [applyUpdatedMenu, reloadAfterRecipeSwap, selectedDate, selectedIngredient, selectedSwapTarget]);
 
   const handleResetSwap = useCallback(async () => {
     if (!selectedSwapTarget || !selectedIngredient) {
@@ -886,11 +812,11 @@ export default function DietScreen() {
 
     try {
       if (selectedSwapTarget.type === 'recipe' && selectedIngredient.recipeIngredientId) {
-        const response = await resetDietRecipeIngredientSwap(
+        await resetDietRecipeIngredientSwap(
           selectedSwapTarget.recipeId,
           selectedIngredient.recipeIngredientId,
         );
-        applyUpdatedRecipeDetail(response);
+        await reloadAfterRecipeSwap();
       } else if (selectedSwapTarget.type === 'standalone' && selectedIngredient.menuItemId) {
         const response = await resetDietStandaloneFoodSwap(
           selectedSwapTarget.menuId,
@@ -916,7 +842,7 @@ export default function DietScreen() {
     } finally {
       setIsSavingSwap(false);
     }
-  }, [applyUpdatedMenu, applyUpdatedRecipeDetail, selectedDate, selectedIngredient, selectedSwapTarget]);
+  }, [applyUpdatedMenu, reloadAfterRecipeSwap, selectedDate, selectedIngredient, selectedSwapTarget]);
 
   if (!user) {
     return null;
@@ -1065,6 +991,8 @@ export default function DietScreen() {
                         >
                           <DietMealCard
                             meal={meal}
+                            menuId={visibleMenu.menuId}
+                            assignedDate={selectedDay.assignedDate}
                             expanded={expandedMealId === meal.id}
                             onToggleExpanded={() => handleToggleMeal(meal.id)}
                             onRecipeIngredientPress={

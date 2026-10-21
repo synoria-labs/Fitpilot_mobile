@@ -27,11 +27,15 @@ import type {
 } from '../../types';
 import { getExchangeGroupVisual } from '../../constants/exchangeGroupVisuals';
 import { getDietPortionDisplayItems } from '../../utils/dietPortions';
+import { buildDietRecipeDetailRoute } from '../../utils/dietRecipeRoute';
 import { ExchangeGroupIcon } from './ExchangeGroupIcon';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 
 interface DietMealCardProps {
   meal: ClientDietMeal;
+  /** Menu and day the meal belongs to, so the recipe screen shows these portions. */
+  menuId?: number;
+  assignedDate?: string;
   expanded: boolean;
   onToggleExpanded: () => void;
   onRecipeIngredientPress?: (
@@ -39,7 +43,7 @@ interface DietMealCardProps {
     ingredient: ClientDietIngredientRow,
   ) => void;
   onStandaloneFoodPress?: (food: ClientDietFoodRow) => void;
-  onRecipePress?: (recipe: ClientDietRecipeCard) => void;
+  onRecipePress?: (recipe: ClientDietRecipeCard, meal: ClientDietMeal) => void;
 }
 
 type DietMealCardStyles = ReturnType<typeof createStyles>;
@@ -403,6 +407,8 @@ const RecipeCard: React.FC<{
 
 const DietMealCardComponent: React.FC<DietMealCardProps> = ({
   meal,
+  menuId,
+  assignedDate,
   expanded,
   onToggleExpanded,
   onRecipeIngredientPress,
@@ -431,16 +437,17 @@ const DietMealCardComponent: React.FC<DietMealCardProps> = ({
 
   const handleRecipePress = (recipe: ClientDietRecipeCard) => {
     if (onRecipePress) {
-      onRecipePress(recipe);
+      onRecipePress(recipe, meal);
       return;
     }
 
-    router.push({
-      pathname: '/recipes/[recipeId]',
-      params: {
-        recipeId: String(recipe.recipeId),
-      },
-    });
+    router.push(
+      buildDietRecipeDetailRoute(recipe.recipeId, {
+        menuId,
+        assignedDate,
+        mealId: meal.id,
+      }),
+    );
   };
 
   const itemLabel = `${meal.totalEntries} ${meal.totalEntries === 1 ? 'elemento' : 'elementos'}`;
