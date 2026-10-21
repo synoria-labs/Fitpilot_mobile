@@ -133,6 +133,33 @@ const parsePositiveNumber = (value: string) => {
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : null;
 };
 
+// El teclado decimal de iOS muestra coma si el formato numérico del teléfono la usa.
+// Antes se borraba: "79,90" llegaba al backend como 7990 kg.
+const sanitizeDecimalInput = (value: string) => {
+  const [integerPart, ...decimalParts] = value
+    .replace(/,/g, '.')
+    .replace(/[^0-9.]/g, '')
+    .split('.');
+
+  if (decimalParts.length === 0) return integerPart;
+  return `${integerPart}.${decimalParts.join('').slice(0, 2)}`;
+};
+
+const getMeasurementsError = (weightKg: string, heightCm: string) => {
+  const weight = parsePositiveNumber(weightKg);
+  const height = parsePositiveNumber(heightCm);
+
+  if (!weight || !height) return 'Ingresa peso y altura válidos.';
+  if (weight < 20 || weight > 400) {
+    return 'Revisa tu peso: escríbelo en kilogramos, entre 20 y 400 (por ejemplo 79.5).';
+  }
+  if (height < 3) return 'Escribe tu altura en centímetros: 175 en lugar de 1.75.';
+  if (height < 100 || height > 250) {
+    return 'Revisa tu altura: escríbela en centímetros, entre 100 y 250.';
+  }
+  return null;
+};
+
 export default function OnboardingScreen() {
   const styles = useThemedStyles(createStyles);
   const { theme } = useAppTheme();
@@ -350,9 +377,7 @@ export default function OnboardingScreen() {
   const canContinue = (() => {
     if (activeStep === 0) return Boolean(selectedGoal);
     if (activeStep === 2) return Boolean(dateOfBirth && genre);
-    if (activeStep === 3) {
-      return Boolean(parsePositiveNumber(weightKg) && parsePositiveNumber(heightCm));
-    }
+    if (activeStep === 3) return getMeasurementsError(weightKg, heightCm) === null;
     return true;
   })();
 
@@ -384,8 +409,9 @@ export default function OnboardingScreen() {
     }
 
     if (activeStep === 3) {
-      if (!parsePositiveNumber(weightKg) || !parsePositiveNumber(heightCm)) {
-        setStepError('Ingresa peso y altura válidos.');
+      const measurementsError = getMeasurementsError(weightKg, heightCm);
+      if (measurementsError) {
+        setStepError(measurementsError);
         triggerShake();
         return false;
       }
@@ -505,6 +531,17 @@ export default function OnboardingScreen() {
   };
 
   const submitOnboarding = async () => {
+    const measurementsError = getMeasurementsError(weightKg, heightCm);
+    if (measurementsError) {
+      // Un draft guardado por una versión anterior puede traer un peso imposible:
+      // volver a Medidas en lugar de mostrar el error crudo del backend.
+      setStepDirection(-1);
+      setActiveStep(3);
+      scrollToTop();
+      setStepError(measurementsError);
+      return;
+    }
+
     const userId = Number(user?.id);
     const parsedWeight = parsePositiveNumber(weightKg);
     const parsedHeight = parsePositiveNumber(heightCm);
@@ -778,11 +815,11 @@ export default function OnboardingScreen() {
                   <TextInput
                     value={weightKg}
                     onChangeText={(value) => {
-                      setWeightKg(value.replace(/[^0-9.]/g, ''));
+                      setWeightKg(sanitizeDecimalInput(value));
                       setStepError(null);
                     }}
                     keyboardType="decimal-pad"
-                    placeholder="0.0"
+                    placeholder="78.5"
                     placeholderTextColor={styles.searchPlaceholder.color}
                     style={styles.textField}
                   />
@@ -792,11 +829,11 @@ export default function OnboardingScreen() {
                   <TextInput
                     value={heightCm}
                     onChangeText={(value) => {
-                      setHeightCm(value.replace(/[^0-9.]/g, ''));
+                      setHeightCm(sanitizeDecimalInput(value));
                       setStepError(null);
                     }}
                     keyboardType="decimal-pad"
-                    placeholder="0"
+                    placeholder="175"
                     placeholderTextColor={styles.searchPlaceholder.color}
                     style={styles.textField}
                   />
