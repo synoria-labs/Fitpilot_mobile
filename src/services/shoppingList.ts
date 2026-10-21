@@ -1,8 +1,9 @@
+import type { ShoppingPurchaseFields } from '../utils/shoppingListPresentation';
 import { nutritionClient } from './api';
 
 export type ShoppingListItemSourceType = 'generated' | 'manual';
 
-export interface ShoppingListItem {
+export interface ShoppingListItem extends ShoppingPurchaseFields {
   id: number;
   source_type: ShoppingListItemSourceType;
   item_key: string | null;
