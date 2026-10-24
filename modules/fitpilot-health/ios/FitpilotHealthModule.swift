@@ -33,9 +33,19 @@ private func isAuthorizationNotDetermined(_ error: Error) -> Bool {
   (error as? HKError)?.code == .errorAuthorizationNotDetermined
 }
 
+/**
+ * El sueño cuenta para el día en que te despiertas: un tramo que empieza desde las 18:00
+ * pertenece al día siguiente. Con fechas locales, sin este desplazamiento una noche se
+ * partiría en dos días a medianoche.
+ */
+private let sleepDayShift: TimeInterval = 6 * 60 * 60
+
 public class FitpilotHealthModule: Module {
   private let healthStore = HKHealthStore()
   private var observerQueries: [HKObserverQuery] = []
+  // Arrancar y parar observadores puede llegar a la vez (desde JS y desde `OnDestroy`); sin
+  // serializar, `observerQueries` se modificaba desde dos hilos al mismo tiempo.
+  private let observerQueue = DispatchQueue(label: "expo.modules.fitpilothealth.observers")
 
   public func definition() -> ModuleDefinition {
     Name("FitpilotHealth")
@@ -178,41 +188,41 @@ public class FitpilotHealthModule: Module {
      * preguntar: iOS avisa en cuanto el reloj o el iPhone escriben una muestra nueva, así
      * que la pantalla se pone al día sola mientras está abierta.
      *
-     * `enableBackgroundDelivery` además hace que iOS despierte la app cuando llegan datos
-     * con la app cerrada; si el runtime de JS alcanza a arrancar, el evento llega igual.
+     * Solo con la app abierta: despertarla en segundo plano requiere el entitlement
+     * `com.apple.developer.healthkit.background-delivery`, que la app no tiene. Al volver a
+     * primer plano la pantalla relee el dispositivo de todas formas.
      */
-    AsyncFunction("startObservingChanges") { () async -> Bool in
+    AsyncFunction("startObservingChanges") { () -> Bool in
       guard HKHealthStore.isHealthDataAvailable() else {
         return false
       }
 
-      await self.stopObserving()
+      return self.observerQueue.sync { () -> Bool in
+        self.stopObservingLocked()
 
-      for type in self.observedSampleTypes() {
-        let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completionHandler, error in
-          // El completionHandler debe invocarse SIEMPRE, también en error: si no, iOS deja
-          // de entregar cambios para ese tipo durante el resto de la sesión.
-          defer { completionHandler() }
-          guard error == nil, let self else {
-            return
+        for type in self.observedSampleTypes() {
+          let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completionHandler, error in
+            // El completionHandler debe invocarse SIEMPRE, también en error: si no, iOS deja
+            // de entregar cambios para ese tipo durante el resto de la sesión.
+            defer { completionHandler() }
+            guard error == nil, let self else {
+              return
+            }
+            self.sendEvent("onHealthDataChanged", ["types": [type.identifier]])
           }
-          self.sendEvent("onHealthDataChanged", ["types": [type.identifier]])
+
+          self.healthStore.execute(query)
+          self.observerQueries.append(query)
         }
 
-        self.healthStore.execute(query)
-        self.observerQueries.append(query)
-
-        // .immediate solo se respeta para tipos de alta frecuencia; para el resto iOS aplica
-        // su propia cadencia. No es un problema: mientras la app está abierta el observer
-        // dispara igualmente.
-        self.healthStore.enableBackgroundDelivery(for: type, frequency: .immediate) { _, _ in }
+        return !self.observerQueries.isEmpty
       }
-
-      return !self.observerQueries.isEmpty
     }
 
-    AsyncFunction("stopObservingChanges") { () async -> Void in
-      await self.stopObserving()
+    AsyncFunction("stopObservingChanges") { () -> Void in
+      self.observerQueue.sync {
+        self.stopObservingLocked()
+      }
     }
 
     // HealthKit no usa el modelo de token de Health Connect: aquí los cambios llegan por
@@ -232,10 +242,9 @@ public class FitpilotHealthModule: Module {
     }
 
     OnDestroy {
-      for query in self.observerQueries {
-        self.healthStore.stop(query)
+      self.observerQueue.sync {
+        self.stopObservingLocked()
       }
-      self.observerQueries = []
     }
 
     AsyncFunction("openSettings") { () -> Void in
@@ -306,17 +315,12 @@ public class FitpilotHealthModule: Module {
     return types
   }
 
-  private func stopObserving() async {
+  /** Solo dentro de `observerQueue`. */
+  private func stopObservingLocked() {
     for query in observerQueries {
       healthStore.stop(query)
     }
     observerQueries = []
-
-    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      healthStore.disableAllBackgroundDelivery { _, _ in
-        continuation.resume()
-      }
-    }
   }
 
   /** Única lista de permisos de lectura: `permissionNames` y `readTypes` salen de aquí. */
@@ -590,9 +594,12 @@ public class FitpilotHealthModule: Module {
         let start = record["start_at"] as? String,
         let startDate = ISO8601DateFormatter.fitpilot.date(from: start)
       else { continue }
-      let date = ISO8601DateFormatter.dateOnly.string(from: startDate)
+      let isSleep = record["type"] as? String == "sleep_session"
+      let date = ISO8601DateFormatter.dateOnly.string(
+        from: isSleep ? startDate.addingTimeInterval(sleepDayShift) : startDate
+      )
       var summary = byDate[date] ?? ["date": date, "sources": ["Apple Health"]]
-      if record["type"] as? String == "sleep_session",
+      if isSleep,
          let end = record["end_at"] as? String,
          let endDate = ISO8601DateFormatter.fitpilot.date(from: end) {
         let minutes = Int(max(0, endDate.timeIntervalSince(startDate) / 60.0))
@@ -632,9 +639,13 @@ private extension ISO8601DateFormatter {
     return formatter
   }()
 
+  // Días en la zona horaria del iPhone. En GMT (el valor por defecto) todo lo que empezaba
+  // después de las 18:00 hora de México caía en el día siguiente, y la tarjeta mostraba
+  // "mañana" como el día más reciente.
   static let dateOnly: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withFullDate]
+    formatter.timeZone = TimeZone.autoupdatingCurrent
     return formatter
   }()
 }
