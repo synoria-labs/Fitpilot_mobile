@@ -89,16 +89,9 @@ class FitpilotHealthModule : Module() {
     HealthPermission.getReadPermission(LeanBodyMassRecord::class),
   )
 
-  // Sin este permiso Health Connect limita cada lectura a los últimos 30 días CONTADOS
-  // DESDE QUE SE CONCEDIÓ, y el sync pide exactamente 30 días: los más antiguos del rango
-  // volvían vacíos. Se usa el literal en vez de la constante de la librería para no atar el
-  // módulo a la versión de connect-client que la introdujo; Health Connect compara strings.
-  //
-  // Es OPCIONAL a propósito: denegarlo recorta el histórico pero no impide sincronizar, y
-  // el lado JS lo excluye de los permisos que disparan el aviso de "permisos incompletos".
-  private val optionalPermissions = setOf(HEALTH_DATA_HISTORY_PERMISSION)
-
-  private val requiredPermissions = corePermissions + optionalPermissions
+  // All callers sync at most the last 30 days. Health Connect already permits
+  // that range without the additional permission for older historical data.
+  private val requiredPermissions = corePermissions
 
   override fun definition() = ModuleDefinition {
     Name("FitpilotHealth")
@@ -1014,7 +1007,6 @@ class FitpilotHealthModule : Module() {
 
     private const val HEALTH_CONNECT_PACKAGE = "com.google.android.apps.healthdata"
     private const val ACTION_HEALTH_CONNECT_SETTINGS = "androidx.health.ACTION_HEALTH_CONNECT_SETTINGS"
-    private const val HEALTH_DATA_HISTORY_PERMISSION = "android.permission.health.READ_HEALTH_DATA_HISTORY"
 
     // Claves del resumen que no son métricas: no cuentan para la cobertura.
     private val SUMMARY_NON_METRIC_KEYS = setOf("date", "sources", "metadata", "flags")
