@@ -11,11 +11,26 @@ export type FitpilotHealthAvailability = {
   message?: string;
 };
 
+/**
+ * Lo que responde HealthKit a "¿haría falta presentar la hoja de permisos?" para los tipos que
+ * pide la app (`getRequestStatusForAuthorization`). Solo iOS.
+ */
+export type FitpilotHealthRequestStatus = 'shouldRequest' | 'unnecessary' | 'unknown';
+
 export type FitpilotHealthPermissionStatus = {
   platform: FitpilotHealthPlatform;
+  /**
+   * En iOS son los tipos ya respondidos, no los concedidos: HealthKit no revela si el usuario
+   * negó una lectura (solo devuelve vacío). `missing` son los que siguen sin resolver.
+   */
   granted: string[];
   missing: string[];
   requiresManualGrant?: boolean;
+  /**
+   * Solo iOS. `shouldRequest` justo después de pedir permiso significa que la hoja no se
+   * aplicó: se presentó en blanco y se cerró sola, o se interrumpió.
+   */
+  requestStatus?: FitpilotHealthRequestStatus;
 };
 
 export type FitpilotHealthRecord = {
