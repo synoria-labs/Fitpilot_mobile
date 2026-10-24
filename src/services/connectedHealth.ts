@@ -1,4 +1,4 @@
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import FitpilotHealth, {
   type FitpilotHealthAvailability,
   type FitpilotHealthSnapshot,
@@ -6,6 +6,10 @@ import FitpilotHealth, {
   type FitpilotHealthSyncPayload,
 } from '../../modules/fitpilot-health';
 import { ConnectedHealthPermissionsError } from '../utils/connectedHealthAuthorization';
+import {
+  ConnectedHealthTimeoutError,
+  withConnectedHealthTimeout,
+} from '../utils/connectedHealthTimeout';
 import { nutritionClient } from './api';
 
 export type ConnectedHealthConnection = {
@@ -126,6 +130,32 @@ let healthConnectChangesToken: string | null = null;
 // HealthKit a la vez cuelga a iOS (no invoca el completion), así que serializamos.
 let permissionRequestInFlight: Promise<FitpilotHealthPermissionStatus> | null = null;
 
+const readAndroidPermissions = () => withConnectedHealthTimeout(
+  FitpilotHealth.getGrantedPermissions(),
+  5_000,
+  'Health Connect no respondió al comprobar los permisos. Intenta de nuevo o elige "Ahora no".',
+);
+
+const requestAndroidPermissions = async (): Promise<FitpilotHealthPermissionStatus> => {
+  const current = await readAndroidPermissions();
+  if (current.missing.length === 0) {
+    return current;
+  }
+
+  try {
+    return await withConnectedHealthTimeout(
+      FitpilotHealth.requestPermissions(),
+      30_000,
+      'Health Connect no confirmó la solicitud de permisos.',
+    );
+  } catch (error) {
+    if (!(error instanceof ConnectedHealthTimeoutError)) throw error;
+    // Android can apply the grants without returning the activity result to Expo.
+    // Re-read the actual status; a timeout alone never means permission was granted.
+    return readAndroidPermissions();
+  }
+};
+
 export const connectedHealthService = {
   isAvailable: (): Promise<FitpilotHealthAvailability> =>
     FitpilotHealth.isAvailable(),
@@ -134,7 +164,10 @@ export const connectedHealthService = {
     // Serializado: si ya hay una solicitud en vuelo, las llamadas concurrentes comparten
     // la misma promesa en lugar de intentar presentar una segunda hoja de HealthKit.
     if (!permissionRequestInFlight) {
-      permissionRequestInFlight = FitpilotHealth.requestPermissions().finally(() => {
+      const request = Platform.OS === 'android'
+        ? requestAndroidPermissions()
+        : FitpilotHealth.requestPermissions();
+      permissionRequestInFlight = request.finally(() => {
         permissionRequestInFlight = null;
       });
     }
@@ -277,7 +310,14 @@ export const connectedHealthService = {
       }
     }
 
-    const payload = await FitpilotHealth.syncRange(buildSyncRange(days));
+    const read = FitpilotHealth.syncRange(buildSyncRange(days));
+    const payload = Platform.OS === 'android'
+      ? await withConnectedHealthTimeout(
+          read,
+          45_000,
+          'Health Connect está tardando demasiado en leer tus datos. Intenta de nuevo o elige "Ahora no".',
+        )
+      : await read;
 
     // Sin un solo permiso concedido el payload son 30 resúmenes vacíos. Subirlo devolvía
     // 200 y la app pintaba "Actualizado ahora" junto a "Sin datos recientes", en bucle y
