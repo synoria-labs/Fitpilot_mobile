@@ -21,8 +21,6 @@ import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
-import androidx.health.connect.client.records.InstantaneousRecord
-import androidx.health.connect.client.records.IntervalRecord
 import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RestingHeartRateRecord
@@ -336,8 +334,20 @@ class FitpilotHealthModule : Module() {
         when (change) {
           is UpsertionChange -> {
             val instant = when (val record = change.record) {
-              is InstantaneousRecord -> record.time
-              is IntervalRecord -> record.startTime
+              // The temporal base interfaces are internal in Health Connect 1.1.0.
+              // Use public record types; keep these aligned with WATCHED_RECORD_TYPES.
+              is ActiveCaloriesBurnedRecord -> record.startTime
+              is TotalCaloriesBurnedRecord -> record.startTime
+              is StepsRecord -> record.startTime
+              is DistanceRecord -> record.startTime
+              is ExerciseSessionRecord -> record.startTime
+              is SleepSessionRecord -> record.startTime
+              is HeartRateRecord -> record.startTime
+              is RestingHeartRateRecord -> record.time
+              is HeartRateVariabilityRmssdRecord -> record.time
+              is BloodGlucoseRecord -> record.time
+              is BloodPressureRecord -> record.time
+              is WeightRecord -> record.time
               else -> null
             }
             instant?.let {
