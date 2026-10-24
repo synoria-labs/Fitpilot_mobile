@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { LinearGradient as ExpoGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.xl,
     padding: spacing.lg,
     overflow: 'hidden',
-    ...shadows.lg,
+    ...(Platform.OS === 'android' ? { elevation: 0 } : shadows.lg),
   },
   containerCompact: {
     marginVertical: spacing.sm,
