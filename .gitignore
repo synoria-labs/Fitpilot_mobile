@@ -17,6 +17,10 @@ web-build/
 *.mobileprovision
 service-account-key*.json
 firebase-adminsdk*.json
+google-services.json
+# Keep the existing Firebase configs in EAS archives, which also read this file.
+!/google-services.json
+!/android/app/google-services.json
 modules/**/android/build/
 modules/**/android/.gradle/
 

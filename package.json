@@ -11,6 +11,11 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build:android:preview": "pnpm dlx eas-cli@19.1.0 build --platform android --profile preview",
+    "build:android:production": "pnpm dlx eas-cli@19.1.0 build --platform android --profile production",
+    "submit:android:production": "pnpm dlx eas-cli@19.1.0 submit --platform android --profile production",
+    "sync:android:firebase": "node scripts/android-google-services.cjs",
+    "eas-build-post-install": "node scripts/android-google-services.cjs",
     "build:android:production:wsl": "wsl -d FitBite-Android -- bash -lc \"fitpilot-android-build production\"",
     "build:android:preview:wsl": "wsl -d FitBite-Android -- bash -lc \"fitpilot-android-build preview\"",
     "setup:android:wsl": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-fitpilot-android-wsl.ps1",
@@ -18,7 +23,7 @@
     "validate:android:host": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-android-host.ps1",
     "lint": "eslint .",
     "typescript": "tsc --noEmit",
-    "test": "vitest run src && node --test scripts/shopping-list.test.cjs",
+    "test": "vitest run src && node --test scripts/shopping-list.test.cjs scripts/android-deploy.test.cjs",
     "check:text-encoding": "node scripts/check-mojibake.mjs"
   },
   "dependencies": {
@@ -51,6 +56,7 @@
     "expo-secure-store": "15.0.8",
     "expo-splash-screen": "31.0.13",
     "expo-status-bar": "3.0.9",
+    "expo-system-ui": "6.0.9",
     "expo-video": "3.0.16",
     "lucide-react-native": "0.577.0",
     "react": "19.1.0",

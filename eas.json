@@ -26,6 +26,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_NUTRITION_API_URL": "https://nutrition-api.fitpilot.fit/v1",
         "EXPO_PUBLIC_TRAINING_API_URL": "https://training-api.fitpilot.fit/api",
@@ -54,7 +57,15 @@
     }
   },
   "submit": {
+    "preview": {
+      "android": {
+        "track": "internal"
+      }
+    },
     "production": {
+      "android": {
+        "track": "production"
+      },
       "ios": {
         "ascAppId": "6761150149"
       }

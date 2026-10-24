@@ -1,4 +1,5 @@
 import { ConfigContext, ExpoConfig } from 'expo/config';
+import { resolveGoogleServicesFile } from './scripts/android-google-services.cjs';
 
 type PublicExtra = {
   nutritionApiUrl?: string;
@@ -37,6 +38,7 @@ const resolveOptionalValue = (
 export default ({ config }: ConfigContext): ExpoConfig => {
   const appEnv = process.env.APP_ENV || 'development';
   const extra = (config.extra ?? {}) as PublicExtra;
+  const googleServicesFile = resolveGoogleServicesFile(process.env, config.android?.googleServicesFile);
   const nutritionApiUrl = resolveRequiredUrl(
     process.env.EXPO_PUBLIC_NUTRITION_API_URL,
     extra.nutritionApiUrl,
@@ -108,7 +110,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: '#3b82f6',
       },
       package: 'com.fitpilot.mobile',
-      googleServicesFile: './google-services.json',
+      googleServicesFile,
+      userInterfaceStyle: 'automatic',
       permissions: ['android.permission.POST_NOTIFICATIONS'],
     },
     web: {
@@ -125,7 +128,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       'expo-secure-store',
       'expo-asset',
       'expo-font',
-      'expo-notifications',
+      'expo-system-ui',
       'expo-document-picker',
       [
         'expo-audio',
