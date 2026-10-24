@@ -28,6 +28,7 @@ import type {
 import { getExchangeGroupVisual } from '../../constants/exchangeGroupVisuals';
 import { getDietPortionDisplayItems } from '../../utils/dietPortions';
 import { buildDietRecipeDetailRoute } from '../../utils/dietRecipeRoute';
+import { buildDietCourseSections } from '../../utils/dietCourseSections';
 import { ExchangeGroupIcon } from './ExchangeGroupIcon';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 
@@ -294,17 +295,39 @@ const IngredientRow: React.FC<{
   return <View style={containerStyle}>{content}</View>;
 };
 
-const SectionHeader: React.FC<{
+const CourseSectionHeader: React.FC<{
   title: string;
+  emoji: string | null;
   count: number;
+  isUnclassified: boolean;
   styles: DietMealCardStyles;
+  theme: AppTheme;
 }> = ({
   title,
+  emoji,
   count,
+  isUnclassified,
   styles,
+  theme,
 }) => (
-  <View style={styles.sectionHeader}>
-    <Text style={styles.sectionTitle}>{title}</Text>
+  <View
+    style={styles.sectionHeader}
+    accessibilityRole="header"
+    accessibilityLabel={`${isUnclassified ? 'Sin clasificar' : title}: ${count} elementos`}
+  >
+    <View style={styles.sectionHeaderContent}>
+      {isUnclassified ? (
+        <Ionicons
+          name="ellipsis-horizontal-circle-outline"
+          size={14}
+          color={theme.colors.textSecondary}
+          style={styles.sectionHeaderEmoji}
+        />
+      ) : emoji ? (
+        <Text style={styles.sectionHeaderEmoji}>{emoji}</Text>
+      ) : null}
+      <Text style={styles.sectionTitle}>{title}</Text>
+    </View>
     <Text style={styles.sectionCount}>{count}</Text>
   </View>
 );
@@ -425,6 +448,11 @@ const DietMealCardComponent: React.FC<DietMealCardProps> = ({
     [meal.recipes],
   );
 
+  const sections = useMemo(
+    () => buildDietCourseSections(meal.recipes, meal.standaloneFoods),
+    [meal.recipes, meal.standaloneFoods],
+  );
+
   useEffect(() => {
     setExpandedRecipeId(null);
   }, [meal.id, recipeKey]);
@@ -489,58 +517,66 @@ const DietMealCardComponent: React.FC<DietMealCardProps> = ({
 
       {expanded ? (
         <View style={styles.content}>
-          {meal.recipes.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              {meal.recipes.length > 1 ? (
-                <SectionHeader title="Recetas" count={meal.recipes.length} styles={styles} />
-              ) : null}
-              <View style={styles.sectionStack}>
-                {meal.recipes.map((recipe) => (
-                  <RecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    onPress={() => handleRecipePress(recipe)}
-                    expanded={expandedRecipeId === recipe.id}
-                    onToggle={() => {
-                      setExpandedRecipeId((currentId) => (
-                        currentId === recipe.id ? null : recipe.id
-                      ));
-                    }}
-                    onIngredientPress={
-                      onRecipeIngredientPress
-                        ? (ingredient) => onRecipeIngredientPress(recipe, ingredient)
-                        : undefined
-                    }
-                    styles={styles}
-                    theme={theme}
-                  />
-                ))}
-              </View>
-            </View>
-          ) : null}
+          {sections.map((section) => {
+            const sectionTitle = section.category?.name
+              ? section.category.name
+              : 'Sin clasificar';
+            const sectionEmoji = section.category?.emoji ?? null;
+            const sectionCount =
+              section.recipes.length + section.standaloneFoods.length;
+            const showHeader = sectionCount > 1 || section.isUnclassified
+              || sections.length > 1;
 
-          {meal.standaloneFoods.length > 0 ? (
-            <View style={styles.sectionBlock}>
-              {meal.recipes.length > 0 || meal.standaloneFoods.length > 1 ? (
-                <SectionHeader
-                  title="Alimentos"
-                  count={meal.standaloneFoods.length}
-                  styles={styles}
-                />
-              ) : null}
-              <View style={styles.sectionStack}>
-                {meal.standaloneFoods.map((food) => (
-                  <IngredientRow
-                    key={food.id}
-                    ingredient={food}
+            return (
+              <View key={section.categoryId ?? 'unclassified'} style={styles.sectionBlock}>
+                {showHeader ? (
+                  <CourseSectionHeader
+                    title={sectionTitle}
+                    emoji={sectionEmoji}
+                    count={sectionCount}
+                    isUnclassified={section.isUnclassified}
                     styles={styles}
                     theme={theme}
-                    onPress={onStandaloneFoodPress ? () => onStandaloneFoodPress(food) : undefined}
                   />
-                ))}
+                ) : null}
+                <View style={styles.sectionStack}>
+                  {section.recipes.map((recipe) => (
+                    <RecipeCard
+                      key={recipe.id}
+                      recipe={recipe}
+                      onPress={() => handleRecipePress(recipe)}
+                      expanded={expandedRecipeId === recipe.id}
+                      onToggle={() => {
+                        setExpandedRecipeId((currentId) => (
+                          currentId === recipe.id ? null : recipe.id
+                        ));
+                      }}
+                      onIngredientPress={
+                        onRecipeIngredientPress
+                          ? (ingredient) => onRecipeIngredientPress(recipe, ingredient)
+                          : undefined
+                      }
+                      styles={styles}
+                      theme={theme}
+                    />
+                  ))}
+                  {section.standaloneFoods.map((food) => (
+                    <IngredientRow
+                      key={food.id}
+                      ingredient={food}
+                      styles={styles}
+                      theme={theme}
+                      onPress={
+                        onStandaloneFoodPress
+                          ? () => onStandaloneFoodPress(food)
+                          : undefined
+                      }
+                    />
+                  ))}
+                </View>
               </View>
-            </View>
-          ) : null}
+            );
+          })}
         </View>
       ) : null}
     </Card>
@@ -625,6 +661,16 @@ function createStyles(theme: AppTheme) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 2,
+    },
+    sectionHeaderContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flexShrink: 1,
+    },
+    sectionHeaderEmoji: {
+      fontSize: 13,
+      lineHeight: 16,
     },
     sectionTitle: {
       color: theme.colors.textSecondary,

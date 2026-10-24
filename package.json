@@ -18,6 +18,7 @@
     "validate:android:host": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-android-host.ps1",
     "lint": "eslint .",
     "typescript": "tsc --noEmit",
+    "test": "vitest run src && node --test scripts/shopping-list.test.cjs",
     "check:text-encoding": "node scripts/check-mojibake.mjs"
   },
   "dependencies": {
@@ -73,7 +74,8 @@
     "eslint": "9.39.4",
     "eslint-config-expo": "10.0.0",
     "react-native-svg-transformer": "1.5.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "1.6.1"
   },
   "private": true
 }

@@ -19,6 +19,10 @@ import type {
   ClientRecipeSummary,
 } from '../types';
 import {
+  normalizeDietCourseCategory,
+  resolveRecipeCourseCategory,
+} from '../utils/dietCourseSections';
+import {
   getLocalWeekDateKeys,
   getStartOfLocalWeekDateKey,
   getTodayDateKey,
@@ -77,6 +81,7 @@ type NutritionRecipeDetailResponse = {
   description?: string | null;
   description_rich?: unknown | null;
   image_url: string | null;
+  video_url?: string | null;
   ingredient_count?: number | string | null;
   ingredients?: NutritionRecipeDetailIngredientResponse[] | null;
 };
@@ -163,6 +168,14 @@ type NutritionMenuItemResponse = {
   recipe_summary?: NutritionRecipeSummaryResponse | null;
   recipe_detail?: NutritionEmbeddedRecipeDetailResponse | null;
   portion_detail?: NutritionPortionResponse | null;
+  course_category_id?: number | null;
+  course_category?: {
+    id?: number | null;
+    code?: string | null;
+    name?: string | null;
+    emoji?: string | null;
+    sort_order?: number | null;
+  } | null;
 };
 
 type NutritionMenuMealResponse = {
@@ -213,7 +226,8 @@ type RecipeGroupAccumulator = {
 };
 
 const DIET_LOOKAHEAD_DAYS = 7;
-const DIET_CALENDAR_CACHE_VERSION = 2;
+// Version 3 preserves client menu portions and invalidates entries without course categories.
+const DIET_CALENDAR_CACHE_VERSION = 3;
 const DIET_CALENDAR_CACHE_PREFIX = 'fitpilot:cache:diet-calendar';
 
 const buildDietCalendarCacheKey = (clientId: number, weekStartDate: string) =>
@@ -604,21 +618,26 @@ const resolveRecipeForItem = (
   mapRecipeSummaryFromDetail(item.recipe_detail) ||
   (item.recipe_id ? recipeSummaryMap.get(item.recipe_id) ?? null : null);
 
-const mapStandaloneFoodRow = (item: NutritionMenuItemResponse): ClientDietFoodRow => ({
-  id: String(item.id),
-  menuItemId: item.id,
-  foodId: item.food_id ?? item.foods?.id ?? null,
-  exchangeGroupId: item.exchange_group_id ?? item.foods?.exchange_group_id ?? null,
-  label:
-    item.foods?.name?.trim() ||
-    item.exchange_groups?.name?.trim() ||
-    'Alimento',
-  exchangeGroupName: item.exchange_groups?.name?.trim() || null,
-  isClientSwap: Boolean(item.is_client_swap),
-  originalFoodId: item.original_food_id ?? null,
-  originalLabel: item.original_food_name?.trim() || null,
-  portion: derivePortionFromMenuItem(item),
-});
+const mapStandaloneFoodRow = (item: NutritionMenuItemResponse): ClientDietFoodRow => {
+  const courseCategory = normalizeDietCourseCategory(item);
+  return {
+    id: String(item.id),
+    menuItemId: item.id,
+    foodId: item.food_id ?? item.foods?.id ?? null,
+    exchangeGroupId: item.exchange_group_id ?? item.foods?.exchange_group_id ?? null,
+    label:
+      item.foods?.name?.trim() ||
+      item.exchange_groups?.name?.trim() ||
+      'Alimento',
+    exchangeGroupName: item.exchange_groups?.name?.trim() || null,
+    isClientSwap: Boolean(item.is_client_swap),
+    originalFoodId: item.original_food_id ?? null,
+    originalLabel: item.original_food_name?.trim() || null,
+    portion: derivePortionFromMenuItem(item),
+    courseCategoryId: courseCategory.courseCategoryId,
+    courseCategory: courseCategory.courseCategory,
+  };
+};
 
 // Each recipe ingredient is its own menu row carrying the client's quantity and
 // any swap already applied by the backend; recipe_food_id links it back to the
@@ -646,6 +665,8 @@ const mapRecipeIngredientRow = (
   originalFoodId: ingredient.original_food_id ?? null,
   originalLabel: ingredient.original_food_name?.trim() || null,
   portion: derivePortionFromRecipeIngredient(ingredient),
+  courseCategoryId: null,
+  courseCategory: null,
 });
 
 const buildRecipeCardFromGroup = (
@@ -657,6 +678,7 @@ const buildRecipeCardFromGroup = (
   // recipe_detail only has the recipe's base quantities, so it is used for the
   // title and image; the ingredients are the menu rows the client actually eats.
   const ingredients = group.items.map(mapRecipeMenuItemRow);
+  const { courseCategoryId, courseCategory } = resolveRecipeCourseCategory(ingredients);
 
   return {
     id: `recipe-${recipeSummary.id}-${group.items[0]?.id ?? recipeSummary.id}`,
@@ -664,6 +686,8 @@ const buildRecipeCardFromGroup = (
     title: recipeSummary.title,
     imageUrl: recipeSummary.imageUrl,
     ingredientCount: ingredients.length,
+    courseCategoryId,
+    courseCategory,
     ingredients,
   };
 };
@@ -758,6 +782,7 @@ const mapDietRecipeDetailResponse = (
     recipeId: recipe.id,
     title: recipe.name?.trim() || 'Receta',
     imageUrl: recipe.image_url ?? null,
+    videoUrl: recipe.video_url ?? null,
     description: recipe.description?.trim() || null,
     descriptionRich: recipe.description_rich ?? null,
     ingredientCount: toNumber(recipe.ingredient_count) ?? ingredients.length,

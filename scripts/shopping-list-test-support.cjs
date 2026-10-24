@@ -1,3 +1,4 @@
+/* global __dirname */
 // Loads the actual TypeScript renderers without launching React Native or making HTTP requests.
 const fs = require("node:fs");
 const path = require("node:path");
