@@ -25,10 +25,12 @@ import {
 } from '../../src/constants/colors';
 import {
   describeMissingConnectedHealthPermissions,
+  getConnectedHealthAuthorizationRecoveryMessage,
   getConnectedHealthAvailabilityCopy,
   getConnectedHealthPermissionLabel,
   getConnectedHealthPermissionState,
   getConnectedHealthPlatformLabel,
+  isConnectedHealthAuthorizationNotApplied,
 } from '../../src/utils/connectedHealthAuthorization';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
 import type {
@@ -147,6 +149,14 @@ export default function ConnectedHealthScreen() {
       const previousGranted = state.permissions?.granted.length ?? 0;
       const permissions = await connectedHealthService.requestPermissions();
       setState((current) => ({ ...current, permissions }));
+
+      if (isConnectedHealthAuthorizationNotApplied(permissions)) {
+        // iOS: la hoja de Salud no se aplicó. Los avisos de abajo hablan de Health Connect o
+        // dan por buena la petición; aquí lo que sirve son los pasos de recuperación, junto
+        // al botón "Abrir ajustes" de esta misma pantalla.
+        setError(getConnectedHealthAuthorizationRecoveryMessage());
+        return;
+      }
 
       if (!permissions.granted.length) {
         // Health Connect deja de presentar el diálogo tras dos rechazos del mismo
@@ -298,7 +308,10 @@ export default function ConnectedHealthScreen() {
                 // Sin `disabled`: cuando Health Connect está desactualizado o desactivado
                 // este botón es la única salida del callejón, y era precisamente cuando se
                 // deshabilitaba.
-                title={availabilityCopy.actionLabel ?? 'Abrir Health Connect'}
+                title={
+                  availabilityCopy.actionLabel ??
+                  (Platform.OS === 'android' ? 'Abrir Health Connect' : 'Abrir ajustes')
+                }
                 onPress={() => {
                   void connectedHealthService.openSettings();
                 }}
