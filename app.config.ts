@@ -76,7 +76,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     owner: 'fitpilot',
     name: 'FitPilot',
     slug: 'fitpilot-mobile',
-    version: '1.0.1',
+    version: '1.2.0',
     orientation: 'portrait',
     icon: './assets/AppIcon.png',
     scheme: 'fitpilot',

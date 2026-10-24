@@ -139,6 +139,7 @@ describe('Android health reading', () => {
       ...payload,
       metadata: expect.objectContaining(payload.metadata),
     }));
+    expect(mocks.post.mock.calls[0][1]).not.toHaveProperty('sharing_enabled');
     expect(vi.getTimerCount()).toBe(0);
   });
 });
