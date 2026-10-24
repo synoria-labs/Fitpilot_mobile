@@ -99,11 +99,13 @@ const buildSyncRange = (days: number) => {
 // al día siguiente y creaba resúmenes fantasma.
 const timezoneOffsetMinutes = () => -new Date().getTimezoneOffset();
 
+// Completa el payload con el desfase horario. Ya no añade `sharing_enabled` (el nombre viene
+// de cuando lo hacía): mandaba `true` en cada sync y el backend lo aplicaba, así que pisaba
+// el "no compartir" del usuario. El consentimiento solo cambia con `setSharing`.
 const withSharingEnabled = (
   payload: FitpilotHealthSyncPayload,
-): FitpilotHealthSyncPayload & { sharing_enabled: boolean } => ({
+): FitpilotHealthSyncPayload => ({
   ...payload,
-  sharing_enabled: true,
   metadata: {
     ...(payload.metadata ?? {}),
     timezone_offset_minutes: timezoneOffsetMinutes(),
