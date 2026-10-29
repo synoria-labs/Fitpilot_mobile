@@ -13,16 +13,7 @@ import Animated, {
 import { Logo } from '../common';
 import { AuroraPill, GradientText } from '../aurora';
 import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
-import type { DashboardProgramSummary, User } from '../../types';
-
-const OBJECTIVE_LABELS: Record<string, string> = {
-  hypertrophy: 'ganar masa muscular',
-  strength: 'fuerza máxima',
-  endurance: 'resistencia',
-  fat_loss: 'perder grasa',
-  general_fitness: 'fitness general',
-  athletic_performance: 'rendimiento atlético',
-};
+import type { User } from '../../types';
 
 const WEEKDAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -61,26 +52,58 @@ const PulseDot = ({ color }: { color: string }) => {
 
 type HomeHeroProps = {
   user: User;
-  program?: DashboardProgramSummary | null;
   sessionName?: string | null;
   sessionIsToday?: boolean;
   streakDays: number;
+  /** Steps so far today, when a health source sends them. */
+  steps?: number | null;
+  readinessScore?: number | null;
+  /** Unread chat messages and who sent the first of them. */
+  messages?: { count: number; from: string | null } | null;
+  onMessagesPress?: () => void;
   onProfilePress?: () => void;
   horizontalPadding: number;
 };
 
-/** Saludo de Inicio sobre la aurora: fecha, nombre con degradado, la sesión del día y la racha. */
+const pad = (value: number) => String(value).padStart(2, '0');
+
+// Re-renders on each minute boundary so the clock and the greeting stay current.
+const useMinuteClock = () => {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const timeout = setTimeout(() => {
+      setNow(new Date());
+      interval = setInterval(() => setNow(new Date()), 60_000);
+    }, 60_000 - (Date.now() % 60_000));
+
+    return () => {
+      clearTimeout(timeout);
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, []);
+
+  return now;
+};
+
+/** Saludo de Inicio sobre la aurora: fecha y hora, nombre con degradado, la sesión del día y chips de estado. */
 export const HomeHero = ({
   user,
-  program,
   sessionName,
   sessionIsToday = false,
   streakDays,
+  steps,
+  readinessScore,
+  messages,
+  onMessagesPress,
   onProfilePress,
   horizontalPadding,
 }: HomeHeroProps) => {
   const aurora = useAurora();
-  const [now] = useState(() => new Date());
+  const now = useMinuteClock();
   const [hasAvatarError, setHasAvatarError] = useState(false);
 
   useEffect(() => {
@@ -95,8 +118,8 @@ export const HomeHero = ({
     .map((part) => part[0])
     .join('')
     .toUpperCase();
-  const objective = program?.objective ? OBJECTIVE_LABELS[program.objective] ?? program.objective : null;
-  const dateLabel = `${WEEKDAYS_SHORT[now.getDay()]} ${now.getDate()} ${MONTHS_SHORT[now.getMonth()]}`;
+  const dateLabel = `${WEEKDAYS_SHORT[now.getDay()]} ${now.getDate()} ${MONTHS_SHORT[now.getMonth()]} · ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const stepsLabel = steps != null ? steps.toLocaleString('es-MX') : null;
   const hasAvatarImage = Boolean(user.profilePictureUrl) && !hasAvatarError;
   const streakLabel = `${streakDays} ${streakDays === 1 ? 'día' : 'días'}`;
 
@@ -110,14 +133,23 @@ export const HomeHero = ({
       '. ',
     );
   }
+  const stepsText = stepsLabel ? (
+    <Text key="steps" style={[auroraFont('bold'), { color: aurora.text }]}>
+      {stepsLabel} pasos
+    </Text>
+  ) : null;
   if (streakDays > 0) {
     sentence.push(
       'Llevas ',
       <Text key="streak" style={[auroraFont('bold'), { color: aurora.text }]}>
         {streakLabel}
       </Text>,
-      ' cumpliendo al menos dos metas.',
+      ' cumpliendo al menos dos metas',
+      ...(stepsText ? [' y vas en ', stepsText] : []),
+      '.',
     );
+  } else if (stepsText) {
+    sentence.push('Vas en ', stepsText, ' hoy.');
   } else if (!sessionName) {
     sentence.push('Cada día que entrenas, caminas o duermes bien suma a tu constancia.');
   }
@@ -181,8 +213,31 @@ export const HomeHero = ({
         {streakDays > 0 ? (
           <AuroraPill tone="amber" variant="glass" size="md" icon="flame-outline" label={`Racha de ${streakLabel}`} />
         ) : null}
-        {objective ? (
-          <AuroraPill tone="blue" variant="glass" size="md" icon="flag-outline" label={`Meta: ${objective}`} />
+        {readinessScore != null ? (
+          <AuroraPill
+            tone="rose"
+            variant="glass"
+            size="md"
+            icon="pulse-outline"
+            label={`Preparación ${Math.round(readinessScore)}`}
+          />
+        ) : null}
+        {messages && messages.count > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir el chat"
+            disabled={!onMessagesPress}
+            onPress={onMessagesPress}
+            style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
+          >
+            <AuroraPill
+              tone="blue"
+              variant="glass"
+              size="md"
+              icon="chatbubble-ellipses-outline"
+              label={`${messages.count} ${messages.count === 1 ? 'mensaje' : 'mensajes'}${messages.from ? ` de ${messages.from}` : ''}`}
+            />
+          </Pressable>
         ) : null}
       </ScrollView>
     </View>

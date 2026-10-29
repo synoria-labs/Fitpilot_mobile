@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, {
-  Circle,
   Defs,
   LinearGradient as SvgLinearGradient,
   Path,
@@ -17,14 +16,13 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { brandColors } from '../../constants/colors';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
-import type { ProgramTimelineCardSessionState } from '../../utils/programTimeline';
+import { useThemedStyles, type AppTheme } from '../../theme';
+import type { ProgramTimelineCardState } from '../../utils/programTimeline';
 
 type WorkoutCardVisualState = 'focused' | 'overdue' | 'in_progress' | 'completed' | 'abandoned';
 
 interface WorkoutCardBackdropProps {
-  cardState: ProgramTimelineCardSessionState;
+  cardState: ProgramTimelineCardState;
   cardWidth: number;
   cardHeight: number;
   shapePath: string;
@@ -41,13 +39,6 @@ interface WorkoutCardPalette {
 }
 
 const AnimatedView = Animated.createAnimatedComponent(View);
-
-const normalizeComparableText = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim();
 
 const withAlpha = (color: string, alpha: number) => {
   const clampedAlpha = Math.max(0, Math.min(1, alpha));
@@ -87,7 +78,11 @@ const withAlpha = (color: string, alpha: number) => {
   return color;
 };
 
-const getVisualState = (cardState: ProgramTimelineCardSessionState): WorkoutCardVisualState => {
+const getVisualState = (cardState: ProgramTimelineCardState): WorkoutCardVisualState => {
+  if (cardState.kind !== 'session') {
+    return 'focused';
+  }
+
   switch (cardState.session.actual_status) {
     case 'completed':
       return 'completed';
@@ -100,52 +95,13 @@ const getVisualState = (cardState: ProgramTimelineCardSessionState): WorkoutCard
   }
 };
 
-const getFocusAccent = (cardState: ProgramTimelineCardSessionState, theme: AppTheme) => {
-  const comparableText = normalizeComparableText(
-    `${cardState.trainingDay.focus ?? ''} ${cardState.trainingDay.name}`,
-  );
+// Sky and indigo glows on navy, as in the proposal. A session's state shows in the card's pill,
+// not as a tint over the whole card.
+const SKY = '#38bdf8';
+const INDIGO = '#6366f1';
 
-  if (!comparableText) {
-    return theme.colors.primary;
-  }
-
-  if (
-    /pierna|gluteo|gluteos|femoral|quad|cuadricep|cuadriceps|lower|leg/.test(comparableText)
-  ) {
-    return '#2563eb';
-  }
-
-  if (
-    /pecho|hombro|tricep|triceps|push|upper push|press/.test(comparableText)
-  ) {
-    return brandColors.sky;
-  }
-
-  if (
-    /espalda|bicep|biceps|pull|row|back|remo/.test(comparableText)
-  ) {
-    return '#14b8a6';
-  }
-
-  if (
-    /core|movilidad|mobility|stability|estabilidad|abdomen/.test(comparableText)
-  ) {
-    return '#34d399';
-  }
-
-  if (
-    /cardio|conditioning|hiit|metcon|aerob/.test(comparableText)
-  ) {
-    return '#f59e0b';
-  }
-
-  return theme.colors.primary;
-};
-
-const getPalette = (
-  visualState: WorkoutCardVisualState,
-  accentColor: string,
-): WorkoutCardPalette => {
+const getPalette = (visualState: WorkoutCardVisualState): WorkoutCardPalette => {
+  const accentColor = SKY;
   // Every state keeps the Aurora navy; the state only tints the far corner and the glows,
   // so an overdue session no longer turns the whole card brown.
   const baseByState: Record<WorkoutCardVisualState, readonly [string, string, string]> = {
@@ -157,11 +113,11 @@ const getPalette = (
   };
 
   const stateAccentByState: Record<WorkoutCardVisualState, string> = {
-    focused: brandColors.sky,
-    overdue: '#f59e0b',
-    in_progress: '#38bdf8',
-    completed: '#22c55e',
-    abandoned: '#fbbf24',
+    focused: INDIGO,
+    overdue: INDIGO,
+    in_progress: INDIGO,
+    completed: '#34d399',
+    abandoned: INDIGO,
   };
 
   const stateAccent = stateAccentByState[visualState];
@@ -183,17 +139,13 @@ export const WorkoutCardBackdrop: React.FC<WorkoutCardBackdropProps> = ({
   cardHeight,
   shapePath,
 }) => {
-  const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [reduceMotionEnabled, setReduceMotionEnabled] = useState(false);
   const drift = useSharedValue(0);
   const driftAlt = useSharedValue(0);
 
   const visualState = getVisualState(cardState);
-  const palette = useMemo(
-    () => getPalette(visualState, getFocusAccent(cardState, theme)),
-    [cardState, theme, visualState],
-  );
+  const palette = useMemo(() => getPalette(visualState), [visualState]);
 
   useEffect(() => {
     let isMounted = true;
@@ -361,28 +313,6 @@ export const WorkoutCardBackdrop: React.FC<WorkoutCardBackdropProps> = ({
           strokeLinejoin="round"
         />
 
-        <Circle
-          cx={cardWidth * 0.76}
-          cy={cardHeight * 0.24}
-          r={3.8}
-          fill={withAlpha(palette.accentColor, 0.2)}
-          stroke={withAlpha('#ffffff', 0.34)}
-          strokeWidth={0.9}
-        />
-        <Circle
-          cx={cardWidth * 0.58}
-          cy={cardHeight * 0.68}
-          r={4.6}
-          fill={withAlpha(palette.stateAccent, 0.16)}
-          stroke={withAlpha('#ffffff', 0.24)}
-          strokeWidth={0.9}
-        />
-        <Circle
-          cx={cardWidth * 0.2}
-          cy={cardHeight * 0.44}
-          r={2.8}
-          fill={withAlpha('#ffffff', 0.18)}
-        />
       </Svg>
 
       <View

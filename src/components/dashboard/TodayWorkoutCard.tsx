@@ -1,866 +1,798 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import Svg, { Path } from 'react-native-svg';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
-import { colors, spacing, fontSize, borderRadius, shadows } from '../../constants/colors';
+import { spacing } from '../../constants/colors';
 import { WorkoutCardSkeleton } from '../common/Skeleton';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
-import { auroraFont } from '../../theme/aurora';
-import type { MuscleVolumeResponse } from '../../types';
+import { auroraFont, useAurora } from '../../theme/aurora';
+import type { MicrocycleMode, MuscleVolumeItem, MuscleVolumeResponse } from '../../types';
 import type { ProgramTimelineCardState } from '../../utils/programTimeline';
+import { getTodayDateKey } from '../../utils/date';
+import type { SharedWeeklyCalendarDay } from '../calendar/SharedWeeklyCalendar';
+import type { AuroraIconName } from '../aurora';
+import { BODY_MAP_MUSCLE_PATHS } from './bodyMap/bodyMapAtlas';
 import { MiniBodyMap, type BodyMapView } from './bodyMap/MiniBodyMap';
+import { CardWeekStrip } from './CardWeekStrip';
 import { WorkoutCardBackdrop } from './WorkoutCardBackdrop';
 
-const BASE_CARD_HEIGHT = 272;
-const CORNER_RADIUS = borderRadius.xl;
+// Notch geometry from the proposal: the estimated time sits in a cut 58 deep and 124 wide,
+// reached by a short diagonal and softened at both bends.
+const NOTCH_DEPTH = 58;
+const NOTCH_RUN = 40;
+const NOTCH_WIDTH = 124;
+const NOTCH_SMOOTHING = 16;
+const NOTCH_CORNER = 22;
+const CORNER = 28;
+const CARD_PADDING = 20;
+const FIGURE_TOP = 72;
+const FIGURE_WIDTH = 80;
+const FIGURE_HEIGHT = 146;
+const INITIAL_HEIGHT = 420;
 
-const getChamferHorizontal = (cardWidth: number) => Math.max(84, Math.min(110, cardWidth * 0.16));
-const getHorizontalSegment = (cardWidth: number) => Math.max(56, Math.min(88, cardWidth * 0.12));
-const CHAMFER_VERTICAL = 45;
-const CHAMFER_RADIUS = 12;
+const r2 = (value: number) => Math.round(value * 100) / 100;
 
-const getCardShapePath = (
-  w: number,
-  h: number,
-  r: number,
-  chamferH: number,
-  chamferV: number,
-  hSegment: number,
-  cr: number,
-) => {
-  const x2 = w - chamferH;
-  const x3 = w - hSegment;
-  const y3 = chamferV;
+const getCardPath = (w: number, h: number) => {
+  const xb = w - NOTCH_WIDTH;
+  const xa = xb - NOTCH_RUN;
+  const length = Math.hypot(NOTCH_RUN, NOTCH_DEPTH);
+  const ux = NOTCH_RUN / length;
+  const uy = NOTCH_DEPTH / length;
+  const k = NOTCH_SMOOTHING;
 
-  const dx = x3 - x2;
-  const dy = y3;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  const ux = dx / len;
-  const uy = dy / len;
-
-  const diagStartX = x2 + cr * ux;
-  const diagStartY = cr * uy;
-  const diagEndX = x3 - cr * ux;
-  const diagEndY = y3 - cr * uy;
-
-  return `
-    M ${r},0
-    L ${x2 - cr},0
-    Q ${x2},0 ${diagStartX},${diagStartY}
-    L ${diagEndX},${diagEndY}
-    Q ${x3},${y3} ${x3 + cr},${y3}
-    L ${w - cr},${y3}
-    Q ${w},${y3} ${w},${y3 + cr}
-    L ${w},${h - r}
-    Q ${w},${h} ${w - r},${h}
-    L ${r},${h}
-    Q 0,${h} 0,${h - r}
-    L 0,${r}
-    Q 0,0 ${r},0
-    Z
-  `;
+  return [
+    `M 0 ${CORNER}`,
+    `A ${CORNER} ${CORNER} 0 0 1 ${CORNER} 0`,
+    `L ${r2(xa - k)} 0`,
+    `Q ${r2(xa)} 0 ${r2(xa + k * ux)} ${r2(k * uy)}`,
+    `L ${r2(xb - k * ux)} ${r2(NOTCH_DEPTH - k * uy)}`,
+    `Q ${r2(xb)} ${NOTCH_DEPTH} ${r2(xb + k)} ${NOTCH_DEPTH}`,
+    `L ${r2(w - NOTCH_CORNER)} ${NOTCH_DEPTH}`,
+    `A ${NOTCH_CORNER} ${NOTCH_CORNER} 0 0 1 ${w} ${NOTCH_DEPTH + NOTCH_CORNER}`,
+    `L ${w} ${r2(h - CORNER)}`,
+    `A ${CORNER} ${CORNER} 0 0 1 ${r2(w - CORNER)} ${h}`,
+    `L ${CORNER} ${h}`,
+    `A ${CORNER} ${CORNER} 0 0 1 0 ${r2(h - CORNER)}`,
+    'Z',
+  ].join(' ');
 };
 
-const getCardShape = (cardWidth: number, cardHeight: number) => {
-  const chamferHorizontal = getChamferHorizontal(cardWidth);
-  const horizontalSegment = getHorizontalSegment(cardWidth);
-
-  return {
-    chamferHorizontal,
-    path: getCardShapePath(
-      cardWidth,
-      cardHeight,
-      CORNER_RADIUS,
-      chamferHorizontal,
-      CHAMFER_VERTICAL,
-      horizontalSegment,
-      CHAMFER_RADIUS,
-    ),
-  };
+const ACTIONS: Record<string, { label: string; icon: AuroraIconName }> = {
+  empezar: { label: 'Empezar sesión', icon: 'play' },
+  continuar: { label: 'Continuar sesión', icon: 'play' },
+  retomar: { label: 'Retomar sesión', icon: 'refresh' },
+  'ver registro': { label: 'Ver registro', icon: 'document-text-outline' },
 };
 
-const CardMask: React.FC<{ cardWidth: number; cardHeight: number; shapePath: string }> = ({
-  cardWidth,
-  cardHeight,
-  shapePath,
-}) => (
-  <Svg width={cardWidth} height={cardHeight}>
-    <Path d={shapePath} fill="black" />
-  </Svg>
-);
+const EMPTY_ICONS: Record<string, AuroraIconName> = {
+  rest: 'leaf-outline',
+  'no-pending': 'checkmark-done-circle-outline',
+  'no-executed': 'time-outline',
+};
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+// Shows the side of the body that carries most of the session's volume.
+const pickBodyView = (muscles: MuscleVolumeItem[]): BodyMapView => {
+  const weight = (view: BodyMapView) =>
+    muscles.reduce(
+      (sum, muscle) => sum + (BODY_MAP_MUSCLE_PATHS[view][muscle.muscle_name] ? muscle.effective_sets : 0),
+      0,
+    );
+  return weight('posterior') > weight('anterior') ? 'posterior' : 'anterior';
+};
+
+const SHORT_WEEKDAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const SHORT_MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+// "dom 4 oct" (or "4 oct"): short enough for the pill to stay clear of the notch.
+const formatShortDate = (dateKey: string | null, withWeekday = true) => {
+  const [year, month, day] = (dateKey ?? '').split('-').map(Number);
+  if (!year || !month || !day) {
+    return '';
+  }
+  const date = new Date(year, month - 1, day);
+  const dayMonth = `${day} ${SHORT_MONTHS[month - 1]}`;
+  return withWeekday ? `${SHORT_WEEKDAYS[date.getDay()]} ${dayMonth}` : dayMonth;
+};
+
+const formatDuration = (totalSets: number) => {
+  const estimatedMinutes = Math.round(totalSets * 3);
+  const hours = Math.floor(estimatedMinutes / 60);
+  const minutes = estimatedMinutes % 60;
+  return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
+};
 
 interface TodayWorkoutCardProps {
   cardState: ProgramTimelineCardState;
   onStartPress: () => void;
   onGoToActionable?: () => void;
   onOpenSessions?: () => void;
+  onOpenSplit?: () => void;
   isLoading?: boolean;
   muscleVolume?: MuscleVolumeResponse | null;
   isMuscleVolumeLoading?: boolean;
+  /** "Sesión 3 de 6 · Microciclo 1". */
+  progressLabel?: string | null;
+  weekDays: SharedWeeklyCalendarDay[];
+  weekLabel?: string | null;
+  canGoToPreviousWeek?: boolean;
+  canGoToNextWeek?: boolean;
+  showWeekButtons?: boolean;
+  onShiftWeek: (direction: -1 | 1) => void;
+  onOpenDatePicker?: () => void;
+  mode: MicrocycleMode;
+  onModeChange: (mode: MicrocycleMode) => void;
   contentWidth?: number;
   horizontalPadding?: number;
-  isTabletPortrait?: boolean;
-  compact?: boolean;
 }
 
-const getEmptyIconName = (
-  reason: 'no-program' | 'rest' | 'no-scheduled' | 'no-pending' | 'no-executed',
-) => {
-  if (reason === 'rest') {
-    return 'leaf-outline';
-  }
-
-  if (reason === 'no-pending') {
-    return 'checkmark-done-circle-outline';
-  }
-
-  if (reason === 'no-executed') {
-    return 'time-outline';
-  }
-
-  return 'calendar-outline';
-};
-
+/**
+ * The day's session as the screen's hero: a navy card with a notch for the estimated time,
+ * the session and its muscles, the start button and the week, all in one place.
+ */
 export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   cardState,
   onStartPress,
   onGoToActionable,
   onOpenSessions,
+  onOpenSplit,
   isLoading,
   muscleVolume,
   isMuscleVolumeLoading = false,
-  contentWidth,
+  progressLabel,
+  weekDays,
+  weekLabel,
+  canGoToPreviousWeek = true,
+  canGoToNextWeek = true,
+  showWeekButtons = false,
+  onShiftWeek,
+  onOpenDatePicker,
+  mode,
+  onModeChange,
+  contentWidth = 390,
   horizontalPadding = spacing.md,
-  isTabletPortrait = false,
-  compact = false,
 }) => {
-  const scale = useSharedValue(1);
-  const [bodyMapView, setBodyMapView] = useState<BodyMapView>('anterior');
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  const availableWidth = Math.max(320, (contentWidth ?? 0) - horizontalPadding * 2);
-  const cardWidth = availableWidth;
-  const cardHeight = isTabletPortrait ? 280 : compact ? 228 : BASE_CARD_HEIGHT;
-  const cardShape = getCardShape(cardWidth, cardHeight);
-  const chamferHorizontal = cardShape.chamferHorizontal;
-  const currentTrainingDayId =
-    cardState.kind === 'session' ? cardState.trainingDay.id : null;
-  const bodyMapLayout = useMemo(() => {
-    if (compact && !isTabletPortrait) {
-      return {
-        panelWidth: cardWidth < 350 ? 88 : 102,
-        panelHeight: cardWidth < 350 ? 130 : 138,
-        canvasWidth: cardWidth < 350 ? 64 : 76,
-        canvasHeight: cardWidth < 350 ? 108 : 120,
-        canvasShellHeight: cardWidth < 350 ? 108 : 120,
-      };
-    }
-
-    if (isTabletPortrait) {
-      return {
-        panelWidth: 116,
-        panelHeight: 166,
-        canvasWidth: 84,
-        canvasHeight: 136,
-        canvasShellHeight: 140,
-      };
-    }
-
-    if (cardWidth < 350) {
-      return {
-        panelWidth: 96,
-        panelHeight: 152,
-        canvasWidth: 70,
-        canvasHeight: 122,
-        canvasShellHeight: 126,
-      };
-    }
-
-    return {
-      panelWidth: 106,
-      panelHeight: 158,
-      canvasWidth: 78,
-      canvasHeight: 128,
-      canvasShellHeight: 132,
-    };
-  }, [cardWidth, compact, isTabletPortrait]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const aurora = useAurora();
+  const cardWidth = Math.max(300, contentWidth - horizontalPadding * 2);
+  const [cardHeight, setCardHeight] = useState(INITIAL_HEIGHT);
+  const trainingDayId = cardState.kind === 'session' ? cardState.trainingDay.id : null;
+  const currentMuscleVolume =
+    cardState.kind === 'session' && muscleVolume?.training_day_id === trainingDayId ? muscleVolume : null;
+  const muscles = useMemo(() => currentMuscleVolume?.muscles ?? [], [currentMuscleVolume]);
+  const [bodyView, setBodyView] = useState<BodyMapView>('anterior');
 
   useEffect(() => {
-    setBodyMapView('anterior');
-  }, [currentTrainingDayId]);
+    setBodyView(pickBodyView(muscles));
+  }, [muscles]);
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.98, { damping: 15, stiffness: 400 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-  };
+  const shapePath = useMemo(() => getCardPath(cardWidth, cardHeight), [cardHeight, cardWidth]);
 
   if (isLoading) {
     return (
-      <View style={[styles.skeletonWrapper, { marginHorizontal: horizontalPadding }]}>
+      <View style={[styles.container, { marginHorizontal: horizontalPadding }]}>
         <WorkoutCardSkeleton />
       </View>
     );
   }
 
-  if (cardState.kind === 'empty') {
-    return (
-      <View style={[styles.emptyContainer, { marginHorizontal: horizontalPadding }]}>
-        <Ionicons name={getEmptyIconName(cardState.reason)} size={48} color={colors.gray[300]} />
-        {cardState.dateLabel ? (
-          <View style={styles.emptyDatePill}>
-            <Text style={styles.emptyDateText}>{cardState.dateLabel}</Text>
-          </View>
-        ) : null}
-        <Text style={styles.emptyTitle}>{cardState.title}</Text>
-        <Text style={styles.emptySubtitle}>{cardState.subtitle}</Text>
-      </View>
-    );
-  }
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const height = Math.round(event.nativeEvent.layout.height);
+    if (height > 0 && height !== cardHeight) {
+      setCardHeight(height);
+    }
+  };
 
-  const { trainingDay, session } = cardState;
-  const totalSets = trainingDay.total_sets;
-  const estimatedMinutes = Math.round(totalSets * 3);
-  const hours = Math.floor(estimatedMinutes / 60);
-  const minutes = estimatedMinutes % 60;
-  const durationText = hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
-  const sessionCaption = `Sesión ${trainingDay.session_index}`;
-  const isOverdueRecommendation = cardState.recommendation === 'overdue';
-  const isLocked = cardState.locked;
-  const durationContainerWidth = compact
-    ? Math.max(70, chamferHorizontal - spacing.md)
-    : Math.max(chamferHorizontal - spacing.xs, 84);
-  const currentMuscleVolume =
-    muscleVolume?.training_day_id === trainingDay.id ? muscleVolume : null;
-  const bodyMapMuscles = currentMuscleVolume?.muscles ?? [];
-  const showNeutralBodyMapLoadingState = isMuscleVolumeLoading && !currentMuscleVolume;
+  const isSession = cardState.kind === 'session';
+  const isToday = cardState.dateKey === getTodayDateKey();
+  const isOverdue = isSession && cardState.recommendation === 'overdue';
+  const shortDate = formatShortDate(cardState.dateKey);
+  const pillLabel = isOverdue
+    ? `Atrasada · ${formatShortDate(cardState.dateKey, false)}`
+    : isToday
+      ? 'Sesión de hoy'
+      : shortDate;
+  // Up to where the notch's diagonal crosses the pill's top edge, less a small gap.
+  const pillMaxWidth =
+    cardWidth - CARD_PADDING * 2 - NOTCH_WIDTH - NOTCH_RUN + NOTCH_RUN * (CARD_PADDING / NOTCH_DEPTH) - 6;
+  const topMuscles = [...muscles].sort((a, b) => b.effective_sets - a.effective_sets).slice(0, 2);
+  const action = isSession ? ACTIONS[cardState.actionLabel] ?? { label: cardState.actionLabel, icon: 'play' } : null;
+  const completion = isSession ? Math.round(cardState.session.completion_percentage) : 0;
+
+  const week = (
+    <View style={styles.weekBlock}>
+      <View style={styles.divider}>
+        <LinearGradient
+          colors={['rgba(255, 255, 255, 0.18)', 'rgba(255, 255, 255, 0.03)']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+      <View style={styles.weekHeader}>
+        <View style={styles.weekTitle}>
+          <Text style={[styles.weekEyebrow, auroraFont('bold')]}>Semana</Text>
+          {weekLabel ? (
+            <Text style={[styles.weekRange, auroraFont('bold')]} numberOfLines={1}>
+              {weekLabel}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.weekActions}>
+          <View accessibilityRole="radiogroup" style={styles.modeSwitch}>
+            {(['planned', 'actual'] as const).map((option) => {
+              const active = mode === option;
+              return (
+                <Pressable
+                  key={option}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={option === 'planned' ? 'Ver la semana planificada' : 'Ver lo que se ejecutó'}
+                  onPress={() => onModeChange(option)}
+                  hitSlop={6}
+                  style={[styles.modeOption, active ? styles.modeOptionActive : null]}
+                >
+                  <Text style={[styles.modeText, auroraFont('bold'), { color: active ? '#ffffff' : '#8ea3c2' }]}>
+                    {option === 'planned' ? 'Plan' : 'Real'}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {showWeekButtons ? (
+            <>
+              <GlassIconButton
+                icon="chevron-back"
+                label="Semana anterior"
+                disabled={!canGoToPreviousWeek}
+                onPress={() => onShiftWeek(-1)}
+              />
+              <GlassIconButton
+                icon="chevron-forward"
+                label="Semana siguiente"
+                disabled={!canGoToNextWeek}
+                onPress={() => onShiftWeek(1)}
+              />
+            </>
+          ) : null}
+          {onOpenDatePicker ? (
+            <GlassIconButton icon="calendar-clear-outline" label="Ir a fecha" onPress={onOpenDatePicker} />
+          ) : null}
+        </View>
+      </View>
+      <CardWeekStrip
+        days={weekDays}
+        canGoToPreviousWeek={canGoToPreviousWeek}
+        canGoToNextWeek={canGoToNextWeek}
+        onShiftWeek={onShiftWeek}
+      />
+    </View>
+  );
 
   return (
-    <AnimatedPressable
-      style={[
-        styles.container,
-        compact ? styles.containerCompact : null,
-        { marginHorizontal: horizontalPadding },
-        animatedStyle,
-      ]}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onStartPress}
-    >
-      <MaskedView
-        style={[styles.cardContainer, { width: cardWidth, height: cardHeight }]}
-        maskElement={
-          <CardMask
-            cardWidth={cardWidth}
-            cardHeight={cardHeight}
-            shapePath={cardShape.path}
-          />
-        }
-      >
-        <View style={[styles.cardSurface, { width: cardWidth, height: cardHeight }]}>
+    <View style={[styles.container, { marginHorizontal: horizontalPadding }]}>
+      <View style={[styles.card, { width: cardWidth }]} onLayout={handleLayout}>
+        <MaskedView
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
+          maskElement={
+            <Svg width={cardWidth} height={cardHeight}>
+              <Path d={shapePath} fill="black" />
+            </Svg>
+          }
+        >
           <WorkoutCardBackdrop
             cardState={cardState}
             cardWidth={cardWidth}
             cardHeight={cardHeight}
-            shapePath={cardShape.path}
+            shapePath={shapePath}
           />
-          <View style={[styles.content, compact ? styles.contentCompact : null]}>
-            <View style={styles.heroTopContent}>
-              <View style={[styles.headerMeta, compact ? styles.headerMetaCompact : null]}>
-                <View style={styles.dayBadge}>
-                  <BlurView
-                    intensity={50}
-                    tint={theme.colors.blurTint}
-                    style={[styles.dayBadgeBlur, compact ? styles.dayBadgeBlurCompact : null]}
-                  >
-                    <Text style={styles.dayBadgeText}>{cardState.dateLabel}</Text>
-                  </BlurView>
-                </View>
-              </View>
+        </MaskedView>
 
-              <View style={[styles.heroBody, compact ? styles.heroBodyCompact : null]}>
-                <View style={[styles.titleArea, compact ? styles.titleAreaCompact : null]}>
-                  {isOverdueRecommendation ? (
-                    <View style={[styles.overduePill, compact ? styles.metaPillCompact : null]}>
-                      <Text style={styles.overduePillText}>Entrenamiento atrasado</Text>
-                    </View>
-                  ) : null}
-                  <View style={[styles.sessionPill, compact ? styles.metaPillCompact : null]}>
-                    <Text style={styles.sessionPillText}>{sessionCaption}</Text>
-                  </View>
-                  <Text style={[styles.title, compact ? styles.titleCompact : null]} numberOfLines={compact ? 1 : undefined}>
-                    {trainingDay.name}
-                  </Text>
-                  {trainingDay.focus ? (
-                    <Text style={styles.focusText} numberOfLines={compact ? 1 : undefined}>
-                      {trainingDay.focus}
-                    </Text>
-                  ) : null}
-                  {isLocked ? (
-                    <Text style={styles.recommendationText} numberOfLines={compact ? 2 : undefined}>
-                      Completa primero tu entrenamiento del {cardState.actionableDateLabel}.
-                    </Text>
-                  ) : isOverdueRecommendation ? (
-                    <Text style={styles.recommendationText} numberOfLines={compact ? 1 : undefined}>
-                      Completa esta sesión primero.
-                    </Text>
-                  ) : null}
-                  <Text style={styles.complianceText}>
-                    Avance: {Math.round(session.completion_percentage)}%
+        {isSession ? (
+          <>
+            <View style={[styles.sessionColumn, { marginRight: FIGURE_WIDTH + 8, minHeight: FIGURE_TOP + FIGURE_HEIGHT - CARD_PADDING }]}>
+              <View style={[styles.pill, { maxWidth: pillMaxWidth }, isOverdue ? styles.pillOverdue : null]}>
+                <View style={[styles.pillDot, isOverdue ? styles.pillDotOverdue : null]} />
+                <Text
+                  style={[styles.pillText, auroraFont('bold'), isOverdue ? styles.pillTextOverdue : null]}
+                  numberOfLines={1}
+                >
+                  {pillLabel}
+                </Text>
+              </View>
+              <Text style={[styles.title, auroraFont('extrabold')]} numberOfLines={2}>
+                {cardState.trainingDay.name}
+              </Text>
+              {progressLabel ? (
+                <Text style={[styles.subtitle, auroraFont('medium')]} numberOfLines={1}>
+                  {progressLabel}
+                </Text>
+              ) : null}
+              {cardState.locked ? (
+                <Text style={[styles.notice, auroraFont('semibold')]} numberOfLines={2}>
+                  Completa primero tu entrenamiento del {cardState.actionableDateLabel}.
+                </Text>
+              ) : isOverdue ? (
+                <Text style={[styles.notice, auroraFont('semibold')]} numberOfLines={1}>
+                  Completa esta sesión primero.
+                </Text>
+              ) : null}
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="barbell-outline" size={14} color="#7dd3fc" />
+                  <Text style={[styles.metaText, auroraFont('semibold')]}>
+                    {cardState.trainingDay.exercise_count} ejercicios
                   </Text>
                 </View>
-
-                <View
-                  style={[
-                    styles.bodyMapPanel,
-                    compact ? styles.bodyMapPanelCompact : null,
-                    {
-                      width: bodyMapLayout.panelWidth,
-                      height: bodyMapLayout.panelHeight,
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.bodyMapCanvasShell,
-                      compact ? styles.bodyMapCanvasShellCompact : null,
-                      { height: bodyMapLayout.canvasShellHeight },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.bodyMapCanvas,
-                        showNeutralBodyMapLoadingState ? styles.bodyMapCanvasLoading : null,
-                      ]}
-                    >
-                      <View style={[styles.bodyMapFigure, compact ? styles.bodyMapFigureCompact : null]}>
-                        <MiniBodyMap
-                          muscles={bodyMapMuscles}
-                          view={bodyMapView}
-                          width={bodyMapLayout.canvasWidth}
-                          height={bodyMapLayout.canvasHeight}
-                        />
-                      </View>
-                    </View>
-                  </View>
-
-                  <View style={[styles.bodyMapToggle, compact ? styles.bodyMapToggleCompact : null]}>
-                    <TouchableOpacity
-                      activeOpacity={0.86}
-                      onPress={() => setBodyMapView('anterior')}
-                      style={[
-                        styles.bodyMapToggleButton,
-                        compact ? styles.bodyMapToggleButtonCompact : null,
-                        bodyMapView === 'anterior' ? styles.bodyMapToggleButtonActive : null,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.bodyMapToggleButtonText,
-                          bodyMapView === 'anterior' ? styles.bodyMapToggleButtonTextActive : null,
-                        ]}
-                      >
-                        Ant
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      activeOpacity={0.86}
-                      onPress={() => setBodyMapView('posterior')}
-                      style={[
-                        styles.bodyMapToggleButton,
-                        compact ? styles.bodyMapToggleButtonCompact : null,
-                        bodyMapView === 'posterior' ? styles.bodyMapToggleButtonActive : null,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.bodyMapToggleButtonText,
-                          bodyMapView === 'posterior' ? styles.bodyMapToggleButtonTextActive : null,
-                        ]}
-                      >
-                        Post
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                <View style={styles.metaItem}>
+                  <Ionicons name="list-outline" size={14} color="#7dd3fc" />
+                  <Text style={[styles.metaText, auroraFont('semibold')]}>
+                    {cardState.trainingDay.total_sets} series
+                  </Text>
                 </View>
+                {completion > 0 && completion < 100 ? (
+                  <View style={styles.metaItem}>
+                    <Ionicons name="pie-chart-outline" size={14} color="#7dd3fc" />
+                    <Text style={[styles.metaText, auroraFont('semibold')]}>{completion}% hecho</Text>
+                  </View>
+                ) : null}
+              </View>
+              {topMuscles.length ? (
+                <View style={styles.muscleRow}>
+                  {topMuscles.map((muscle) => (
+                    <View key={muscle.muscle_name} style={styles.musclePill}>
+                      <LinearGradient
+                        colors={['#7dd3fc', '#818cf8']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.muscleDot}
+                      />
+                      <Text style={[styles.muscleText, auroraFont('bold')]} numberOfLines={1}>
+                        {muscle.display_name}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={bodyView === 'anterior' ? 'Ver los músculos de la espalda' : 'Ver los músculos del frente'}
+              onPress={() => setBodyView((view) => (view === 'anterior' ? 'posterior' : 'anterior'))}
+              style={[styles.figure, isMuscleVolumeLoading && !currentMuscleVolume ? styles.figureLoading : null]}
+            >
+              <MiniBodyMap muscles={muscles} view={bodyView} width={FIGURE_WIDTH} height={FIGURE_HEIGHT - 18} />
+              <Text style={[styles.figureCaption, auroraFont('bold')]}>
+                {bodyView === 'anterior' ? 'Frente' : 'Espalda'}
+                <Text style={styles.figureCaptionMuted}> ⇄</Text>
+              </Text>
+            </Pressable>
+
+            <View style={styles.actions}>
+              {cardState.locked && onGoToActionable ? (
+                <PrimaryButton label="Ir al pendiente" icon="navigate" onPress={onGoToActionable} />
+              ) : action ? (
+                <PrimaryButton label={action.label} icon={action.icon} onPress={onStartPress} />
+              ) : null}
+              {onOpenSplit ? <GlassButton label="Split" icon="grid-outline" onPress={onOpenSplit} /> : null}
+              {cardState.hasMultipleSessions && onOpenSessions ? (
+                <GlassIconButton icon="layers-outline" label="Ver las sesiones del día" onPress={onOpenSessions} large />
+              ) : null}
+            </View>
+          </>
+        ) : (
+          <View style={styles.emptyBlock}>
+            {cardState.dateKey ? (
+              <View style={[styles.pill, { maxWidth: pillMaxWidth }]}>
+                <View style={styles.pillDot} />
+                <Text style={[styles.pillText, auroraFont('bold')]} numberOfLines={1}>
+                  {isToday ? 'Hoy' : shortDate}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.emptyRow}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name={EMPTY_ICONS[cardState.reason] ?? 'calendar-outline'} size={22} color="#7dd3fc" />
+              </View>
+              <View style={styles.emptyCopy}>
+                <Text style={[styles.emptyTitle, auroraFont('extrabold')]}>{cardState.title}</Text>
+                <Text style={[styles.subtitle, auroraFont('medium')]}>{cardState.subtitle}</Text>
               </View>
             </View>
-
-            <View style={[styles.actionsRow, compact ? styles.actionsRowCompact : null]}>
-              <TouchableOpacity
-                style={[styles.startButton, isLocked ? styles.startButtonLocked : null]}
-                onPress={onStartPress}
-                activeOpacity={0.9}
-              >
-                <BlurView
-                  intensity={80}
-                  tint={theme.colors.blurTint}
-                  style={[styles.startButtonBlur, compact ? styles.startButtonBlurCompact : null]}
-                >
-                  <Text style={styles.startButtonText}>{cardState.actionLabel}</Text>
-                  <View style={[styles.arrowCircle, compact ? styles.arrowCircleCompact : null]}>
-                    <Ionicons
-                      name={isLocked ? 'lock-closed' : 'arrow-forward'}
-                      size={compact ? 16 : 18}
-                      color={theme.colors.primary}
-                    />
-                  </View>
-                </BlurView>
-              </TouchableOpacity>
-
-              {isLocked && onGoToActionable ? (
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={onGoToActionable}
-                  activeOpacity={0.86}
-                >
-                  <BlurView intensity={50} tint={theme.colors.blurTint} style={styles.secondaryButtonBlur}>
-                    <Ionicons name="navigate-outline" size={16} color={colors.white} />
-                    <Text style={styles.secondaryButtonText}>Ir al pendiente</Text>
-                  </BlurView>
-                </TouchableOpacity>
-              ) : null}
-
-              {cardState.hasMultipleSessions ? (
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={onOpenSessions}
-                  activeOpacity={0.86}
-                >
-                  <BlurView intensity={50} tint={theme.colors.blurTint} style={styles.secondaryButtonBlur}>
-                    <Ionicons name="layers-outline" size={16} color={colors.white} />
-                    <Text style={styles.secondaryButtonText}>ver sesiones</Text>
-                  </BlurView>
-                </TouchableOpacity>
-              ) : null}
-            </View>
+            {onOpenSplit ? (
+              <View style={styles.actions}>
+                <GlassButton label="Ver split" icon="grid-outline" onPress={onOpenSplit} />
+              </View>
+            ) : null}
           </View>
-        </View>
-      </MaskedView>
+        )}
 
-      <View
-        pointerEvents="none"
-        style={[
-          styles.durationContainer,
-          compact ? styles.durationContainerCompact : null,
-          {
-            width: durationContainerWidth,
-          },
-        ]}
-      >
-        <Text
-          style={[styles.durationLabel, compact ? styles.durationLabelCompact : null]}
-          numberOfLines={1}
-        >
-          Duración
-        </Text>
-        <Text
-          style={[styles.durationValue, compact ? styles.durationValueCompact : null]}
-          numberOfLines={1}
-        >
-          {durationText}
-        </Text>
+        {weekDays.length ? week : null}
       </View>
-    </AnimatedPressable>
+
+      {isSession ? (
+        <View pointerEvents="none" style={styles.notchLabel}>
+          <View style={styles.notchEyebrow}>
+            <Ionicons name="timer-outline" size={12} color={aurora.faint} />
+            <Text style={[styles.notchEyebrowText, auroraFont('extrabold'), { color: aurora.faint }]}>
+              Tiempo estimado
+            </Text>
+          </View>
+          <Text style={[styles.notchValue, auroraFont('extrabold'), { color: aurora.text }]}>
+            {formatDuration(cardState.trainingDay.total_sets)}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    container: {
-      marginVertical: spacing.md,
-      position: 'relative',
-    },
-    containerCompact: {
-      marginVertical: spacing.sm,
-    },
-    skeletonWrapper: {
-      marginVertical: spacing.md,
-    },
-    durationContainer: {
-      position: 'absolute',
-      top: spacing.xs,
-      right: spacing.sm,
-      zIndex: 20,
-      alignItems: 'flex-end',
-    },
-    durationContainerCompact: {
-      top: 3,
-      right: 2,
-    },
-    durationLabel: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      ...auroraFont('semibold'),
-      textAlign: 'right',
-    },
-    durationLabelCompact: {
-      fontSize: 11,
-      lineHeight: 13,
-    },
-    durationValue: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textSecondary,
-      ...auroraFont('bold'),
-      marginTop: 2,
-      textAlign: 'right',
-    },
-    durationValueCompact: {
-      fontSize: 12,
-      lineHeight: 15,
-      marginTop: 0,
-    },
-    cardContainer: {
-      overflow: 'hidden',
-      borderRadius: CORNER_RADIUS,
-      ...shadows.lg,
-    },
-    cardSurface: {
-      flex: 1,
-    },
-    content: {
-      flex: 1,
-      padding: spacing.lg,
-      paddingTop: spacing.lg,
-      paddingBottom: 36,
-      justifyContent: 'flex-start',
-    },
-    contentCompact: {
-      padding: spacing.md,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.md,
-    },
-    headerMeta: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      minHeight: 28,
-    },
-    headerMetaCompact: {
-      minHeight: 24,
-    },
-    heroTopContent: {
-      minWidth: 0,
-    },
-    dayBadge: {
-      alignSelf: 'flex-start',
-      borderRadius: borderRadius.full,
-      overflow: 'hidden',
-    },
-    dayBadgeBlur: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 5,
-    },
-    dayBadgeBlurCompact: {
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 4,
-    },
-    dayBadgeText: {
-      fontSize: fontSize.xs,
-      ...auroraFont('semibold'),
-      color: colors.white,
-    },
-    titleArea: {
-      flex: 1,
-      minWidth: 0,
-      marginTop: 4,
-    },
-    titleAreaCompact: {
-      marginTop: 0,
-    },
-    heroBody: {
-      width: '100%',
-      marginTop: spacing.xs,
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-    },
-    heroBodyCompact: {
-      marginTop: 2,
-      gap: spacing.xs,
-    },
-    bodyMapPanel: {
-      marginLeft: 'auto',
-      flexShrink: 0,
-      paddingTop: spacing.xs,
-      paddingHorizontal: spacing.xs,
-      paddingBottom: spacing.xs,
-      marginTop: 2,
-      borderRadius: borderRadius.lg,
-      backgroundColor: 'rgba(7, 18, 30, 0.42)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.16)',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.16,
-      shadowRadius: 12,
-      elevation: 4,
-    },
-    bodyMapPanelCompact: {
-      paddingTop: 5,
-      paddingHorizontal: 4,
-      paddingBottom: 5,
-      borderRadius: borderRadius.md,
-    },
-    bodyMapCanvasShell: {
-      width: '100%',
-      paddingTop: 6,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-      borderRadius: borderRadius.md,
-    },
-    bodyMapCanvasShellCompact: {
-      paddingTop: 0,
-    },
-    bodyMapCanvas: {
-      flex: 1,
-      width: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    bodyMapCanvasLoading: {
-      opacity: 0.76,
-    },
-    bodyMapFigure: {
-      transform: [{ translateY: 6 }],
-    },
-    bodyMapFigureCompact: {
-      transform: [{ translateY: 0 }],
-    },
-    bodyMapToggle: {
-      flexDirection: 'row',
-      marginTop: spacing.xs,
-      padding: 3,
-      borderRadius: borderRadius.full,
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.1)',
-    },
-    bodyMapToggleCompact: {
-      marginTop: 4,
-      padding: 2,
-    },
-    bodyMapToggleButton: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 6,
-      borderRadius: borderRadius.full,
-    },
-    bodyMapToggleButtonCompact: {
-      paddingVertical: 5,
-    },
-    bodyMapToggleButtonActive: {
-      backgroundColor: 'rgba(255,255,255,0.16)',
-    },
-    bodyMapToggleButtonText: {
-      fontSize: fontSize.xs,
-      ...auroraFont('bold'),
-      color: 'rgba(255,255,255,0.7)',
-      letterSpacing: 0.3,
-      textTransform: 'uppercase',
-    },
-    bodyMapToggleButtonTextActive: {
-      color: colors.white,
-    },
-    sessionPill: {
-      alignSelf: 'flex-start',
-      marginBottom: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 6,
-      borderRadius: borderRadius.full,
-      backgroundColor: 'rgba(255,255,255,0.18)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.24)',
-    },
-    metaPillCompact: {
-      marginBottom: 4,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: 4,
-    },
-    sessionPillText: {
-      fontSize: fontSize.xs,
-      ...auroraFont('bold'),
-      color: colors.white,
-      letterSpacing: 0.3,
-    },
-    overduePill: {
-      alignSelf: 'flex-start',
-      marginBottom: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 6,
-      borderRadius: borderRadius.full,
-      backgroundColor: 'rgba(245, 158, 11, 0.18)',
-      borderWidth: 1,
-      borderColor: 'rgba(245, 158, 11, 0.4)',
-    },
-    overduePillText: {
-      fontSize: fontSize.xs,
-      ...auroraFont('bold'),
-      color: colors.white,
-      letterSpacing: 0.3,
-    },
-    title: {
-      fontSize: fontSize['2xl'],
-      ...auroraFont('extrabold'),
-      color: colors.white,
-      lineHeight: 32,
-      textShadowColor: 'rgba(0, 0, 0, 0.5)',
-      textShadowOffset: { width: 1, height: 1 },
-      textShadowRadius: 3,
-    },
-    titleCompact: {
-      fontSize: fontSize.xl,
-      lineHeight: 26,
-    },
-    focusText: {
-      ...auroraFont('medium'),
-      fontSize: fontSize.sm,
-      color: 'rgba(255,255,255,0.8)',
-      marginTop: spacing.xs,
-    },
-    recommendationText: {
-      marginTop: 2,
-      fontSize: 13,
-      ...auroraFont('semibold'),
-      color: 'rgba(255,255,255,0.92)',
-      lineHeight: 17,
-    },
-    complianceText: {
-      marginTop: 2,
-      fontSize: 13,
-      ...auroraFont('semibold'),
-      color: 'rgba(255,255,255,0.9)',
-      lineHeight: 17,
-    },
-    actionsRow: {
-      marginTop: 'auto',
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.lg,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      flexWrap: 'wrap',
-    },
-    actionsRowCompact: {
-      paddingTop: spacing.xs,
-      paddingBottom: 0,
-      gap: spacing.xs,
-    },
-    startButton: {
-      alignSelf: 'flex-start',
-      borderRadius: borderRadius.full,
-      overflow: 'hidden',
-    },
-    startButtonLocked: {
-      opacity: 0.55,
-    },
-    startButtonBlur: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingLeft: spacing.lg,
-      paddingRight: 6,
-      paddingVertical: 6,
-      backgroundColor: theme.isDark ? 'rgba(8,17,31,0.84)' : 'rgba(255,255,255,0.9)',
-    },
-    startButtonBlurCompact: {
-      paddingLeft: spacing.md,
-      paddingVertical: 5,
-    },
-    startButtonText: {
-      fontSize: fontSize.sm,
-      ...auroraFont('bold'),
-      color: theme.colors.textPrimary,
-      marginRight: spacing.sm,
-      textTransform: 'lowercase',
-    },
-    arrowCircle: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: theme.colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    arrowCircleCompact: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-    },
-    secondaryButton: {
-      alignSelf: 'flex-start',
-      borderRadius: borderRadius.full,
-      overflow: 'hidden',
-    },
-    secondaryButtonBlur: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      backgroundColor: 'rgba(255,255,255,0.16)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.18)',
-    },
-    secondaryButtonText: {
-      fontSize: fontSize.sm,
-      ...auroraFont('bold'),
-      color: colors.white,
-      textTransform: 'lowercase',
-    },
-    emptyContainer: {
-      marginVertical: spacing.md,
-      padding: spacing.xl,
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: borderRadius.xl,
-      alignItems: 'center',
-      ...shadows.sm,
-    },
-    emptyDatePill: {
-      marginTop: spacing.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    emptyDateText: {
-      fontSize: fontSize.xs,
-      ...auroraFont('bold'),
-      color: theme.colors.textSecondary,
-    },
-    emptyTitle: {
-      fontSize: fontSize.lg,
-      ...auroraFont('bold'),
-      color: theme.colors.textPrimary,
-      marginTop: spacing.md,
-    },
-    emptySubtitle: {
-      ...auroraFont('medium'),
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      marginTop: spacing.xs,
-    },
-  });
+const PrimaryButton = ({ label, icon, onPress }: { label: string; icon: AuroraIconName; onPress: () => void }) => (
+  <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    onPress={onPress}
+    style={({ pressed }) => [styles.primaryPress, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+  >
+    <LinearGradient
+      colors={['#ffffff', '#d6e9ff']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.primaryButton}
+    >
+      <Ionicons name={icon} size={16} color="#0b1630" />
+      <Text style={[styles.primaryText, auroraFont('extrabold')]} numberOfLines={1}>
+        {label}
+      </Text>
+    </LinearGradient>
+  </Pressable>
+);
 
-export default TodayWorkoutCard;
+const GlassButton = ({ label, icon, onPress }: { label: string; icon: AuroraIconName; onPress: () => void }) => (
+  <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    onPress={onPress}
+    style={({ pressed }) => [styles.glassButton, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+  >
+    <Ionicons name={icon} size={16} color="#eef3fb" />
+    <Text style={[styles.glassText, auroraFont('bold')]}>{label}</Text>
+  </Pressable>
+);
+
+const GlassIconButton = ({
+  icon,
+  label,
+  onPress,
+  disabled = false,
+  large = false,
+}: {
+  icon: AuroraIconName;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  large?: boolean;
+}) => (
+  <Pressable
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{ disabled }}
+    disabled={disabled}
+    hitSlop={large ? 0 : 6}
+    onPress={onPress}
+    style={({ pressed }) => [
+      large ? styles.glassIconLarge : styles.glassIcon,
+      disabled ? styles.glassIconDisabled : null,
+      { transform: [{ scale: pressed ? 0.94 : 1 }] },
+    ]}
+  >
+    <Ionicons name={icon} size={large ? 18 : 15} color="#eef3fb" />
+  </Pressable>
+);
+
+const styles = StyleSheet.create({
+  container: {
+    marginTop: 20,
+    marginBottom: 4,
+    position: 'relative',
+  },
+  card: {
+    padding: CARD_PADDING,
+  },
+  sessionColumn: {
+    alignItems: 'flex-start',
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 8,
+    height: 28,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  pillOverdue: {
+    backgroundColor: 'rgba(251, 191, 36, 0.12)',
+    borderColor: 'rgba(251, 191, 36, 0.36)',
+  },
+  pillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#7dd3fc',
+    boxShadow: '0px 0px 10px #7dd3fc',
+  },
+  pillDotOverdue: {
+    backgroundColor: '#fbbf24',
+    boxShadow: '0px 0px 10px #fbbf24',
+  },
+  pillText: {
+    flexShrink: 1,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    color: '#cfe3ff',
+  },
+  pillTextOverdue: {
+    color: '#fde68a',
+  },
+  title: {
+    marginTop: 14,
+    fontSize: 28,
+    lineHeight: 31,
+    letterSpacing: -0.5,
+    color: '#eef3fb',
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 19,
+    color: '#a9bbd6',
+  },
+  notice: {
+    marginTop: 6,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#fde68a',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 6,
+    columnGap: 12,
+    marginTop: 14,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaText: {
+    fontSize: 13,
+    color: '#dbe7f7',
+  },
+  muscleRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 14,
+  },
+  musclePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 28,
+    maxWidth: 150,
+    paddingHorizontal: 11,
+    borderRadius: 999,
+    backgroundColor: 'rgba(125, 211, 252, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(125, 211, 252, 0.28)',
+  },
+  muscleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  muscleText: {
+    flexShrink: 1,
+    fontSize: 12,
+    color: '#dbeafe',
+  },
+  figure: {
+    position: 'absolute',
+    top: FIGURE_TOP,
+    right: 16,
+    width: FIGURE_WIDTH,
+    height: FIGURE_HEIGHT,
+    alignItems: 'center',
+  },
+  figureLoading: {
+    opacity: 0.6,
+  },
+  figureCaption: {
+    marginTop: 2,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: '#a9bbd6',
+  },
+  figureCaptionMuted: {
+    color: '#5f7596',
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 22,
+  },
+  primaryPress: {
+    flex: 1,
+  },
+  primaryButton: {
+    height: 50,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    boxShadow: '0px 14px 30px -12px rgba(125, 211, 252, 0.75)',
+  },
+  primaryText: {
+    fontSize: 15,
+    color: '#0b1630',
+  },
+  glassButton: {
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  glassText: {
+    fontSize: 14,
+    color: '#eef3fb',
+  },
+  glassIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  glassIconLarge: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  glassIconDisabled: {
+    opacity: 0.4,
+  },
+  weekBlock: {
+    marginTop: 20,
+  },
+  divider: {
+    height: 1,
+    overflow: 'hidden',
+  },
+  weekHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  weekTitle: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  weekEyebrow: {
+    fontSize: 10,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: '#8ea3c2',
+  },
+  weekRange: {
+    flexShrink: 1,
+    fontSize: 12,
+    color: '#dbe7f7',
+  },
+  weekActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modeSwitch: {
+    flexDirection: 'row',
+    padding: 2,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  modeOption: {
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: 9,
+    justifyContent: 'center',
+  },
+  modeOptionActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  modeText: {
+    fontSize: 11.5,
+  },
+  emptyBlock: {
+    marginRight: NOTCH_WIDTH - CARD_PADDING,
+  },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
+  emptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(125, 211, 252, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(125, 211, 252, 0.28)',
+  },
+  emptyCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+    color: '#eef3fb',
+  },
+  notchLabel: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 150,
+    alignItems: 'flex-end',
+  },
+  notchEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  notchEyebrowText: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  notchValue: {
+    marginTop: 4,
+    fontSize: 21,
+    lineHeight: 24,
+    letterSpacing: -0.4,
+    fontVariant: ['tabular-nums'],
+  },
+});
