@@ -102,6 +102,7 @@ export const ActivityGridCard = ({
   }));
 
   const lastPickedRef = useRef<number | null>(null);
+  const isScrubbingRef = useRef(false);
   const pickAt = useCallback(
     (x: number, y: number) => {
       const week = Math.floor(x / step);
@@ -119,16 +120,35 @@ export const ActivityGridCard = ({
     [step, weeks],
   );
 
-  // Tocar elige un día; deslizar en horizontal recorre la cuadrícula. Un gesto vertical se lo
-  // queda el scroll de la pantalla.
+  // Tocar elige un día al soltar; deslizar en horizontal recorre la cuadrícula. Un gesto vertical
+  // se lo queda el scroll de la pantalla sin mover la selección.
   const panResponder = useMemo(
     () =>
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderGrant: (event) => pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY),
-        onPanResponderMove: (event) => pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY),
-        onPanResponderTerminationRequest: () => true,
+        onPanResponderGrant: () => {
+          isScrubbingRef.current = false;
+        },
+        onPanResponderMove: (event, gesture) => {
+          if (!isScrubbingRef.current && Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) {
+            isScrubbingRef.current = true;
+          }
+          if (isScrubbingRef.current) {
+            pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY);
+          }
+        },
+        onPanResponderRelease: (event, gesture) => {
+          if (!isScrubbingRef.current && Math.abs(gesture.dx) < 8 && Math.abs(gesture.dy) < 8) {
+            pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY);
+          }
+          isScrubbingRef.current = false;
+        },
+        onPanResponderTerminate: () => {
+          isScrubbingRef.current = false;
+        },
+        // Mientras se recorre en horizontal, el scroll vertical no se queda con el gesto.
+        onPanResponderTerminationRequest: () => !isScrubbingRef.current,
       }),
     [pickAt],
   );
