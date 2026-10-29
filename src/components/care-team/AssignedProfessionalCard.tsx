@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -30,6 +30,8 @@ type AssignedProfessionalCardProps = {
   errorMessage?: string | null;
   compact?: boolean;
   variant?: 'full' | 'summary';
+  onMessagePress?: () => void;
+  onViewPlanPress?: (domains: AssignedProfessionalDomain[]) => void;
 };
 
 const DOMAIN_LABELS: Record<AssignedProfessionalDomain, string> = {
@@ -59,6 +61,8 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
   errorMessage,
   compact = false,
   variant = 'full',
+  onMessagePress,
+  onViewPlanPress,
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -112,6 +116,8 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
         initials={initials}
         avatarUrl={canRenderAvatarImage ? summary?.avatarUrl ?? null : null}
         onAvatarError={() => setHasImageError(true)}
+        onMessagePress={onMessagePress}
+        onViewPlanPress={onViewPlanPress ? () => onViewPlanPress(domains) : undefined}
       />
     );
   }
@@ -196,6 +202,8 @@ type ProfessionalSummaryProps = {
   initials: string;
   avatarUrl: string | null;
   onAvatarError: () => void;
+  onMessagePress?: () => void;
+  onViewPlanPress?: () => void;
 };
 
 /** Inicio's version of the card: who is on the team, what they cover and what they set up. */
@@ -208,6 +216,8 @@ const ProfessionalSummary: React.FC<ProfessionalSummaryProps> = ({
   initials,
   avatarUrl,
   onAvatarError,
+  onMessagePress,
+  onViewPlanPress,
 }) => {
   const aurora = useAurora();
 
@@ -317,6 +327,48 @@ const ProfessionalSummary: React.FC<ProfessionalSummaryProps> = ({
           })}
         </View>
       ) : null}
+
+      {state === 'assigned' && (onMessagePress || onViewPlanPress) ? (
+        <View style={summaryStyles.actions}>
+          {onMessagePress ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Enviar un mensaje a ${headline}`}
+              onPress={onMessagePress}
+              style={({ pressed }) => [summaryStyles.actionPress, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+            >
+              <LinearGradient
+                colors={aurora.tones.blue.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[summaryStyles.action, { boxShadow: `0px 12px 24px -14px ${aurora.tones.blue.tone}` }]}
+              >
+                <Ionicons name="chatbubble-outline" size={16} color={aurora.onTone} />
+                <Text style={[summaryStyles.actionText, auroraFont('extrabold'), { color: aurora.onTone }]}>Mensaje</Text>
+              </LinearGradient>
+            </Pressable>
+          ) : null}
+          {onViewPlanPress ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Ver tu plan"
+              onPress={onViewPlanPress}
+              style={({ pressed }) => [
+                summaryStyles.actionPress,
+                summaryStyles.action,
+                {
+                  backgroundColor: aurora.surface,
+                  borderWidth: 1,
+                  borderColor: aurora.borderStrong,
+                  transform: [{ scale: pressed ? 0.97 : 1 }],
+                },
+              ]}
+            >
+              <Text style={[summaryStyles.actionText, auroraFont('bold'), { color: aurora.text }]}>Ver plan</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </AuroraCard>
   );
 };
@@ -423,6 +475,25 @@ const summaryStyles = StyleSheet.create({
   },
   skeletonLine: {
     marginTop: 6,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  actionPress: {
+    flex: 1,
+  },
+  action: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+  },
+  actionText: {
+    fontSize: 14,
   },
 });
 

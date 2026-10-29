@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { spacing } from '../../constants/colors';
 import { StatCardSkeleton } from '../common/Skeleton';
@@ -32,6 +33,10 @@ interface MetricsSummaryProps {
 }
 
 const GRID_GAP = 12;
+// Visceral fat on the usual 1–30 scale, healthy up to 12.
+const VISCERAL_MIN = 1;
+const VISCERAL_HEALTHY_MAX = 12;
+const VISCERAL_MAX = 30;
 
 const METRIC_TONES: Record<MeasurementSummaryItem['key'], AuroraTone> = {
   weight_kg: 'violet',
@@ -80,7 +85,10 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({
   };
 
   const columns = contentWidth >= 720 ? 4 : 2;
-  const tileWidth = (contentWidth - horizontalPadding * 2 - GRID_GAP * (columns - 1)) / columns;
+  const rowWidth = contentWidth - horizontalPadding * 2;
+  const tileWidth = (rowWidth - GRID_GAP * (columns - 1)) / columns;
+  const visceral = metrics.find((metric) => metric.key === 'visceral_fat') ?? null;
+  const tiles = metrics.filter((metric) => metric.key !== 'visceral_fat').slice(0, 3);
 
   if (isLoading) {
     return (
@@ -120,17 +128,26 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({
       </View>
 
       <View style={styles.grid}>
-        {metrics.slice(0, 4).map((metric, index) => (
-          <Animated.View key={metric.key} entering={FadeInUp.delay(index * 90).duration(420)}>
-            <MetricTile
-              metric={metric}
-              width={tileWidth}
-              measurementPreference={measurementPreference}
-              weightPreference={weightPreference}
-              onPress={onPress}
-            />
+        {tiles.map((metric, index) => {
+          // An odd tile out on a two-column phone grid takes the whole row.
+          const isLoneTile = columns === 2 && index === tiles.length - 1 && tiles.length % 2 === 1;
+          return (
+            <Animated.View key={metric.key} entering={FadeInUp.delay(index * 90).duration(420)}>
+              <MetricTile
+                metric={metric}
+                width={isLoneTile ? rowWidth : tileWidth}
+                measurementPreference={measurementPreference}
+                weightPreference={weightPreference}
+                onPress={onPress}
+              />
+            </Animated.View>
+          );
+        })}
+        {visceral ? (
+          <Animated.View entering={FadeInUp.delay(tiles.length * 90).duration(420)}>
+            <VisceralTile metric={visceral} width={rowWidth} onPress={onPress} />
           </Animated.View>
-        ))}
+        ) : null}
       </View>
     </View>
   );
@@ -222,6 +239,85 @@ const MetricTile: React.FC<MetricTileProps> = ({
   );
 };
 
+const VisceralTile: React.FC<{ metric: MeasurementSummaryItem; width: number; onPress?: () => void }> = ({
+  metric,
+  width,
+  onPress,
+}) => {
+  const aurora = useAurora();
+  const value = metric.latestValue;
+  const isHealthy = value <= VISCERAL_HEALTHY_MAX;
+  const status = isHealthy ? aurora.tones.emerald : aurora.tones.amber;
+  const position = Math.min(1, Math.max(0, (value - VISCERAL_MIN) / (VISCERAL_MAX - VISCERAL_MIN)));
+  const valueText = formatMeasurementNumber(value, 1);
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${metric.label}: ${valueText}, ${isHealthy ? 'saludable' : 'elevada'}. Saludable hasta ${VISCERAL_HEALTHY_MAX}`}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tile,
+        {
+          width,
+          backgroundColor: aurora.surface,
+          borderColor: aurora.border,
+          boxShadow: aurora.shadow,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        },
+      ]}
+    >
+      <View style={styles.visceralHeader}>
+        <View>
+          <Text style={[auroraType.label, { color: aurora.faint }]}>{metric.label}</Text>
+          <Text style={[styles.value, auroraFont('extrabold'), styles.visceralValue, { color: aurora.text }]}>
+            {valueText}
+          </Text>
+        </View>
+        <View style={[styles.statusPill, { backgroundColor: status.soft }]}>
+          <Ionicons name={isHealthy ? 'checkmark' : 'alert'} size={13} color={status.ink} />
+          <Text style={[styles.statusText, auroraFont('bold'), { color: status.ink }]}>
+            {isHealthy ? 'Saludable' : 'Elevada'}
+          </Text>
+        </View>
+      </View>
+
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.gauge}>
+        <LinearGradient
+          colors={['#34d399', '#10b981']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={[styles.gaugePart, styles.gaugeStart, { flex: VISCERAL_HEALTHY_MAX - VISCERAL_MIN + 1 }]}
+        />
+        <LinearGradient
+          colors={['#fbbf24', '#f97316']}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={[styles.gaugePart, styles.gaugeEnd, { flex: VISCERAL_MAX - VISCERAL_HEALTHY_MAX }]}
+        />
+        <View
+          style={[
+            styles.gaugeMarker,
+            {
+              left: `${position * 100}%`,
+              backgroundColor: aurora.surface,
+              boxShadow: `0px 0px 0px 3px ${aurora.text}, 0px 4px 10px rgba(15, 23, 42, 0.25)`,
+            },
+          ]}
+        />
+      </View>
+      <View style={styles.gaugeScale}>
+        <Text style={[styles.scaleText, auroraFont('semibold'), { color: aurora.faint }]}>{VISCERAL_MIN}</Text>
+        <Text style={[styles.scaleText, auroraFont('semibold'), { color: aurora.faint }]}>
+          Saludable hasta {VISCERAL_HEALTHY_MAX}
+        </Text>
+        <Text style={[styles.scaleText, auroraFont('semibold'), { color: aurora.faint }]}>{VISCERAL_MAX}</Text>
+      </View>
+    </Pressable>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     marginVertical: spacing.md,
@@ -288,5 +384,58 @@ const styles = StyleSheet.create({
   },
   spark: {
     marginTop: 10,
+  },
+  visceralHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  visceralValue: {
+    marginTop: 4,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 26,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+  },
+  statusText: {
+    fontSize: 12,
+  },
+  gauge: {
+    flexDirection: 'row',
+    gap: 3,
+    height: 8,
+    marginTop: 14,
+  },
+  gaugePart: {
+    height: '100%',
+  },
+  gaugeStart: {
+    borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 4,
+  },
+  gaugeEnd: {
+    borderTopRightRadius: 4,
+    borderBottomRightRadius: 4,
+  },
+  gaugeMarker: {
+    position: 'absolute',
+    top: -4,
+    width: 16,
+    height: 16,
+    marginLeft: -8,
+    borderRadius: 8,
+  },
+  gaugeScale: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  scaleText: {
+    fontSize: 11,
   },
 });

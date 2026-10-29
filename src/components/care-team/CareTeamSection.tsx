@@ -35,6 +35,8 @@ type CareTeamSectionProps = {
   actionIcon?: React.ComponentProps<typeof Ionicons>['name'];
   actionAccessibilityLabel?: string;
   onActionPress?: () => void;
+  onMessagePress?: () => void;
+  onViewPlanPress?: (domains: AssignedProfessionalDomain[]) => void;
 };
 
 type CareTeamCardModel = {
@@ -135,6 +137,8 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
   actionIcon = 'search-outline',
   actionAccessibilityLabel,
   onActionPress,
+  onMessagePress,
+  onViewPlanPress,
 }) => {
   const { theme } = useAppTheme();
   const aurora = useAurora();
@@ -228,6 +232,8 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
               errorMessage={card.errorMessage}
               compact={compact}
               variant={isSummary ? 'summary' : 'full'}
+              onMessagePress={onMessagePress}
+              onViewPlanPress={onViewPlanPress}
             />
           ))
         )}
