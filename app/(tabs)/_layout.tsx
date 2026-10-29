@@ -5,6 +5,7 @@ import { Tabs } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
@@ -13,6 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
+import { getAuroraTokens, type AuroraTokens } from '../../src/theme/aurora';
 import {
   BottomTabBarVisibilityProvider,
   useBottomTabBarVisibility,
@@ -25,6 +27,21 @@ import {
   consumeInitialNotificationResponse,
   handleNotificationResponse,
 } from '../../src/utils/notificationNavigation';
+
+// The active tab's pill takes its module's tone; Inicio mixes the brand's blue and violet.
+const getIndicatorGradient = (routeName: string | undefined, aurora: AuroraTokens): readonly [string, string] => {
+  switch (routeName) {
+    case 'diet':
+      return aurora.tones.emerald.gradient;
+    case 'measurements':
+      return aurora.tones.violet.gradient;
+    case 'workouts':
+    case 'chat':
+      return aurora.tones.blue.gradient;
+    default:
+      return [aurora.tones.blue.tone, aurora.tones.violet.tone];
+  }
+};
 
 const TABLET_EXPANDED_WIDTH = 152;
 const TABLET_COLLAPSED_WIDTH = 84;
@@ -189,6 +206,7 @@ const TabletTabBar: React.FC<TabletTabBarProps> = ({
 const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
   const { state, descriptors, navigation } = props;
   const { theme } = useAppTheme();
+  const aurora = getAuroraTokens(theme.isDark);
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -258,8 +276,16 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
       >
         <View style={styles.customTabBarContainer}>
           <Animated.View
-            style={[styles.customTabIconWrapperActive, styles.slidingIndicator, indicatorStyle]}
-          />
+            pointerEvents="none"
+            style={[styles.slidingIndicator, styles.auroraIndicator, indicatorStyle]}
+          >
+            <LinearGradient
+              colors={getIndicatorGradient(state.routes[state.index]?.name, aurora)}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const isFocused = state.index === index;
@@ -289,7 +315,7 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
                 <AnimatedTabIcon
                   focused={isFocused}
                   icon={options.tabBarIcon as TabBarIconRenderer | undefined}
-                  activeColor={theme.colors.phoneNavIconActive}
+                  activeColor={aurora.onTone}
                   inactiveColor={theme.colors.phoneNavIconInactive}
                   styles={styles}
                 />
@@ -633,6 +659,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     slidingIndicator: {
       position: 'absolute',
       top: 20,
+    },
+    auroraIndicator: {
+      width: 48,
+      height: 32,
+      borderRadius: 16,
+      overflow: 'hidden',
+      boxShadow: theme.isDark ? undefined : '0px 8px 18px -8px rgba(37, 99, 235, 0.7)',
     },
     customTabText: {
       fontSize: 10,

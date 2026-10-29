@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { borderRadius, brandColors, colors, fontSize, shadows, spacing } from '../../constants/colors';
-import { useThemedStyles, type AppTheme } from '../../theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { spacing } from '../../constants/colors';
+import { AuroraCard, AuroraSegmented, IconBadge, type AuroraIconName, type AuroraSegmentOption } from '../aurora';
+import { auroraFont, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import type { MicrocycleMode, MicrocycleProgress } from '../../types';
 import type { ProgramTimelineActualAdherenceMetrics } from '../../utils/programTimeline';
 
@@ -16,14 +17,22 @@ interface MicrocycleStatsProps {
   variant?: 'cards' | 'strip';
 }
 
-type StatCard = {
+type StatTile = {
   key: string;
   label: string;
   value: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  tint: string;
+  icon: AuroraIconName;
+  tone: AuroraTone;
+  /** Share of the bar under the tiles; omitted tiles take none. */
+  share?: number;
 };
 
+const MODE_OPTIONS: readonly AuroraSegmentOption<MicrocycleMode>[] = [
+  { key: 'planned', label: 'Planificación' },
+  { key: 'actual', label: 'Ejecución real' },
+];
+
+/** Microcycle numbers in Aurora tiles. The mode switch also drives the week strip and today's card. */
 export const MicrocycleStats: React.FC<MicrocycleStatsProps> = ({
   microcycleProgress,
   actualAdherenceMetrics,
@@ -31,272 +40,181 @@ export const MicrocycleStats: React.FC<MicrocycleStatsProps> = ({
   onModeChange,
   isLoading = false,
   horizontalPadding = spacing.md,
-  variant = 'cards',
 }) => {
-  const styles = useThemedStyles(createStyles);
-  const plannedMetrics = microcycleProgress?.planned_metrics;
+  const aurora = useAurora();
+  const planned = microcycleProgress?.planned_metrics;
+  const completion = Math.round(planned?.completion_percentage ?? 0);
 
-  const plannedStats: StatCard[] = [
+  const plannedTiles: StatTile[] = [
     {
       key: 'sessions',
       label: 'Sesiones',
-      value: plannedMetrics
-        ? `${plannedMetrics.completed_planned_sessions}/${plannedMetrics.total_planned_sessions}`
-        : '-',
-      icon: 'checkmark-done-circle-outline',
-      tint: colors.success,
+      value: planned ? `${planned.completed_planned_sessions}/${planned.total_planned_sessions}` : '—',
+      icon: 'checkmark-done-outline',
+      tone: 'emerald',
     },
     {
       key: 'progress',
       label: 'Progreso',
-      value: plannedMetrics?.total_planned_sessions
-        ? `${plannedMetrics.next_session_position ?? plannedMetrics.total_planned_sessions}/${plannedMetrics.total_planned_sessions}`
-        : '-',
+      value: planned?.total_planned_sessions
+        ? `${planned.next_session_position ?? planned.total_planned_sessions}/${planned.total_planned_sessions}`
+        : '—',
       icon: 'barbell-outline',
-      tint: brandColors.sky,
+      tone: 'blue',
     },
     {
       key: 'completion',
       label: 'Cumplimiento',
-      value: `${Math.round(plannedMetrics?.completion_percentage ?? 0)}%`,
+      value: `${completion}%`,
       icon: 'stats-chart-outline',
-      tint: brandColors.navy,
+      tone: 'violet',
     },
   ];
 
-  const actualStats: StatCard[] = [
+  const actualTiles: StatTile[] = [
     {
       key: 'on-schedule',
       label: 'En fecha',
       value: `${actualAdherenceMetrics.onSchedule}`,
       icon: 'checkmark-circle-outline',
-      tint: colors.success,
+      tone: 'emerald',
+      share: actualAdherenceMetrics.onSchedule,
     },
     {
       key: 'rescheduled',
       label: 'Reprogramadas',
       value: `${actualAdherenceMetrics.rescheduled}`,
       icon: 'swap-horizontal-outline',
-      tint: brandColors.sky,
+      tone: 'blue',
+      share: actualAdherenceMetrics.rescheduled,
     },
     {
       key: 'overdue',
       label: 'Atrasadas',
       value: `${actualAdherenceMetrics.overdue}`,
       icon: 'alert-circle-outline',
-      tint: colors.warning,
+      tone: 'amber',
+      share: actualAdherenceMetrics.overdue,
     },
   ];
 
-  const stats = mode === 'planned' ? plannedStats : actualStats;
-  const renderModeToggle = (compact = false) => (
-    <View style={[styles.toggleWrap, compact ? styles.toggleWrapCompact : null]}>
-      <Pressable
-        onPress={() => onModeChange('planned')}
-        style={[
-          styles.toggleButton,
-          compact ? styles.toggleButtonCompact : null,
-          mode === 'planned' && styles.toggleButtonActive,
-        ]}
-      >
-        <Text
-          numberOfLines={1}
-          style={[styles.toggleLabel, mode === 'planned' && styles.toggleLabelActive]}
-        >
-          Planificación
-        </Text>
-      </Pressable>
-      <Pressable
-        onPress={() => onModeChange('actual')}
-        style={[
-          styles.toggleButton,
-          compact ? styles.toggleButtonCompact : null,
-          mode === 'actual' && styles.toggleButtonActive,
-        ]}
-      >
-        <Text
-          numberOfLines={1}
-          style={[styles.toggleLabel, mode === 'actual' && styles.toggleLabelActive]}
-        >
-          Ejecución real
-        </Text>
-      </Pressable>
-    </View>
-  );
-
-  if (variant === 'strip') {
-    return (
-      <View style={[styles.container, styles.stripContainer, { paddingHorizontal: horizontalPadding }]}>
-        <View style={styles.stripSurface}>
-          {renderModeToggle(true)}
-
-          <View style={styles.stripStatsRow}>
-            {stats.map((stat) => (
-              <View key={stat.key} style={styles.stripStatItem}>
-                <View style={[styles.stripIconWrap, { backgroundColor: `${stat.tint}18` }]}>
-                  <Ionicons name={stat.icon} size={15} color={stat.tint} />
-                </View>
-                <View style={styles.stripStatCopy}>
-                  <Text style={styles.stripValue} numberOfLines={1}>
-                    {isLoading ? '...' : stat.value}
-                  </Text>
-                  <Text style={styles.stripLabel} numberOfLines={1}>
-                    {stat.label}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      </View>
-    );
-  }
+  const tiles = mode === 'planned' ? plannedTiles : actualTiles;
+  const actualTotal = actualTiles.reduce((total, tile) => total + (tile.share ?? 0), 0);
 
   return (
-    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
-      {renderModeToggle()}
+    <View style={{ paddingHorizontal: horizontalPadding, marginVertical: spacing.sm }}>
+      <AuroraCard padding={16}>
+        <View style={styles.header}>
+          <Text style={[auroraType.headline, { color: aurora.text }]}>Tu microciclo</Text>
+          <Text style={[auroraType.caption, { color: aurora.faint }]}>
+            {mode === 'planned' ? `${completion}% completado` : 'Cómo vas contra el plan'}
+          </Text>
+        </View>
 
-      <View style={styles.row}>
-        {stats.map((stat) => (
-          <View key={stat.key} style={styles.card}>
-            <View style={[styles.iconWrap, { backgroundColor: `${stat.tint}18` }]}>
-              <Ionicons name={stat.icon} size={18} color={stat.tint} />
+        <View style={styles.segmented}>
+          <AuroraSegmented
+            options={MODE_OPTIONS}
+            value={mode}
+            onChange={onModeChange}
+            accessibilityLabel="Ver el microciclo planificado o lo que se ejecutó"
+          />
+        </View>
+
+        <View style={styles.tiles}>
+          {tiles.map((tile) => (
+            <View key={tile.key} style={[styles.tile, { backgroundColor: aurora.surface2 }]}>
+              <IconBadge icon={tile.icon} tone={tile.tone} size={32} />
+              <Text
+                style={[styles.value, auroraFont('extrabold'), { color: aurora.text }]}
+                numberOfLines={1}
+              >
+                {isLoading ? '…' : tile.value}
+              </Text>
+              <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
+                {tile.label}
+              </Text>
             </View>
-            <Text style={styles.value}>{isLoading ? '...' : stat.value}</Text>
-            <Text style={styles.label}>{stat.label}</Text>
+          ))}
+        </View>
+
+        {mode === 'planned' ? (
+          <View
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: 100, now: completion }}
+            style={[styles.track, { backgroundColor: aurora.surface3 }]}
+          >
+            <LinearGradient
+              colors={aurora.tones.blue.gradient}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={[styles.fill, { width: `${Math.min(100, Math.max(0, completion))}%` }]}
+            />
           </View>
-        ))}
-      </View>
+        ) : actualTotal > 0 ? (
+          <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.stack}>
+            {actualTiles.map((tile) =>
+              tile.share ? (
+                <View
+                  key={tile.key}
+                  style={[styles.stackPart, { flex: tile.share, backgroundColor: aurora.tones[tile.tone].tone }]}
+                />
+              ) : null,
+            )}
+          </View>
+        ) : null}
+      </AuroraCard>
     </View>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    container: {
-      marginTop: spacing.sm,
-    },
-    stripContainer: {
-      marginTop: spacing.sm,
-    },
-    stripSurface: {
-      padding: spacing.sm,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      gap: spacing.sm,
-      ...shadows.sm,
-    },
-    toggleWrap: {
-      flexDirection: 'row',
-      alignSelf: 'center',
-      marginBottom: spacing.md,
-      padding: 4,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...shadows.sm,
-    },
-    toggleWrapCompact: {
-      alignSelf: 'stretch',
-      marginBottom: 0,
-      padding: 3,
-    },
-    toggleButton: {
-      borderRadius: borderRadius.full,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    toggleButtonCompact: {
-      flex: 1,
-      alignItems: 'center',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 7,
-    },
-    toggleButtonActive: {
-      backgroundColor: theme.isDark ? theme.colors.primarySoft : brandColors.navy,
-    },
-    toggleLabel: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.textMuted,
-    },
-    toggleLabelActive: {
-      color: theme.isDark ? theme.colors.primary : theme.colors.surface,
-    },
-    row: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-    },
-    card: {
-      flex: 1,
-      minHeight: 132,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.card,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      alignItems: 'center',
-      ...shadows.sm,
-    },
-    iconWrap: {
-      width: 36,
-      height: 36,
-      borderRadius: borderRadius.md,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: spacing.sm,
-    },
-    value: {
-      fontSize: fontSize['2xl'],
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-    },
-    label: {
-      marginTop: spacing.xs,
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-    },
-    stripStatsRow: {
-      flexDirection: 'row',
-      gap: spacing.xs,
-    },
-    stripStatItem: {
-      flex: 1,
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.xs,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.surfaceAlt,
-    },
-    stripIconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    stripStatCopy: {
-      flex: 1,
-      minWidth: 0,
-    },
-    stripValue: {
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-      fontVariant: ['tabular-nums'],
-    },
-    stripLabel: {
-      marginTop: 1,
-      fontSize: 11,
-      color: theme.colors.textMuted,
-    },
-  });
-
-export default MicrocycleStats;
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  segmented: {
+    marginTop: 12,
+  },
+  tiles: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  tile: {
+    flex: 1,
+    minWidth: 0,
+    gap: 6,
+    padding: 12,
+    borderRadius: 16,
+  },
+  value: {
+    marginTop: 2,
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: -0.3,
+    fontVariant: ['tabular-nums'],
+  },
+  track: {
+    height: 8,
+    marginTop: 14,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  stack: {
+    flexDirection: 'row',
+    gap: 2,
+    height: 8,
+    marginTop: 14,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  stackPart: {
+    height: '100%',
+  },
+});

@@ -1,19 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { spacing, fontSize, borderRadius, shadows } from '../../constants/colors';
+import { spacing } from '../../constants/colors';
 import { StatCardSkeleton } from '../common/Skeleton';
+import { IconBadge, Sparkline, type AuroraIconName } from '../aurora';
 import { listMyMeasurements } from '../../services/measurements';
 import type { ApiError } from '../../types';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { auroraFont, auroraRadius, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import {
   type MeasurementPreference,
   useMeasurementPreferenceStore,
 } from '../../store/measurementPreferenceStore';
+import { useWorkoutStore } from '../../store/workoutStore';
 import { convertMeasurementUnitValue } from '../../utils/measurementUnits';
-import { formatMeasurementNumber } from '../../utils/measurements';
+import {
+  formatMeasurementDate,
+  formatMeasurementNumber,
+  getWeightChangePreference,
+  type MeasurementChangePreference,
+} from '../../utils/measurements';
 import {
   buildMeasurementSummaries,
   type MeasurementSummaryItem,
@@ -21,29 +27,32 @@ import {
 
 interface MetricsSummaryProps {
   onPress?: () => void;
-  contentWidth?: number;
+  contentWidth: number;
   horizontalPadding?: number;
 }
 
-const metricConfig: Record<MeasurementSummaryItem['key'], { color: string }> = {
-  weight_kg: { color: '#3B82F6' },
-  body_fat_pct: { color: '#EF4444' },
-  muscle_mass_kg: { color: '#10B981' },
-  visceral_fat: { color: '#F59E0B' },
+const GRID_GAP = 12;
+
+const METRIC_TONES: Record<MeasurementSummaryItem['key'], AuroraTone> = {
+  weight_kg: 'violet',
+  body_fat_pct: 'rose',
+  muscle_mass_kg: 'emerald',
+  visceral_fat: 'amber',
 };
 
 export const MetricsSummary: React.FC<MetricsSummaryProps> = ({
   onPress,
-  contentWidth = 390,
+  contentWidth,
   horizontalPadding = spacing.md,
 }) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
   const [metrics, setMetrics] = useState<MeasurementSummaryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const measurementPreference = useMeasurementPreferenceStore((state) => state.preference);
   const initializeMeasurementPreference = useMeasurementPreferenceStore((state) => state.initialize);
+  const programObjective = useWorkoutStore((state) => state.dashboardBootstrap?.program?.objective ?? null);
+  const weightPreference = getWeightChangePreference(programObjective);
 
   useEffect(() => {
     void loadMetrics();
@@ -70,15 +79,18 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({
     }
   };
 
+  const columns = contentWidth >= 720 ? 4 : 2;
+  const tileWidth = (contentWidth - horizontalPadding * 2 - GRID_GAP * (columns - 1)) / columns;
+
   if (isLoading) {
     return (
       <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Mis métricas</Text>
-        </View>
-        <View style={[styles.metricsGrid, contentWidth >= 720 ? styles.metricsGridTablet : null]}>
+        <Text style={[auroraType.title, { color: aurora.text }]}>Mis métricas</Text>
+        <View style={styles.grid}>
           {Array.from({ length: 4 }, (_, index) => (
-            <StatCardSkeleton key={`metrics-summary-skeleton-${index}`} />
+            <View key={`metrics-summary-skeleton-${index}`} style={{ width: tileWidth }}>
+              <StatCardSkeleton />
+            </View>
           ))}
         </View>
       </View>
@@ -89,224 +101,192 @@ export const MetricsSummary: React.FC<MetricsSummaryProps> = ({
     return null;
   }
 
-  const displayMetrics = metrics.slice(0, 4);
-
   return (
-    <Animated.View
-      entering={FadeInUp.duration(500)}
-      style={[styles.container, { paddingHorizontal: horizontalPadding }]}
-    >
+    <View style={[styles.container, { paddingHorizontal: horizontalPadding }]}>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Ionicons name="analytics" size={20} color={theme.colors.primary} />
-          <Text style={styles.title}>Mis métricas</Text>
-        </View>
-        <TouchableOpacity style={styles.seeAllButton} onPress={onPress}>
-          <Text style={styles.seeAllText}>Ver todo</Text>
-          <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
-        </TouchableOpacity>
+        <Text style={[auroraType.title, { color: aurora.text }]}>Mis métricas</Text>
+        {onPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ver todas las medidas"
+            hitSlop={10}
+            onPress={onPress}
+            style={styles.seeAll}
+          >
+            <Text style={[styles.seeAllText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>Ver todo</Text>
+            <Ionicons name="chevron-forward" size={15} color={aurora.tones.blue.ink} />
+          </Pressable>
+        ) : null}
       </View>
 
-      <View style={[styles.metricsGrid, contentWidth >= 720 ? styles.metricsGridTablet : null]}>
-        {displayMetrics.map((metric, index) => (
-          <MetricCard
-            key={metric.key}
-            metric={metric}
-            index={index}
-            measurementPreference={measurementPreference}
-          />
+      <View style={styles.grid}>
+        {metrics.slice(0, 4).map((metric, index) => (
+          <Animated.View key={metric.key} entering={FadeInUp.delay(index * 90).duration(420)}>
+            <MetricTile
+              metric={metric}
+              width={tileWidth}
+              measurementPreference={measurementPreference}
+              weightPreference={weightPreference}
+              onPress={onPress}
+            />
+          </Animated.View>
         ))}
       </View>
-    </Animated.View>
+    </View>
   );
 };
 
-interface MetricCardProps {
+interface MetricTileProps {
   metric: MeasurementSummaryItem;
-  index: number;
+  width: number;
   measurementPreference: MeasurementPreference;
+  weightPreference: MeasurementChangePreference;
+  onPress?: () => void;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({
+const MetricTile: React.FC<MetricTileProps> = ({
   metric,
-  index,
+  width,
   measurementPreference,
+  weightPreference,
+  onPress,
 }) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  const config = metricConfig[metric.key];
-  const convertedMetric = convertMeasurementUnitValue(
-    metric.latestValue,
-    metric.unit,
-    measurementPreference,
-  );
-  const convertedChange = metric.changeFromPrevious === null
-    ? null
-    : convertMeasurementUnitValue(
-        Math.abs(metric.changeFromPrevious),
-        metric.unit,
-        measurementPreference,
-      );
+  const aurora = useAurora();
+  const toneKey = METRIC_TONES[metric.key];
+  const tone = aurora.tones[toneKey];
+  const converted = convertMeasurementUnitValue(metric.latestValue, metric.unit, measurementPreference);
+  const change = metric.changeFromPrevious;
+  const convertedChange =
+    change === null ? null : convertMeasurementUnitValue(Math.abs(change), metric.unit, measurementPreference);
 
-  const hasChange = metric.changeFromPrevious !== null;
-  const isPositive = (metric.changeFromPrevious ?? 0) > 0;
-  const isNegative = (metric.changeFromPrevious ?? 0) < 0;
-  const changeColor = metric.emphasizeDecrease
-    ? isNegative ? theme.colors.success : isPositive ? theme.colors.error : theme.colors.textMuted
-    : isPositive ? theme.colors.success : isNegative ? theme.colors.error : theme.colors.textMuted;
-  const gradientColors: readonly [string, string] = theme.isDark
-    ? [`${config.color}2A`, 'rgba(9, 17, 31, 0.94)']
-    : [`${config.color}12`, `${config.color}04`];
+  // Whether a change is good depends on the metric, and for weight on the program's goal.
+  const preferred: MeasurementChangePreference =
+    metric.key === 'weight_kg' ? weightPreference : metric.emphasizeDecrease ? 'decrease' : 'increase';
+  const hasChange = change !== null && change !== 0 && convertedChange !== null;
+  const isGood = hasChange && preferred !== 'neutral' && (preferred === 'decrease' ? change < 0 : change > 0);
+  const isBad = hasChange && preferred !== 'neutral' && !isGood;
+  const pillTone = isGood ? aurora.tones.emerald : isBad ? aurora.tones.amber : aurora.tones.slate;
+  // A change in body-fat percentage is in points, not in percent of the value.
+  const changeUnit = convertedChange?.unit === '%' ? 'pts' : convertedChange?.unit ?? '';
+  const changeLabel = hasChange
+    ? `${change > 0 ? '+' : '−'}${formatMeasurementNumber(convertedChange.value, 1)} ${changeUnit}`
+    : null;
+  const history = metric.history.map(
+    (value) => convertMeasurementUnitValue(value, metric.unit, measurementPreference).value,
+  );
+  const valueText = formatMeasurementNumber(converted.value, 1);
 
   return (
-    <Animated.View
-      entering={FadeInUp.delay(index * 100).duration(400)}
-      style={[styles.metricCardShell, shadows.sm]}
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${metric.label}: ${valueText} ${converted.unit}${changeLabel ? `, ${changeLabel}` : ''}`}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.tile,
+        {
+          width,
+          backgroundColor: aurora.surface,
+          borderColor: aurora.border,
+          boxShadow: aurora.shadow,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+        },
+      ]}
     >
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.metricCard}
-      >
-        <View style={[styles.metricIcon, { backgroundColor: `${config.color}18` }]}>
-          <Ionicons
-            name={metric.icon as React.ComponentProps<typeof Ionicons>['name']}
-            size={16}
-            color={config.color}
-          />
-        </View>
-
-        <View style={styles.metricValueRow}>
-          <Text style={styles.metricValue}>
-            {formatMeasurementNumber(
-              convertedMetric.value,
-              convertedMetric.unit === '%' ? 1 : 1,
-            )}
-          </Text>
-          <Text style={styles.metricUnit}>{convertedMetric.unit}</Text>
-        </View>
-
-        <Text style={styles.metricLabel}>{metric.label}</Text>
-
-        {hasChange && metric.changeFromPrevious !== 0 && (
-          <View style={[styles.changeBadge, { backgroundColor: `${changeColor}18` }]}>
-            <Ionicons
-              name={isPositive ? 'arrow-up' : 'arrow-down'}
-              size={10}
-              color={changeColor}
-            />
-            <Text style={[styles.changeText, { color: changeColor }]}>
-              {convertedChange
-                ? formatMeasurementNumber(
-                    convertedChange.value,
-                    convertedChange.unit === '%' ? 1 : 1,
-                  )
-                : '--'}
-            </Text>
+      <IconBadge icon={metric.icon as AuroraIconName} tone={toneKey} size={34} />
+      <Text style={[auroraType.label, styles.label, { color: aurora.faint }]} numberOfLines={1}>
+        {metric.label}
+      </Text>
+      <View style={styles.valueRow}>
+        <Text style={[styles.value, auroraFont('extrabold'), { color: aurora.text }]}>{valueText}</Text>
+        <Text style={[styles.unit, auroraFont('bold'), { color: aurora.faint }]}>{converted.unit}</Text>
+      </View>
+      <View style={styles.changeRow}>
+        {changeLabel ? (
+          <View style={[styles.pill, { backgroundColor: pillTone.soft }]}>
+            <Text style={[styles.pillText, auroraFont('extrabold'), { color: pillTone.ink }]}>{changeLabel}</Text>
           </View>
+        ) : (
+          <Text style={[auroraType.caption, { color: aurora.faint }]}>Sin comparativo</Text>
         )}
-      </LinearGradient>
-    </Animated.View>
+        {changeLabel && metric.previousDate ? (
+          <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
+            vs. {formatMeasurementDate(metric.previousDate, 'short')}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.spark}>
+        <Sparkline values={history} color={tone.tone} width={width - 32} height={30} area={false} />
+      </View>
+    </Pressable>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    container: {
-      marginVertical: spacing.md,
-    },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: spacing.md,
-    },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    title: {
-      fontSize: fontSize.lg,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
-    },
-    seeAllButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-    },
-    seeAllText: {
-      fontSize: fontSize.sm,
-      color: theme.colors.primary,
-      fontWeight: '500',
-    },
-    metricsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    metricsGridTablet: {
-      justifyContent: 'space-between',
-    },
-    metricGap: {
-      width: spacing.sm,
-    },
-    metricCardShell: {
-      width: '48%',
-      maxWidth: 280,
-      borderRadius: borderRadius.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.isDark ? theme.colors.borderStrong : theme.colors.border,
-      backgroundColor: theme.isDark ? '#0f1826' : theme.colors.card,
-    },
-    metricCard: {
-      padding: spacing.md,
-      minHeight: 132,
-    },
-    metricIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: borderRadius.md,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: spacing.sm,
-    },
-    metricValueRow: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      gap: spacing.xs,
-    },
-    metricValue: {
-      fontSize: fontSize['2xl'],
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-    },
-    metricUnit: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    metricLabel: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    changeBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 2,
-      borderRadius: borderRadius.full,
-      alignSelf: 'flex-start',
-      marginTop: spacing.sm,
-    },
-    changeText: {
-      fontSize: fontSize.xs,
-      fontWeight: '600',
-    },
-  });
-
-export default MetricsSummary;
+const styles = StyleSheet.create({
+  container: {
+    marginVertical: spacing.md,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  seeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    minHeight: 44,
+  },
+  seeAllText: {
+    fontSize: 13,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: GRID_GAP,
+    marginTop: 4,
+  },
+  tile: {
+    padding: 16,
+    borderRadius: auroraRadius.card,
+    borderWidth: 1,
+  },
+  label: {
+    marginTop: 12,
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    marginTop: 4,
+  },
+  value: {
+    fontSize: 26,
+    lineHeight: 30,
+    letterSpacing: -0.5,
+    fontVariant: ['tabular-nums'],
+  },
+  unit: {
+    fontSize: 14,
+  },
+  changeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  pill: {
+    height: 22,
+    paddingHorizontal: 7,
+    borderRadius: 999,
+    justifyContent: 'center',
+  },
+  pillText: {
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+  },
+  spark: {
+    marginTop: 10,
+  },
+});
