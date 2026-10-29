@@ -11,6 +11,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+import { BRAND_SLOGAN } from '../../constants/brand';
 import { brandColors } from '../../constants/colors';
 import { auroraFont, useAurora } from '../../theme/aurora';
 import { LOGO_MARK_SPAN, LogoMark } from '../common/LogoMark';
@@ -111,7 +112,7 @@ export const AuthBrand = ({ compact = false }: AuthBrandProps) => {
           <BrandWordmark width={compact ? 108 : 124} color={ink} />
         </View>
       </View>
-      <Text style={[styles.tagline, { color: aurora.muted }]}>Tu entrenamiento y dieta personalizados</Text>
+      <Text style={[styles.tagline, { color: aurora.muted }]}>{BRAND_SLOGAN}</Text>
     </View>
   );
 };

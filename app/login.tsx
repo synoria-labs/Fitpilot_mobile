@@ -158,7 +158,7 @@ export default function LoginScreen() {
           contentContainerStyle={[
             styles.content,
             {
-              paddingTop: insets.top + (smallScreen ? 20 : 36),
+              paddingTop: insets.top + (smallScreen ? 16 : 24),
               paddingBottom: Math.max(insets.bottom + 24, 32),
             },
           ]}
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   cardSlot: {
-    marginTop: 22,
+    marginTop: 18,
   },
   title: {
     ...auroraFont('extrabold'),

@@ -14,6 +14,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { BRAND_SLOGAN } from '../../constants/brand';
 import { brandColors } from '../../constants/colors';
 import { auroraFont, getAuroraTokens } from '../../theme/aurora';
 import { DriftingGlow, toSvgId } from '../auth/DriftingGlow';
@@ -32,8 +33,9 @@ const MARK_WIDTH = 160;
 const MARK_BOX = MARK_WIDTH / LOGO_MARK_SPAN.width;
 const MARK_HEIGHT = MARK_BOX * LOGO_MARK_SPAN.height;
 // The mark starts where the native splash leaves it, on the screen centre, and settles this far
-// above it to make room for the wordmark. Every other offset is measured from the centre too.
-const MARK_RISE = 64;
+// above it to make room for the wordmark and the two-line slogan. Every other offset is measured
+// from the centre too.
+const MARK_RISE = 76;
 const WORDMARK_WIDTH = 176;
 const WORDMARK_HEIGHT = 39;
 const WORDMARK_TOP = MARK_HEIGHT / 2 + 30 - MARK_RISE;
@@ -55,7 +57,7 @@ const nativeMarkWidth = (screenWidth: number) => (Platform.OS === 'ios' ? (scree
 // the settled mark.
 const GLOWS = [
   { color: '#3b82f6', x: 0.85, y: 0.18, size: 0.9, strength: 0.66, duration: 11000 },
-  { color: '#38bdf8', x: 0.5, y: 0.42, size: 0.74, strength: 0.5, duration: 13000 },
+  { color: '#38bdf8', x: 0.5, y: 0.41, size: 0.74, strength: 0.5, duration: 13000 },
   { color: '#8b5cf6', x: 0.11, y: 0.67, size: 0.84, strength: 0.56, duration: 15000 },
   { color: '#10b981', x: 0.85, y: 0.9, size: 0.82, strength: 0.44, duration: 17000 },
 ] as const;
@@ -293,7 +295,7 @@ export const StartupBrandIntro: React.FC<StartupBrandIntroProps> = ({ onComplete
           <WordmarkDark width={WORDMARK_WIDTH} height={WORDMARK_HEIGHT} />
         </Animated.View>
         <Animated.Text style={[styles.tagline, { top: TAGLINE_TOP }, taglineStyle]}>
-          Tu entrenamiento y dieta personalizados
+          {BRAND_SLOGAN}
         </Animated.Text>
       </View>
     </Animated.View>
