@@ -3,7 +3,30 @@ import type {
   MeasurementHistoryFieldKey,
   MeasurementHistoryItem,
 } from '../types/measurements';
-import { getTodayDateKey } from './date';
+import { getCalendarDayDiff, getTodayDateKey } from './date';
+
+/** A partir de aquí la última medición ya no sirve bien para ver progreso. */
+export const STALE_MEASUREMENT_DAYS = 30;
+
+export type MeasurementChangePreference = 'decrease' | 'increase' | 'neutral';
+
+/**
+ * El peso no es bueno ni malo por sí solo: depende del objetivo del programa. Antes bajar se
+ * pintaba siempre en verde, también a quien busca ganar masa muscular.
+ */
+export const getWeightChangePreference = (
+  programObjective?: string | null,
+): MeasurementChangePreference => {
+  if (programObjective === 'fat_loss') {
+    return 'decrease';
+  }
+
+  if (programObjective === 'hypertrophy') {
+    return 'increase';
+  }
+
+  return 'neutral';
+};
 
 const longDateFormatter = new Intl.DateTimeFormat('es-MX', {
   day: 'numeric',
@@ -98,6 +121,58 @@ export const formatMeasurementDate = (
     : shortDateFormatter.format(parsedDate);
 };
 
+/**
+ * "Hace 2 meses": la fecha absoluta sola no dice si la última medición sigue sirviendo, y
+ * `isStale` permite invitar a registrar otra.
+ */
+export const describeMeasurementAge = (
+  value?: string | null,
+  today: Date = new Date(),
+): { label: string; isStale: boolean } | null => {
+  if (!parseDateValue(value)) {
+    return null;
+  }
+
+  const days = Math.max(0, getCalendarDayDiff(value, today));
+  const isStale = days >= STALE_MEASUREMENT_DAYS;
+
+  if (days === 0) {
+    return { label: 'Hoy', isStale };
+  }
+
+  if (days === 1) {
+    return { label: 'Ayer', isStale };
+  }
+
+  if (days < 7) {
+    return { label: `Hace ${days} días`, isStale };
+  }
+
+  if (days < 30) {
+    const weeks = Math.floor(days / 7);
+    return { label: weeks === 1 ? 'Hace 1 semana' : `Hace ${weeks} semanas`, isStale };
+  }
+
+  if (days < 365) {
+    const months = Math.floor(days / 30);
+    return { label: months === 1 ? 'Hace 1 mes' : `Hace ${months} meses`, isStale };
+  }
+
+  return { label: 'Hace más de un año', isStale };
+};
+
+/**
+ * La medición anterior a la más reciente que sí trae `fieldKey`: contra ella se calcula el
+ * cambio, y su fecha dice desde cuándo ("vs. 10 abr").
+ */
+export const findPreviousMeasurementWithValue = (
+  measurements: MeasurementHistoryItem[],
+  fieldKey: MeasurementHistoryFieldKey,
+) =>
+  measurements
+    .slice(1)
+    .find((measurement) => parseMeasurementNumber(measurement[fieldKey]) !== null) ?? null;
+
 export const calculateMeasurementChange = (
   measurements: MeasurementHistoryItem[],
   fieldKey: MeasurementHistoryFieldKey,
@@ -111,9 +186,7 @@ export const calculateMeasurementChange = (
     return null;
   }
 
-  const previousMeasurement = measurements
-    .slice(1)
-    .find((measurement) => parseMeasurementNumber(measurement[fieldKey]) !== null);
+  const previousMeasurement = findPreviousMeasurementWithValue(measurements, fieldKey);
 
   if (!previousMeasurement) {
     return null;

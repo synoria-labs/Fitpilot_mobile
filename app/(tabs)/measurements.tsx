@@ -64,8 +64,9 @@ import {
 } from '../../src/services/measurements';
 import { useAuthStore } from '../../src/store/authStore';
 import { toast } from '../../src/store/toastStore';
+import { useWorkoutStore } from '../../src/store/workoutStore';
 import {
-  MEASUREMENT_PREFERENCE_LABELS,
+  type MeasurementPreference,
   useMeasurementPreferenceStore,
 } from '../../src/store/measurementPreferenceStore';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../src/theme';
@@ -85,9 +86,13 @@ import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
 import { convertMeasurementUnitValue } from '../../src/utils/measurementUnits';
 import {
   calculateMeasurementChange,
+  describeMeasurementAge,
+  findPreviousMeasurementWithValue,
   formatMeasurementDate,
   formatMeasurementNumber,
   getMeasurementDisplayDate,
+  getWeightChangePreference,
+  type MeasurementChangePreference,
   parseMeasurementNumber,
 } from '../../src/utils/measurements';
 
@@ -102,6 +107,13 @@ const MEASUREMENTS_TABS = [
   { key: 'glucose', label: 'Glucosa' },
   { key: 'health', label: 'Salud' },
 ] satisfies { key: MeasurementsTab; label: string }[];
+
+// Las unidades que de verdad ve el usuario. El nombre de la preferencia ("Mexico") no dice
+// nada en la cabecera.
+const UNIT_SYSTEM_LABELS: Record<MeasurementPreference, string> = {
+  mx: 'kg · cm',
+  us: 'lb · in',
+};
 
 const resolveTabParam = (value: string | undefined): MeasurementsTab | null => {
   if (value === 'summary' || value === 'body' || value === 'glucose' || value === 'health') {
@@ -132,7 +144,7 @@ const CREATE_ACTIONS = [
 
 const getChangeAppearance = (
   change: number | null,
-  emphasizeDecrease: boolean,
+  preference: MeasurementChangePreference,
   theme: AppTheme,
 ) => {
   if (change === null || change === 0) {
@@ -143,15 +155,27 @@ const getChangeAppearance = (
   }
 
   const isPositive = change > 0;
-  const isGoodChange = emphasizeDecrease ? !isPositive : isPositive;
+  const icon = isPositive
+    ? ('arrow-up-outline' as const)
+    : ('arrow-down-outline' as const);
+
+  if (preference === 'neutral') {
+    return { icon, color: theme.colors.primary };
+  }
+
+  const isGoodChange = preference === 'decrease' ? !isPositive : isPositive;
 
   return {
-    icon: isPositive
-      ? ('arrow-up-outline' as const)
-      : ('arrow-down-outline' as const),
+    icon,
     color: isGoodChange ? theme.colors.success : theme.colors.warning,
   };
 };
+
+/** "grasa corporal, masa muscular y grasa visceral" */
+const formatSpanishList = (items: string[]) =>
+  items.length <= 1
+    ? (items[0] ?? '')
+    : `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`;
 
 export default function MeasurementsScreen() {
   const { width, height } = useWindowDimensions();
@@ -163,6 +187,10 @@ export default function MeasurementsScreen() {
   const tabBarScroll = useBottomTabBarScroll();
   const contentInsetBottom = useBottomTabBarContentInset(72);
   const user = useAuthStore((state) => state.user);
+  const programObjective = useWorkoutStore(
+    (state) => state.dashboardBootstrap?.program?.objective ?? null,
+  );
+  const weightChangePreference = getWeightChangePreference(programObjective);
   const measurementPreference = useMeasurementPreferenceStore(
     (state) => state.preference,
   );
@@ -370,17 +398,43 @@ export default function MeasurementsScreen() {
       return [];
     }
 
-    return SUMMARY_METRICS.map((metric) => ({
-      ...metric,
-      value: parseMeasurementNumber(latestMeasurement[metric.key]),
-      change: calculateMeasurementChange(measurements, metric.key),
-    }));
-  }, [latestMeasurement, measurements]);
+    return SUMMARY_METRICS.map((metric) => {
+      const previousMeasurement = findPreviousMeasurementWithValue(measurements, metric.key);
+      const changePreference: MeasurementChangePreference =
+        metric.key === 'weight_kg'
+          ? weightChangePreference
+          : metric.emphasizeDecrease
+            ? 'decrease'
+            : 'increase';
+
+      return {
+        ...metric,
+        value: parseMeasurementNumber(latestMeasurement[metric.key]),
+        change: calculateMeasurementChange(measurements, metric.key),
+        previousDate: previousMeasurement
+          ? getMeasurementDisplayDate(previousMeasurement)
+          : null,
+        changePreference,
+      };
+    });
+  }, [latestMeasurement, measurements, weightChangePreference]);
 
   const visibleSummaryMetrics = useMemo(
     () => summaryMetrics.filter((metric) => metric.value !== null),
     [summaryMetrics],
   );
+
+  // Las que no trae la última medición se nombran en una línea en vez de pintar tarjetas
+  // vacías con "--" y un "Ver gráfica" que no lleva a nada nuevo.
+  const missingSummaryMetricsLabel = formatSpanishList(
+    summaryMetrics
+      .filter((metric) => metric.value === null)
+      .map((metric) => metric.label.toLowerCase()),
+  );
+
+  const latestMeasurementAge = latestMeasurement
+    ? describeMeasurementAge(getMeasurementDisplayDate(latestMeasurement))
+    : null;
 
   const perimeterCards = useMemo(() => {
     if (!latestMeasurement) {
@@ -453,6 +507,34 @@ export default function MeasurementsScreen() {
     },
     [measurementPreference],
   );
+
+  // Cambio contra la medición anterior con la fecha de esa medición ("↓ 15 kg vs. 10 abr"):
+  // sin referencia no se sabía si el cambio era de una semana o de medio año.
+  const renderMetricChange = (metric: (typeof summaryMetrics)[number]) => {
+    if (metric.change === null) {
+      return <Text style={styles.noChangeText}>Sin comparativo previo</Text>;
+    }
+
+    const appearance = getChangeAppearance(metric.change, metric.changePreference, theme);
+    const displayChange = getDisplayMeasurement(Math.abs(metric.change), metric.unit, 2);
+
+    return (
+      <View style={styles.changeRow}>
+        <View style={[styles.changeBadge, { backgroundColor: `${appearance.color}15` }]}>
+          <Ionicons name={appearance.icon} size={12} color={appearance.color} />
+          <Text style={[styles.changeText, { color: appearance.color }]}>
+            {displayChange.value}
+            {displayChange.unit ? ` ${displayChange.unit}` : ''}
+          </Text>
+        </View>
+        {metric.previousDate ? (
+          <Text style={styles.changeReference}>
+            vs. {formatMeasurementDate(metric.previousDate, 'short')}
+          </Text>
+        ) : null}
+      </View>
+    );
+  };
 
   const closeMeasurementDetail = useCallback(() => {
     setIsDetailVisible(false);
@@ -797,10 +879,10 @@ export default function MeasurementsScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.title}>Medidas</Text>
             <Text style={styles.subtitle}>
-              Organiza tu seguimiento corporal y glucémico por tipo de registro.
+              Tu progreso corporal, de glucosa y de salud.
             </Text>
             <Text style={styles.preferenceText}>
-              Unidades: {MEASUREMENT_PREFERENCE_LABELS[measurementPreference]}
+              Unidades: {UNIT_SYSTEM_LABELS[measurementPreference]}
             </Text>
           </View>
           <ProfileShortcutButton />
@@ -834,26 +916,13 @@ export default function MeasurementsScreen() {
         >
           {activeTab === 'summary' ? (
             <>
-              <Card style={styles.summaryIntroCard}>
-                <Text style={styles.summaryIntroEyebrow}>Vista general</Text>
-                <Text style={styles.summaryIntroTitle}>
-                  Todo tu seguimiento, mejor organizado
-                </Text>
-                <Text style={styles.summaryIntroText}>
-                  Revisa lo mas reciente y entra al detalle corporal o glucemico
-                  solo cuando lo necesites.
-                </Text>
-              </Card>
-
               {measurementErrorCard}
 
               <Card style={styles.overviewCard}>
                 <View style={styles.overviewHeader}>
                   <View style={styles.overviewHeaderCopy}>
                     <Text style={styles.overviewEyebrow}>Corporal</Text>
-                    <Text style={styles.overviewTitle}>
-                      Último registro antropométrico
-                    </Text>
+                    <Text style={styles.overviewTitle}>Última medición</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.overviewActionPill}
@@ -871,8 +940,13 @@ export default function MeasurementsScreen() {
 
                 {latestMeasurement ? (
                   <>
-                    <Text style={styles.overviewMeta}>
-                      Actualizado el{' '}
+                    <Text
+                      style={[
+                        styles.overviewMeta,
+                        latestMeasurementAge?.isStale ? styles.overviewMetaStale : null,
+                      ]}
+                    >
+                      {latestMeasurementAge ? `${latestMeasurementAge.label} · ` : ''}
                       {formatMeasurementDate(
                         getMeasurementDisplayDate(latestMeasurement),
                         'long',
@@ -880,15 +954,44 @@ export default function MeasurementsScreen() {
                     </Text>
                     <View style={styles.overviewMetricGrid}>
                       {visibleSummaryMetrics.slice(0, 3).map((metric) => {
+                        const progressConfig = getMeasurementProgressMetricConfig(metric.key);
                         const displayValue = getDisplayMeasurement(
                           metric.value,
                           metric.unit,
-                          metric.unit === '%' ? 1 : 1,
+                          1,
                         );
 
+                        // Cada cifra lleva su cambio contra la medición anterior y abre su
+                        // gráfica: antes el resumen solo enseñaba el número suelto.
                         return (
-                          <View key={metric.key} style={styles.overviewMetricCard}>
-                            <Text style={styles.overviewMetricLabel}>{metric.label}</Text>
+                          <TouchableOpacity
+                            key={metric.key}
+                            style={[
+                              styles.overviewMetricCard,
+                              progressConfig ? styles.metricCardInteractive : null,
+                            ]}
+                            activeOpacity={0.88}
+                            disabled={!progressConfig}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${metric.label}: ${displayValue.value}${
+                              displayValue.unit ? ` ${displayValue.unit}` : ''
+                            }. Ver progreso`}
+                            onPress={() => {
+                              if (progressConfig) {
+                                handleOpenMeasurementProgress(progressConfig.key);
+                              }
+                            }}
+                          >
+                            <View style={styles.metricChipHeader}>
+                              <Text style={styles.overviewMetricLabel}>{metric.label}</Text>
+                              {progressConfig ? (
+                                <Ionicons
+                                  name="chevron-forward-outline"
+                                  size={14}
+                                  color={theme.colors.iconMuted}
+                                />
+                              ) : null}
+                            </View>
                             <Text style={styles.overviewMetricValue}>
                               {displayValue.value}
                               {displayValue.unit ? (
@@ -898,10 +1001,17 @@ export default function MeasurementsScreen() {
                                 </Text>
                               ) : null}
                             </Text>
-                          </View>
+                            {renderMetricChange(metric)}
+                          </TouchableOpacity>
                         );
                       })}
                     </View>
+                    {latestMeasurementAge?.isStale ? (
+                      <Text style={styles.overviewHint}>
+                        Han pasado más de 30 días desde tu última medición. Registra una nueva
+                        para seguir tu progreso.
+                      </Text>
+                    ) : null}
                     <TouchableOpacity
                       style={styles.inlineAction}
                       activeOpacity={0.88}
@@ -913,7 +1023,7 @@ export default function MeasurementsScreen() {
                         color={theme.colors.primary}
                       />
                       <Text style={styles.inlineActionText}>
-                        Registrar nueva medición corporal
+                        Registrar nueva medición
                       </Text>
                     </TouchableOpacity>
                   </>
@@ -945,7 +1055,7 @@ export default function MeasurementsScreen() {
                   <View style={styles.overviewHeader}>
                     <View style={styles.overviewHeaderCopy}>
                       <Text style={styles.overviewEyebrow}>Indicadores</Text>
-                      <Text style={styles.overviewTitle}>Calculos recientes</Text>
+                      <Text style={styles.overviewTitle}>Cálculos recientes</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.overviewActionPill}
@@ -993,9 +1103,7 @@ export default function MeasurementsScreen() {
                 <View style={styles.overviewHeader}>
                   <View style={styles.overviewHeaderCopy}>
                     <Text style={styles.overviewEyebrow}>Glucosa</Text>
-                    <Text style={styles.overviewTitle}>
-                      Seguimiento glucemico reciente
-                    </Text>
+                    <Text style={styles.overviewTitle}>Última lectura</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.overviewActionPill}
@@ -1020,14 +1128,15 @@ export default function MeasurementsScreen() {
                       <Text style={styles.glucoseSummaryUnit}> mg/dL</Text>
                     </Text>
                     <Text style={styles.overviewMeta}>
-                      {summaryGlucoseContextLabel ?? 'Sin contexto'} -{' '}
+                      {summaryGlucoseContextLabel ?? 'Sin contexto'} ·{' '}
                       {formatGlucoseRecordedAt(summaryGlucoseRecord.recorded_at, 'short')}
                     </Text>
-                    <Text style={styles.overviewHint}>
-                      {summaryGlucoseIsMixed
-                        ? 'Este registro incluye otras métricas clínicas y ya está visible para tu nutriólogo.'
-                        : 'Tu lectura más reciente ya está lista para seguimiento nutricional.'}
-                    </Text>
+                    {summaryGlucoseIsMixed ? (
+                      <Text style={styles.overviewHint}>
+                        Este registro incluye otras métricas clínicas y ya está visible para tu
+                        nutriólogo.
+                      </Text>
+                    ) : null}
                     <TouchableOpacity
                       style={styles.inlineAction}
                       activeOpacity={0.88}
@@ -1099,23 +1208,28 @@ export default function MeasurementsScreen() {
 
               {latestMeasurement ? (
                 <>
+                  <Text
+                    style={[
+                      styles.bodyMeta,
+                      latestMeasurementAge?.isStale ? styles.overviewMetaStale : null,
+                    ]}
+                  >
+                    Última medición:{' '}
+                    {latestMeasurementAge ? `${latestMeasurementAge.label} · ` : ''}
+                    {formatMeasurementDate(
+                      getMeasurementDisplayDate(latestMeasurement),
+                      'long',
+                    )}
+                  </Text>
+
                   <View style={styles.mainStatsContainer}>
-                    {summaryMetrics.map((metric, index) => {
+                    {visibleSummaryMetrics.map((metric, index) => {
                       const progressConfig = getMeasurementProgressMetricConfig(metric.key);
-                      const appearance = getChangeAppearance(
-                        metric.change,
-                        metric.emphasizeDecrease ?? false,
-                        theme,
-                      );
                       const displayValue = getDisplayMeasurement(
                         metric.value,
                         metric.unit,
-                        metric.unit === '%' ? 1 : 1,
+                        1,
                       );
-                      const displayChange =
-                        metric.change === null
-                          ? null
-                          : getDisplayMeasurement(Math.abs(metric.change), metric.unit, 2);
 
                       const content = (
                         <>
@@ -1141,32 +1255,14 @@ export default function MeasurementsScreen() {
                           <Text style={styles.summaryLabel}>{metric.label}</Text>
                           <Text style={styles.summaryValue}>
                             {displayValue.value}
-                            {metric.value !== null && displayValue.unit ? (
+                            {displayValue.unit ? (
                               <Text style={styles.summaryUnit}>
                                 {' '}
                                 {displayValue.unit}
                               </Text>
                             ) : null}
                           </Text>
-                          {metric.change !== null ? (
-                            <View
-                              style={[
-                                styles.changeBadge,
-                                { backgroundColor: `${appearance.color}15` },
-                              ]}
-                            >
-                              <Ionicons
-                                name={appearance.icon}
-                                size={12}
-                                color={appearance.color}
-                              />
-                              <Text style={[styles.changeText, { color: appearance.color }]}>
-                                {displayChange?.value} {displayChange?.unit}
-                              </Text>
-                            </View>
-                          ) : (
-                            <Text style={styles.noChangeText}>Sin comparativo previo</Text>
-                          )}
+                          {renderMetricChange(metric)}
                           {progressConfig ? (
                             <Text style={styles.summaryHelperText}>
                               Toca para ver el progreso completo.
@@ -1208,15 +1304,13 @@ export default function MeasurementsScreen() {
                     })}
                   </View>
 
-                  <Text style={styles.lastUpdate}>
-                    Última actualización:{' '}
-                    {formatMeasurementDate(
-                      getMeasurementDisplayDate(latestMeasurement),
-                      'long',
-                    )}
-                  </Text>
+                  {missingSummaryMetricsLabel ? (
+                    <Text style={styles.missingMetricsText}>
+                      Tu última medición no incluye {missingSummaryMetricsLabel}.
+                    </Text>
+                  ) : null}
 
-                  {latestMeasurementDetail ? (
+                  {latestMeasurementDetail && recentCalculations.length > 0 ? (
                     <Card style={styles.sectionCard}>
                       <View style={styles.sectionHeader}>
                         <View style={styles.sectionHeaderContent}>
@@ -1298,72 +1392,76 @@ export default function MeasurementsScreen() {
                           );
                         })}
                       </View>
-                      <View style={styles.analysisMeta}>
-                        <Text style={styles.analysisMetaText}>
-                          Estado:{' '}
-                          {latestMeasurementDetail.calculationRun?.status ?? 'sin calculo'}
-                        </Text>
-                        <Text style={styles.analysisMetaText}>
-                          Advertencias: {latestMeasurementDetail.warnings.length}
-                        </Text>
-                      </View>
+                      {/* El estado interno del cálculo ("completed") no le decía nada al
+                          usuario; solo merece una línea si hay advertencias que revisar. */}
+                      {latestMeasurementDetail.warnings.length > 0 ? (
+                        <View style={styles.analysisMeta}>
+                          <Text style={styles.analysisMetaText}>
+                            {latestMeasurementDetail.warnings.length === 1
+                              ? '1 advertencia en este cálculo. Revisa el detalle.'
+                              : `${latestMeasurementDetail.warnings.length} advertencias en este cálculo. Revisa el detalle.`}
+                          </Text>
+                        </View>
+                      ) : null}
                     </Card>
                   ) : null}
 
-                  <Card style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>Perímetros corporales</Text>
-                    <Text style={styles.sectionDescription}>
-                      Se muestran únicamente las medidas disponibles del último registro.
-                    </Text>
-                    <View style={styles.perimeterGrid}>
-                      {perimeterCards.map((field) => {
-                        const progressConfig = getMeasurementProgressMetricConfig(field.key);
-                        const displayValue = getDisplayMeasurement(field.value, field.unit, 1);
+                  {perimeterCards.length > 0 ? (
+                    <Card style={styles.sectionCard}>
+                      <Text style={styles.sectionTitle}>Perímetros corporales</Text>
+                      <Text style={styles.sectionDescription}>
+                        Se muestran únicamente las medidas disponibles del último registro.
+                      </Text>
+                      <View style={styles.perimeterGrid}>
+                        {perimeterCards.map((field) => {
+                          const progressConfig = getMeasurementProgressMetricConfig(field.key);
+                          const displayValue = getDisplayMeasurement(field.value, field.unit, 1);
 
-                        return (
-                          <TouchableOpacity
-                            key={field.key}
-                            style={[styles.perimeterCard, styles.metricCardInteractive]}
-                            activeOpacity={0.9}
-                            accessibilityRole="button"
-                            accessibilityLabel={`Ver progreso de ${field.label.toLowerCase()}`}
-                            onPress={() =>
-                              progressConfig &&
-                              handleOpenMeasurementProgress(progressConfig.key)
-                            }
-                          >
-                            <View style={styles.metricChipHeader}>
-                              <Ionicons
-                                name={
-                                  (field.icon ?? 'body-outline') as keyof typeof Ionicons.glyphMap
-                                }
-                                size={18}
-                                color={theme.colors.iconMuted}
-                              />
-                              <View style={styles.metricActionPill}>
+                          return (
+                            <TouchableOpacity
+                              key={field.key}
+                              style={[styles.perimeterCard, styles.metricCardInteractive]}
+                              activeOpacity={0.9}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Ver progreso de ${field.label.toLowerCase()}`}
+                              onPress={() =>
+                                progressConfig &&
+                                handleOpenMeasurementProgress(progressConfig.key)
+                              }
+                            >
+                              <View style={styles.metricChipHeader}>
                                 <Ionicons
-                                  name="analytics-outline"
-                                  size={12}
-                                  color={theme.colors.primary}
+                                  name={
+                                    (field.icon ?? 'body-outline') as keyof typeof Ionicons.glyphMap
+                                  }
+                                  size={18}
+                                  color={theme.colors.iconMuted}
                                 />
-                                <Text style={styles.metricActionText}>Ver gráfica</Text>
+                                <View style={styles.metricActionPill}>
+                                  <Ionicons
+                                    name="analytics-outline"
+                                    size={12}
+                                    color={theme.colors.primary}
+                                  />
+                                  <Text style={styles.metricActionText}>Ver gráfica</Text>
+                                </View>
                               </View>
-                            </View>
-                            <Text style={styles.perimeterLabel}>{field.label}</Text>
-                            <Text style={styles.perimeterValue}>
-                              {displayValue.value}
-                              {displayValue.unit ? (
-                                <Text style={styles.perimeterUnit}>
-                                  {' '}
-                                  {displayValue.unit}
-                                </Text>
-                              ) : null}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </Card>
+                              <Text style={styles.perimeterLabel}>{field.label}</Text>
+                              <Text style={styles.perimeterValue}>
+                                {displayValue.value}
+                                {displayValue.unit ? (
+                                  <Text style={styles.perimeterUnit}>
+                                    {' '}
+                                    {displayValue.unit}
+                                  </Text>
+                                ) : null}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    </Card>
+                  ) : null}
 
                   <Card style={styles.sectionCard}>
                     <View style={styles.sectionHeader}>
@@ -1448,7 +1546,7 @@ export default function MeasurementsScreen() {
 
                     {pagination && measurements.length < pagination.total ? (
                       <Button
-                        title="Cargar mas"
+                        title="Cargar más"
                         onPress={() => void handleLoadMore()}
                         variant="secondary"
                         isLoading={isLoadingMore}
@@ -1601,7 +1699,7 @@ export default function MeasurementsScreen() {
                   {glucosePagination &&
                   glucoseRecords.length < glucosePagination.total ? (
                     <Button
-                      title="Cargar mas"
+                      title="Cargar más"
                       onPress={() => void loadMoreGlucose()}
                       variant="secondary"
                       isLoading={isLoadingMoreGlucose}
@@ -1613,12 +1711,16 @@ export default function MeasurementsScreen() {
           ) : null}
         </ScrollView>
 
-        <FloatingButton
-          accessibilityLabel="Registrar nueva medida"
-          icon={<Ionicons name="add-outline" size={28} color="#ffffff" />}
-          onPress={() => setIsCreateMenuVisible(true)}
-          bottomOffset={100}
-        />
+        {/* En Resumen cada tarjeta ya tiene su botón de registrar y el flotante tapaba sus
+            acciones al hacer scroll; en Salud no hay nada que registrar a mano. */}
+        {activeTab === 'body' || activeTab === 'glucose' ? (
+          <FloatingButton
+            accessibilityLabel="Registrar nueva medida"
+            icon={<Ionicons name="add-outline" size={28} color="#ffffff" />}
+            onPress={() => setIsCreateMenuVisible(true)}
+            bottomOffset={100}
+          />
+        ) : null}
 
         <MeasurementCreateMenuModal
           visible={isFocused && isCreateMenuVisible}
@@ -1732,40 +1834,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: fontSize.sm,
       color: theme.colors.textSecondary,
     },
-    summaryIntroCard: {
-      backgroundColor: theme.colors.primarySoft,
-      borderColor:
-        Platform.OS === 'android' && theme.isDark ? 'transparent' : theme.colors.primaryBorder,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
-      ...(Platform.OS === 'android' && theme.isDark
-        ? {
-            shadowColor: 'transparent',
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 0,
-          }
-        : {}),
-    },
-    summaryIntroEyebrow: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.primary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-    },
-    summaryIntroTitle: {
-      marginTop: spacing.sm,
-      fontSize: fontSize.xl,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-    },
-    summaryIntroText: {
-      marginTop: spacing.sm,
-      fontSize: fontSize.sm,
-      lineHeight: 20,
-      color: theme.colors.textSecondary,
-    },
     overviewCard: {
       marginBottom: spacing.sm,
       borderColor: Platform.OS === 'android' && theme.isDark ? 'transparent' : theme.colors.border,
@@ -1807,6 +1875,10 @@ const createStyles = (theme: AppTheme) =>
       fontSize: fontSize.sm,
       color: theme.colors.textMuted,
     },
+    overviewMetaStale: {
+      color: theme.colors.warning,
+      fontWeight: '600',
+    },
     overviewHint: {
       marginTop: spacing.sm,
       fontSize: fontSize.sm,
@@ -1842,7 +1914,10 @@ const createStyles = (theme: AppTheme) =>
       marginTop: spacing.md,
     },
     overviewMetricCard: {
-      width: '48%',
+      // Crece para llenar la fila: con una sola cifra (solo peso) la tarjeta ocupaba media
+      // fila y dejaba la otra mitad vacía.
+      flexGrow: 1,
+      flexBasis: '45%',
       padding: spacing.md,
       borderRadius: borderRadius.md,
       backgroundColor: theme.colors.surfaceAlt,
@@ -1919,7 +1994,9 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.sm,
     },
     summaryCard: {
-      width: '48%',
+      // Crece para llenar la fila ahora que las métricas sin dato no se pintan.
+      flexGrow: 1,
+      flexBasis: '45%',
       backgroundColor: theme.colors.surface,
       borderRadius: borderRadius.lg,
       borderWidth: 1,
@@ -1928,7 +2005,7 @@ const createStyles = (theme: AppTheme) =>
       ...shadows.md,
     },
     summaryCardLarge: {
-      width: '100%',
+      flexBasis: '100%',
     },
     summaryCardHeader: {
       flexDirection: 'row',
@@ -1983,9 +2060,18 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: '400',
       color: theme.colors.textMuted,
     },
-    changeBadge: {
+    changeRow: {
       marginTop: spacing.sm,
-      alignSelf: 'flex-start',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: spacing.xs,
+    },
+    changeReference: {
+      fontSize: fontSize.xs,
+      color: theme.colors.textMuted,
+    },
+    changeBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
@@ -2007,12 +2093,14 @@ const createStyles = (theme: AppTheme) =>
       fontSize: fontSize.xs,
       color: theme.colors.textMuted,
     },
-    lastUpdate: {
-      marginTop: spacing.md,
-      marginBottom: spacing.lg,
-      textAlign: 'center',
-      fontSize: fontSize.xs,
-      color: theme.colors.iconMuted,
+    bodyMeta: {
+      fontSize: fontSize.sm,
+      color: theme.colors.textMuted,
+    },
+    missingMetricsText: {
+      fontSize: fontSize.sm,
+      lineHeight: 20,
+      color: theme.colors.textMuted,
     },
     sectionCard: {
       marginBottom: spacing.md,

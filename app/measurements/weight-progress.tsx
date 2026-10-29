@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type LayoutChangeEvent,
   Platform,
@@ -26,12 +26,15 @@ import {
   formatMeasurementDate,
   formatMeasurementNumber,
   getMeasurementDisplayDate,
+  getWeightChangePreference,
+  type MeasurementChangePreference,
   parseMeasurementNumber,
 } from '../../src/utils/measurements';
 import { convertMeasurementUnitValue } from '../../src/utils/measurementUnits';
 import { useMeasurementPreferenceStore } from '../../src/store/measurementPreferenceStore';
+import { useWorkoutStore } from '../../src/store/workoutStore';
 
-type RangePreset = '7d' | '30d' | '90d' | 'custom';
+type RangePreset = '7d' | '30d' | '90d' | 'all' | 'custom';
 type PickerTarget = 'start' | 'end' | null;
 
 interface MeasurementRecord {
@@ -52,6 +55,31 @@ interface ChartPoint extends MeasurementRecord {
 interface MeasurementProgressScreenProps {
   metricKey?: string | null;
 }
+
+// Mismo criterio que en Medidas: el peso se juzga contra el objetivo del programa. El resto
+// de métricas conserva la regla de siempre (bajar en verde, subir en azul).
+const getTotalChangeColor = (
+  totalChange: number | null,
+  metricKey: string | undefined,
+  weightChangePreference: MeasurementChangePreference,
+  theme: AppTheme,
+) => {
+  if (totalChange === null || totalChange === 0) {
+    return theme.colors.textMuted;
+  }
+
+  if (metricKey !== 'weight_kg') {
+    return totalChange > 0 ? theme.colors.primary : theme.colors.success;
+  }
+
+  if (weightChangePreference === 'neutral') {
+    return theme.colors.primary;
+  }
+
+  const isGoodChange =
+    weightChangePreference === 'decrease' ? totalChange < 0 : totalChange > 0;
+  return isGoodChange ? theme.colors.success : theme.colors.warning;
+};
 
 const HISTORY_PAGE_SIZE = 20;
 const CHART_HEIGHT = 280;
@@ -77,6 +105,7 @@ const RANGE_OPTIONS: { key: RangePreset; label: string }[] = [
   { key: '7d', label: '1 semana' },
   { key: '30d', label: '1 mes' },
   { key: '90d', label: '3 meses' },
+  { key: 'all', label: 'Todo' },
   { key: 'custom', label: 'Fechas' },
 ];
 
@@ -170,6 +199,10 @@ export function MeasurementProgressScreen({
   ) as keyof typeof Ionicons.glyphMap;
   const measurementPreference = useMeasurementPreferenceStore((state) => state.preference);
   const initializeMeasurementPreference = useMeasurementPreferenceStore((state) => state.initialize);
+  const programObjective = useWorkoutStore(
+    (state) => state.dashboardBootstrap?.program?.objective ?? null,
+  );
+  const weightChangePreference = getWeightChangePreference(programObjective);
   const { width, height } = useWindowDimensions();
   const [measurements, setMeasurements] = useState<MeasurementHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -310,7 +343,31 @@ export function MeasurementProgressScreen({
   const availableStartDate = allRecords.find((point) => point.timestamp !== null)?.timestamp ?? null;
   const availableEndDate = [...allRecords].reverse().find((point) => point.timestamp !== null)?.timestamp ?? null;
 
+  // Medidas compara cada cifra con la medición anterior, aunque sea de hace meses. Si en 3
+  // meses no hay al menos dos registros, se abre en "Todo": antes la gráfica decía "Sin
+  // cambio" justo después de que la tarjeta dijera "↓ 15 kg".
+  const hasPickedInitialRangeRef = useRef(false);
+  useEffect(() => {
+    if (hasPickedInitialRangeRef.current || allRecords.length === 0) {
+      return;
+    }
+
+    hasPickedInitialRangeRef.current = true;
+    const ninetyDaysAgo = startOfDay(subtractDays(new Date(), 89)).getTime();
+    const recentRecords = allRecords.filter(
+      (point) => point.timestamp !== null && point.timestamp >= ninetyDaysAgo,
+    );
+
+    if (recentRecords.length < 2 && allRecords.length >= 2) {
+      setRangePreset('all');
+    }
+  }, [allRecords]);
+
   const filteredRecords = useMemo(() => {
+    if (rangePreset === 'all') {
+      return allRecords;
+    }
+
     if (rangePreset === 'custom') {
       if (!customStartDate || !customEndDate) {
         return allRecords;
@@ -484,11 +541,12 @@ export function MeasurementProgressScreen({
     : totalChange === 0
       ? 'Sin cambio'
       : `${totalChange > 0 ? '+' : ''}${formatMeasurementNumber(totalChange, metricValueDecimals)}${unitSuffix}`;
-  const changeDirectionColor = totalChange === null || totalChange === 0
-    ? theme.colors.textMuted
-    : totalChange > 0
-      ? theme.colors.primary
-      : theme.colors.success;
+  const changeDirectionColor = getTotalChangeColor(
+    totalChange,
+    metricConfig?.key,
+    weightChangePreference,
+    theme,
+  );
 
   const linePath = buildLinePath(chartPoints);
   const baselineY = CHART_HEIGHT - CHART_VERTICAL_PADDING;
