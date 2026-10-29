@@ -34,7 +34,7 @@ const GLOWS = [
 // react-native-svg resolves url(#id) references literally, and useId() returns colons.
 export const toSvgId = (raw: string) => raw.replace(/[^a-zA-Z0-9_-]/g, '');
 
-const withAlpha = (hex: string, alpha: number) => {
+export const withAlpha = (hex: string, alpha: number) => {
   const value = hex.replace('#', '');
   const r = parseInt(value.slice(0, 2), 16);
   const g = parseInt(value.slice(2, 4), 16);

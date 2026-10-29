@@ -7,10 +7,12 @@ import {
   StyleSheet,
   View,
   useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '../../src/store/authStore';
 import { useWorkoutStore } from '../../src/store/workoutStore';
@@ -31,7 +33,7 @@ import {
   HomeHero,
 } from '../../src/components/dashboard';
 import { ActivityGridCard } from '../../src/components/activity';
-import { AuroraBackdrop } from '../../src/components/aurora';
+import { AuroraBackdrop, AuroraTopScrim } from '../../src/components/aurora';
 import { useDailyActivity } from '../../src/hooks/useDailyActivity';
 import { buildActivityGrid, getCurrentDailyStreak, meetsTwoGoals } from '../../src/utils/activityGrid';
 import {
@@ -148,8 +150,18 @@ export default function HomeScreen() {
   const calendarContentWidth = Math.max(0, contentWidth - horizontalPadding * 2);
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const tabBarScroll = useBottomTabBarScroll();
+  const { onScroll: onTabBarScroll, scrollEventThrottle } = useBottomTabBarScroll();
   const contentInsetBottom = useBottomTabBarContentInset();
+  const insets = useSafeAreaInsets();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      onTabBarScroll(event);
+      const scrolled = event.nativeEvent.contentOffset.y > 4;
+      setIsScrolled((current) => (current === scrolled ? current : scrolled));
+    },
+    [onTabBarScroll],
+  );
   const isFocused = useIsFocused();
   const user = useAuthStore((state) => state.user);
   const {
@@ -615,26 +627,28 @@ export default function HomeScreen() {
 
   return (
     <TabScreenWrapper>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      {/* The backdrop runs under the status bar; the scrim takes over once content scrolls there. */}
+      <View style={styles.container}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: contentInsetBottom },
+            { paddingTop: insets.top, paddingBottom: contentInsetBottom },
             isTablet ? styles.scrollContentTablet : null,
           ]}
-          onScroll={tabBarScroll.onScroll}
+          onScroll={handleScroll}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={theme.colors.primary}
+              progressViewOffset={insets.top}
             />
           }
-          scrollEventThrottle={tabBarScroll.scrollEventThrottle}
+          scrollEventThrottle={scrollEventThrottle}
           showsVerticalScrollIndicator={false}
         >
-          <AuroraBackdrop width={width} height={520} palette="home" />
+          <AuroraBackdrop width={width} height={520 + insets.top} palette="home" />
           <View style={[styles.contentColumn, { maxWidth: contentWidth }]}>
             <Animated.View entering={getEntryAnimation(0)}>
               <HomeHero
@@ -780,6 +794,7 @@ export default function HomeScreen() {
             ) : null}
           </View>
         </ScrollView>
+        <AuroraTopScrim height={insets.top} visible={isScrolled} />
 
         <SessionPickerModal
           visible={isSessionPickerVisible}
@@ -809,7 +824,7 @@ export default function HomeScreen() {
           onClose={handleCloseDatePicker}
           onSelect={handleSelectDate}
         />
-      </SafeAreaView>
+      </View>
     </TabScreenWrapper>
   );
 }
