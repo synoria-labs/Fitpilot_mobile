@@ -814,7 +814,11 @@ export const buildConnectedHealthFeedback = (
 ): ConnectedHealthFeedbackModel => {
   const connection = getConnection(summary);
   const sourceLabel = getPlatformLabel(connection);
+  const todayKey = toLocalDateKey(new Date(nowMs));
   const summaries = sortSummariesDesc(summary?.summaries ?? [])
+    // Un día posterior al de hoy en este teléfono solo puede venir de otro dispositivo en otra
+    // zona horaria (o de un reloj mal puesto): no se presenta como el día más reciente.
+    .filter((day) => !todayKey || (toLocalDateKey(day.date) ?? day.date) <= todayKey)
     .filter(hasMetricValue)
     .slice(0, range);
   const latest = summaries[0] ?? null;

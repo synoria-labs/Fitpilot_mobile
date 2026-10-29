@@ -6,6 +6,7 @@ import FitpilotHealth, {
   type FitpilotHealthSyncPayload,
 } from '../../modules/fitpilot-health';
 import { ConnectedHealthPermissionsError } from '../utils/connectedHealthAuthorization';
+import { addDaysToDateKey, getTodayDateKey } from '../utils/date';
 import { nutritionClient } from './api';
 
 export type ConnectedHealthConnection = {
@@ -240,10 +241,19 @@ export const connectedHealthService = {
     }
   },
 
-  getSummary: (days = 30): Promise<ConnectedHealthSummaryResponse> =>
-    nutritionClient.get<ConnectedHealthSummaryResponse>(
-      `/connected-health/me/summary?days=${days}`,
-    ),
+  getSummary: (days = 30): Promise<ConnectedHealthSummaryResponse> => {
+    // El rango va en días de este teléfono. Sin fechas, el backend lo cierra en el día UTC:
+    // desde las 18:00 en México eso ya es mañana, y la app enseñaba como día más reciente uno
+    // que aún no llega, con lo que hubiera subido otro dispositivo en otra zona horaria.
+    const endDate = getTodayDateKey();
+    const startDate = addDaysToDateKey(endDate, -(Math.max(1, days) - 1));
+    const query =
+      endDate && startDate ? `start_date=${startDate}&end_date=${endDate}` : `days=${days}`;
+
+    return nutritionClient.get<ConnectedHealthSummaryResponse>(
+      `/connected-health/me/summary?${query}`,
+    );
+  },
 
   sync: async (
     days = 30,
