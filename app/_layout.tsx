@@ -6,9 +6,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from '@react-navigation/native';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import { useAuthStore } from '../src/store/authStore';
 import { AppToast, ErrorBoundary, OfflineBanner, StartupBrandIntro } from '../src/components/common';
 import { buildNavigationTheme, useAppTheme, useThemedStyles } from '../src/theme';
+import { auroraFontFiles } from '../src/theme/aurora';
 import { useConnectivityMonitor } from '../src/hooks/useConnectivityMonitor';
 import { useSystemNavigationBarTheme } from '../src/hooks/useSystemNavigationBarTheme';
 import { useNotificationListeners } from '../src/services/notificationListeners';
@@ -26,7 +28,9 @@ export default function RootLayout() {
   const styles = useThemedStyles(createStyles);
   const [showStartupIntro, setShowStartupIntro] = useState(false);
   const [isNativeSplashHidden, setIsNativeSplashHidden] = useState(false);
-  const isReady = isInitialized && isHydrated;
+  // A font that fails to load must not hold the app on the splash: the system font stands in.
+  const [fontsLoaded, fontError] = useFonts(auroraFontFiles);
+  const isReady = isInitialized && isHydrated && (fontsLoaded || fontError !== null);
 
   useNotificationListeners();
   useConnectivityMonitor();

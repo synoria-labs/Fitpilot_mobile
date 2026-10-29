@@ -16,6 +16,9 @@ type LogoMarkProps = {
 
 const MARK_TRANSFORM = 'matrix(1.3297593 0 0 1.3297593 -137.48577 13.947221)';
 
+/** Share of the square box the mark itself covers; the transform above centres it in the box. */
+export const LOGO_MARK_SPAN = { width: 0.4947, height: 0.3664 } as const;
+
 export const LogoMark: React.FC<LogoMarkProps> = ({
   size = 80,
   style,
