@@ -28,8 +28,12 @@ import {
   SessionPickerModal,
   SplitOverviewCta,
   TodayWorkoutCard,
-  UserHeader,
+  HomeHero,
 } from '../../src/components/dashboard';
+import { ActivityGridCard } from '../../src/components/activity';
+import { AuroraBackdrop } from '../../src/components/aurora';
+import { useDailyActivity } from '../../src/hooks/useDailyActivity';
+import { buildActivityGrid, getCurrentDailyStreak, meetsTwoGoals } from '../../src/utils/activityGrid';
 import {
   ConnectedHealthFeedbackSummaryCard,
   ConnectedHealthSetupBanner,
@@ -54,7 +58,7 @@ import type {
   MicrocycleSessionProgress,
   MuscleVolumeResponse,
 } from '../../src/types';
-import { formatLocalDate, toLocalDateKey } from '../../src/utils/date';
+import { formatLocalDate, getTodayDateKey, toLocalDateKey } from '../../src/utils/date';
 import {
   getDashboardContentWidth,
   getPrimaryScreenHorizontalPadding,
@@ -134,6 +138,8 @@ const formatHomeCareTeamSummary = (
   };
 };
 
+const ACTIVITY_WEEKS = 16;
+
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isTablet = isTabletLayout(width, height);
@@ -155,6 +161,25 @@ export default function HomeScreen() {
   const dashboardBootstrap = useWorkoutStore((state) => state.dashboardBootstrap);
   const dashboardDataVersion = useWorkoutStore((state) => state.dashboardDataVersion);
   const workoutLogsVersion = useWorkoutStore((state) => state.workoutLogsVersion);
+  const dailyActivity = useDailyActivity({ weeks: ACTIVITY_WEEKS, enabled: false });
+  const reloadDailyActivity = dailyActivity.reload;
+  const homeStreakDays = useMemo(() => {
+    const model = buildActivityGrid({
+      todayKey: getTodayDateKey(),
+      weeks: ACTIVITY_WEEKS,
+      days: dailyActivity.days,
+      mode: 'todo',
+      startKey: dailyActivity.startKey,
+    });
+    return getCurrentDailyStreak(model.cells, model.todayIndex, meetsTwoGoals);
+  }, [dailyActivity.days, dailyActivity.startKey]);
+
+  // Se recarga al volver a Inicio y cuando se registra un entreno nuevo.
+  useEffect(() => {
+    if (isFocused && user?.id) {
+      void reloadDailyActivity();
+    }
+  }, [isFocused, reloadDailyActivity, user?.id, workoutLogsVersion]);
   const isLoading = useWorkoutStore((state) => state.isLoading);
   const isStartingWorkout = useWorkoutStore((state) => state.isStartingWorkout);
   const error = useWorkoutStore((state) => state.error);
@@ -383,6 +408,7 @@ export default function HomeScreen() {
       loadDashboardData(),
       refreshCareTeam(),
       loadCurrentWeekDietCaloriesAverage(),
+      reloadDailyActivity(),
     ]);
     lastLoadedWorkoutLogsVersionRef.current = workoutLogsVersion;
     setRefreshing(false);
@@ -390,6 +416,7 @@ export default function HomeScreen() {
     loadCurrentWeekDietCaloriesAverage,
     loadDashboardData,
     refreshCareTeam,
+    reloadDailyActivity,
     user?.id,
     workoutLogsVersion,
   ]);
@@ -607,13 +634,23 @@ export default function HomeScreen() {
           scrollEventThrottle={tabBarScroll.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
         >
+          <AuroraBackdrop width={width} height={520} palette="home" />
           <View style={[styles.contentColumn, { maxWidth: contentWidth }]}>
             <Animated.View entering={getEntryAnimation(0)}>
-              <UserHeader
+              <HomeHero
                 user={user}
                 program={program}
+                sessionName={
+                  programTimelineView.cardState.kind === 'session'
+                    ? programTimelineView.cardState.trainingDay.name
+                    : null
+                }
+                sessionIsToday={
+                  programTimelineView.cardState.kind === 'session' &&
+                  programTimelineView.cardState.dateKey === getTodayDateKey()
+                }
+                streakDays={homeStreakDays}
                 onProfilePress={handleOpenProfile}
-                contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
               />
             </Animated.View>
@@ -666,6 +703,17 @@ export default function HomeScreen() {
                 isLoading={isLoading && !refreshing}
                 horizontalPadding={horizontalPadding}
                 variant="strip"
+              />
+            </Animated.View>
+
+            <Animated.View entering={getEntryAnimation(250)} style={styles.activitySection}>
+              <ActivityGridCard
+                days={dailyActivity.days}
+                startKey={dailyActivity.startKey}
+                hasLoaded={dailyActivity.hasLoaded}
+                contentWidth={contentWidth}
+                horizontalPadding={horizontalPadding}
+                weeks={ACTIVITY_WEEKS}
               />
             </Animated.View>
 
@@ -785,5 +833,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     contentColumn: {
       width: '100%',
       alignSelf: 'center',
+    },
+    activitySection: {
+      marginVertical: spacing.sm,
     },
   });

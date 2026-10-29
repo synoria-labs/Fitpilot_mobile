@@ -1,4 +1,5 @@
 export { UserHeader } from './UserHeader';
+export { HomeHero } from './HomeHero';
 export { MicrocycleStats } from './MicrocycleStats';
 export { SessionPickerModal } from './SessionPickerModal';
 export { TodayWorkoutCard } from './TodayWorkoutCard';

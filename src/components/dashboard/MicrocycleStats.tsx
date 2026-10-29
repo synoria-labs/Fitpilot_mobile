@@ -103,7 +103,7 @@ export const MicrocycleStats: React.FC<MicrocycleStatsProps> = ({
           numberOfLines={1}
           style={[styles.toggleLabel, mode === 'planned' && styles.toggleLabelActive]}
         >
-          Planificacion
+          Planificación
         </Text>
       </Pressable>
       <Pressable
@@ -118,7 +118,7 @@ export const MicrocycleStats: React.FC<MicrocycleStatsProps> = ({
           numberOfLines={1}
           style={[styles.toggleLabel, mode === 'actual' && styles.toggleLabelActive]}
         >
-          Ejecucion real
+          Ejecución real
         </Text>
       </Pressable>
     </View>
