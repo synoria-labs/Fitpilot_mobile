@@ -22,6 +22,7 @@ import {
   describeMissingConnectedHealthPermissions,
   getConnectedHealthAuthorizationRecoveryMessage,
   getConnectedHealthPermissionState,
+  isConnectedHealthAuthorizationNotApplied,
   isConnectedHealthAuthorizationPending,
 } from '../utils/connectedHealthAuthorization';
 import { mergeDeviceSnapshotIntoSummary } from '../utils/connectedHealthDeviceMerge';
@@ -482,7 +483,15 @@ export function useConnectedHealthFeedback({
       if (nextPermissions.granted.length) {
         await refreshFromDevice();
         await performSync({ ensureAuthorization: false });
-      } else if (isMountedRef.current) {
+      }
+      // Sin un solo permiso, o con la hoja sin aplicar (iOS), volver a pedirlo no basta: se
+      // explica cómo recuperarlo. Va después del sync, que limpia el error al empezar, y lo
+      // que sí se pudo leer ya quedó subido.
+      if (
+        isMountedRef.current &&
+        (!nextPermissions.granted.length ||
+          isConnectedHealthAuthorizationNotApplied(nextPermissions))
+      ) {
         setSyncError(getConnectedHealthAuthorizationRecoveryMessage());
       }
     } catch (permissionFailure) {

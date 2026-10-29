@@ -117,6 +117,24 @@ type HealthDataChangedListener = (event: { types?: string[] }) => void;
 const changeListeners = new Set<HealthDataChangedListener>();
 let nativeSubscription: { remove: () => void } | null = null;
 let observerStartPromise: Promise<boolean> | null = null;
+// Un stop que llegara a iOS después del siguiente start dejaría la app sin observadores
+// mientras JS cree que siguen activos: cada start espera a que termine el último stop.
+let observerStopPromise: Promise<void> = Promise.resolve();
+
+// Los avisos de HealthKit llegan en ráfagas: uno por tipo y, con un Apple Watch, frecuencia
+// cardiaca cada pocos minutos (más durante un entrenamiento). Cada aviso releía todo el rango
+// del dispositivo en cada pantalla suscrita; ahora se agrupan en una ventana fija. Fija y no
+// debounce: con un flujo continuo de avisos un debounce no dispararía nunca.
+const HEALTH_CHANGE_COALESCE_MS = 5_000;
+const pendingChangeTypes = new Set<string>();
+let pendingChangeTimer: ReturnType<typeof setTimeout> | null = null;
+
+const flushPendingHealthChanges = () => {
+  pendingChangeTimer = null;
+  const types = Array.from(pendingChangeTypes);
+  pendingChangeTypes.clear();
+  changeListeners.forEach((current) => current({ types }));
+};
 
 // Token de la Changes API de Health Connect. Vive en memoria a propósito: al arrancar la
 // app siempre se hace una carga completa, así que persistirlo entre sesiones no compraría
@@ -160,7 +178,9 @@ export const connectedHealthService = {
   ): Promise<(() => void) | null> => {
     try {
       if (!observerStartPromise) {
-        observerStartPromise = FitpilotHealth.startObservingChanges().catch(() => false);
+        observerStartPromise = observerStopPromise
+          .then(() => FitpilotHealth.startObservingChanges())
+          .catch(() => false);
       }
       const supported = await observerStartPromise;
       if (!supported) {
@@ -170,7 +190,10 @@ export const connectedHealthService = {
       changeListeners.add(listener);
       if (!nativeSubscription) {
         nativeSubscription = FitpilotHealth.addHealthDataChangedListener((event) => {
-          changeListeners.forEach((current) => current(event));
+          event.types?.forEach((type) => pendingChangeTypes.add(type));
+          if (!pendingChangeTimer) {
+            pendingChangeTimer = setTimeout(flushPendingHealthChanges, HEALTH_CHANGE_COALESCE_MS);
+          }
         });
       }
 
@@ -179,8 +202,13 @@ export const connectedHealthService = {
         if (changeListeners.size === 0) {
           nativeSubscription?.remove();
           nativeSubscription = null;
+          if (pendingChangeTimer) {
+            clearTimeout(pendingChangeTimer);
+            pendingChangeTimer = null;
+          }
+          pendingChangeTypes.clear();
           observerStartPromise = null;
-          void FitpilotHealth.stopObservingChanges().catch(() => undefined);
+          observerStopPromise = FitpilotHealth.stopObservingChanges().catch(() => undefined);
         }
       };
     } catch {

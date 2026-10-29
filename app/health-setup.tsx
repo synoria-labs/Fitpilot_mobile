@@ -21,6 +21,7 @@ import {
   getConnectedHealthAuthorizationRecoveryMessage,
   getConnectedHealthAvailabilityCopy,
   getConnectedHealthPlatformLabel,
+  isConnectedHealthAuthorizationNotApplied,
   isConnectedHealthAuthorizationPending,
 } from '../src/utils/connectedHealthAuthorization';
 import { useThemedStyles, type AppTheme } from '../src/theme';
@@ -94,6 +95,14 @@ export default function HealthSetupScreen() {
     setNeedsAuthorizationRecovery(false);
     try {
       const status = await connectedHealthService.requestPermissions();
+      if (isConnectedHealthAuthorizationNotApplied(status)) {
+        // iOS: la hoja de Salud no se aplicó (se presentó en blanco y se cerró sola, o se
+        // interrumpió). Ahora que el sync sube lo que sí puede leer, seguir de largo marcaría
+        // el setup como completado con los permisos a medias o sin ninguno.
+        setNeedsAuthorizationRecovery(true);
+        setError(getConnectedHealthAuthorizationRecoveryMessage());
+        return;
+      }
       if (!status.granted.length) {
         // Sin permisos otorgados no tiene sentido sincronizar ni marcar como
         // completado: guiamos al usuario a concederlos en Health Connect.

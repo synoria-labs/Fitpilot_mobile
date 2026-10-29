@@ -11,9 +11,41 @@ private struct QuantityMetric {
   let option: HKStatisticsOptions
 }
 
+/** Un permiso de lectura con el tipo de HealthKit que lo respalda. */
+private struct ReadPermission {
+  let name: String
+  let type: HKObjectType
+}
+
+/** Lo leído del dispositivo para un rango, más los permisos que HealthKit aún no ha resuelto. */
+private struct DeviceRead {
+  let summaries: [[String: Any]]
+  let records: [[String: Any]]
+  let pending: [String]
+}
+
+/**
+ * HealthKit lanza `errorAuthorizationNotDetermined` al consultar un tipo que el usuario aún no
+ * ha resuelto: la hoja de permisos se presentó en blanco y se cerró sola, se interrumpió, o se
+ * restauró un backup antes de que Salud terminara de sincronizar con iCloud.
+ */
+private func isAuthorizationNotDetermined(_ error: Error) -> Bool {
+  (error as? HKError)?.code == .errorAuthorizationNotDetermined
+}
+
+/**
+ * El sueño cuenta para el día en que te despiertas: un tramo que empieza desde las 18:00
+ * pertenece al día siguiente. Con fechas locales, sin este desplazamiento una noche se
+ * partiría en dos días a medianoche.
+ */
+private let sleepDayShift: TimeInterval = 6 * 60 * 60
+
 public class FitpilotHealthModule: Module {
   private let healthStore = HKHealthStore()
   private var observerQueries: [HKObserverQuery] = []
+  // Arrancar y parar observadores puede llegar a la vez (desde JS y desde `OnDestroy`); sin
+  // serializar, `observerQueries` se modificaba desde dos hilos al mismo tiempo.
+  private let observerQueue = DispatchQueue(label: "expo.modules.fitpilothealth.observers")
 
   public func definition() -> ModuleDefinition {
     Name("FitpilotHealth")
@@ -30,7 +62,7 @@ public class FitpilotHealthModule: Module {
 
     AsyncFunction("requestPermissions") { () async throws -> [String: Any] in
       guard HKHealthStore.isHealthDataAvailable() else {
-        return self.permissionStatus(granted: [], requiresManualGrant: false)
+        return self.permissionStatus(granted: [], requestStatus: .unknown)
       }
 
       try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -51,13 +83,18 @@ public class FitpilotHealthModule: Module {
         }
       }
 
-      // iOS intentionally does not reveal read permission decisions per type.
-      return self.permissionStatus(granted: self.permissionNames(), requiresManualGrant: false)
+      // `success` solo dice que la petición se procesó, no que el usuario respondiera. Si la
+      // hoja se presentó en blanco y se cerró sola, HealthKit sigue respondiendo
+      // `.shouldRequest` para esos tipos y salen como pendientes, en vez de darlos por
+      // concedidos como hasta ahora.
+      return await self.currentPermissionStatus()
     }
 
-    AsyncFunction("getGrantedPermissions") { () -> [String: Any] in
-      // HealthKit read permissions are privacy-preserving; a denied read returns no samples.
-      self.permissionStatus(granted: self.permissionNames(), requiresManualGrant: false)
+    AsyncFunction("getGrantedPermissions") { () async -> [String: Any] in
+      guard HKHealthStore.isHealthDataAvailable() else {
+        return self.permissionStatus(granted: [], requestStatus: .unknown)
+      }
+      return await self.currentPermissionStatus()
     }
 
     // Lectura ligera para pintar la pantalla: agrega el rango y NO sube nada. El dato ya
@@ -91,19 +128,17 @@ public class FitpilotHealthModule: Module {
         ]
       }
 
-      let quantitySummaries = try await self.queryDailyQuantitySummaries(startAt: startAt, endAt: endAt)
-      let sleepRecords = try await self.querySleepRecords(startAt: startAt, endAt: endAt)
-      let workoutRecords = try await self.queryWorkoutRecords(startAt: startAt, endAt: endAt)
-      let summaries = self.mergeSummaries(quantitySummaries, records: sleepRecords + workoutRecords)
+      let read = try await self.readDevice(startAt: startAt, endAt: endAt, includeBodyRecords: false)
 
       return [
         "platform": "healthkit",
         "from_at": ISO8601DateFormatter.fitpilot.string(from: startAt),
         "to_at": ISO8601DateFormatter.fitpilot.string(from: endAt),
-        "permissions": self.permissionNames(),
-        "daily_summaries": summaries,
+        "permissions": self.permissionNames().filter { !read.pending.contains($0) },
+        "daily_summaries": read.summaries,
         "metadata": [
           "read_mode": "snapshot",
+          "pending_permissions": read.pending,
         ],
       ]
     }
@@ -129,22 +164,21 @@ public class FitpilotHealthModule: Module {
         )
       }
 
-      let quantitySummaries = try await self.queryDailyQuantitySummaries(startAt: startAt, endAt: endAt)
-      let sleepRecords = try await self.querySleepRecords(startAt: startAt, endAt: endAt)
-      let workoutRecords = try await self.queryWorkoutRecords(startAt: startAt, endAt: endAt)
-      let bodyRecords = try await self.queryBodyRecords(startAt: startAt, endAt: endAt)
-      let summaries = self.mergeSummaries(quantitySummaries, records: sleepRecords + workoutRecords)
+      let read = try await self.readDevice(startAt: startAt, endAt: endAt, includeBodyRecords: true)
 
       return [
         "platform": "healthkit",
         "from_at": ISO8601DateFormatter.fitpilot.string(from: startAt),
         "to_at": ISO8601DateFormatter.fitpilot.string(from: endAt),
-        "permissions": self.permissionNames(),
-        "records": sleepRecords + workoutRecords + bodyRecords,
-        "daily_summaries": summaries,
+        // Solo los tipos que se pudieron leer: si no queda ninguno, la capa JS corta antes
+        // de subir nada. Los pendientes viajan en metadata y quedan en el sync run.
+        "permissions": self.permissionNames().filter { !read.pending.contains($0) },
+        "records": read.records,
+        "daily_summaries": read.summaries,
         "metadata": [
           "sync_granularity": "daily",
           "read_mode": "foreground",
+          "pending_permissions": read.pending,
         ],
       ]
     }
@@ -154,41 +188,41 @@ public class FitpilotHealthModule: Module {
      * preguntar: iOS avisa en cuanto el reloj o el iPhone escriben una muestra nueva, así
      * que la pantalla se pone al día sola mientras está abierta.
      *
-     * `enableBackgroundDelivery` además hace que iOS despierte la app cuando llegan datos
-     * con la app cerrada; si el runtime de JS alcanza a arrancar, el evento llega igual.
+     * Solo con la app abierta: despertarla en segundo plano requiere el entitlement
+     * `com.apple.developer.healthkit.background-delivery`, que la app no tiene. Al volver a
+     * primer plano la pantalla relee el dispositivo de todas formas.
      */
-    AsyncFunction("startObservingChanges") { () async -> Bool in
+    AsyncFunction("startObservingChanges") { () -> Bool in
       guard HKHealthStore.isHealthDataAvailable() else {
         return false
       }
 
-      await self.stopObserving()
+      return self.observerQueue.sync { () -> Bool in
+        self.stopObservingLocked()
 
-      for type in self.observedSampleTypes() {
-        let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completionHandler, error in
-          // El completionHandler debe invocarse SIEMPRE, también en error: si no, iOS deja
-          // de entregar cambios para ese tipo durante el resto de la sesión.
-          defer { completionHandler() }
-          guard error == nil, let self else {
-            return
+        for type in self.observedSampleTypes() {
+          let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completionHandler, error in
+            // El completionHandler debe invocarse SIEMPRE, también en error: si no, iOS deja
+            // de entregar cambios para ese tipo durante el resto de la sesión.
+            defer { completionHandler() }
+            guard error == nil, let self else {
+              return
+            }
+            self.sendEvent("onHealthDataChanged", ["types": [type.identifier]])
           }
-          self.sendEvent("onHealthDataChanged", ["types": [type.identifier]])
+
+          self.healthStore.execute(query)
+          self.observerQueries.append(query)
         }
 
-        self.healthStore.execute(query)
-        self.observerQueries.append(query)
-
-        // .immediate solo se respeta para tipos de alta frecuencia; para el resto iOS aplica
-        // su propia cadencia. No es un problema: mientras la app está abierta el observer
-        // dispara igualmente.
-        self.healthStore.enableBackgroundDelivery(for: type, frequency: .immediate) { _, _ in }
+        return !self.observerQueries.isEmpty
       }
-
-      return !self.observerQueries.isEmpty
     }
 
-    AsyncFunction("stopObservingChanges") { () async -> Void in
-      await self.stopObserving()
+    AsyncFunction("stopObservingChanges") { () -> Void in
+      self.observerQueue.sync {
+        self.stopObservingLocked()
+      }
     }
 
     // HealthKit no usa el modelo de token de Health Connect: aquí los cambios llegan por
@@ -208,10 +242,9 @@ public class FitpilotHealthModule: Module {
     }
 
     OnDestroy {
-      for query in self.observerQueries {
-        self.healthStore.stop(query)
+      self.observerQueue.sync {
+        self.stopObservingLocked()
       }
-      self.observerQueries = []
     }
 
     AsyncFunction("openSettings") { () -> Void in
@@ -223,20 +256,58 @@ public class FitpilotHealthModule: Module {
     }
   }
 
-  private func permissionStatus(granted: [String], requiresManualGrant: Bool) -> [String: Any] {
+  private func permissionStatus(
+    granted: [String],
+    requestStatus: HKAuthorizationRequestStatus
+  ) -> [String: Any] {
     let allPermissions = permissionNames()
     let missing = allPermissions.filter { !granted.contains($0) }
     return [
       "platform": "healthkit",
       "granted": granted,
       "missing": missing,
-      "requiresManualGrant": requiresManualGrant,
+      "requiresManualGrant": false,
+      "requestStatus": requestStatus.fitpilotName,
     ]
+  }
+
+  /**
+   * Lo que HealthKit sí deja saber de los permisos de lectura: a qué tipos ya se le preguntó
+   * al usuario. Si concedió o negó sigue siendo privado (una lectura negada solo devuelve
+   * vacío), así que en iOS `granted` significa "ya respondido". Lo inequívoco es un tipo que
+   * sigue en `.shouldRequest` después de pedir permiso: la hoja no se aplicó, y ese tipo va a
+   * `missing`.
+   */
+  private func currentPermissionStatus() async -> [String: Any] {
+    let overall = await requestStatus(read: readTypes())
+    guard overall == .shouldRequest else {
+      return permissionStatus(granted: permissionNames(), requestStatus: overall)
+    }
+
+    // Solo cuando falta algo se pregunta tipo a tipo, para poder decir cuáles.
+    var pending: [String] = []
+    for permission in readPermissions() {
+      if await requestStatus(read: [permission.type]) == .shouldRequest {
+        pending.append(permission.name)
+      }
+    }
+    return permissionStatus(
+      granted: permissionNames().filter { !pending.contains($0) },
+      requestStatus: overall
+    )
+  }
+
+  private func requestStatus(read types: Set<HKObjectType>) async -> HKAuthorizationRequestStatus {
+    await withCheckedContinuation { (continuation: CheckedContinuation<HKAuthorizationRequestStatus, Never>) in
+      healthStore.getRequestStatusForAuthorization(toShare: [], read: types) { status, error in
+        continuation.resume(returning: error == nil ? status : .unknown)
+      }
+    }
   }
 
   /** Tipos cuyos cambios merece la pena vigilar: los que alimentan alguna tarjeta. */
   private func observedSampleTypes() -> [HKSampleType] {
-    var types: [HKSampleType] = quantityMetrics().map(.type)
+    var types: [HKSampleType] = quantityMetrics().map { $0.type as HKSampleType }
     if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
       types.append(sleep)
     }
@@ -244,30 +315,30 @@ public class FitpilotHealthModule: Module {
     return types
   }
 
-  private func stopObserving() async {
+  /** Solo dentro de `observerQueue`. */
+  private func stopObservingLocked() {
     for query in observerQueries {
       healthStore.stop(query)
     }
     observerQueries = []
+  }
 
-    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-      healthStore.disableAllBackgroundDelivery { _, _ in
-        continuation.resume()
-      }
+  /** Única lista de permisos de lectura: `permissionNames` y `readTypes` salen de aquí. */
+  private func readPermissions() -> [ReadPermission] {
+    var permissions = quantityMetrics().map { ReadPermission(name: $0.permission, type: $0.type) }
+    permissions.append(ReadPermission(name: "workouts", type: HKObjectType.workoutType()))
+    if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+      permissions.append(ReadPermission(name: "sleep", type: sleep))
     }
+    return permissions
   }
 
   private func permissionNames() -> [String] {
-    quantityMetrics().map(\.permission) + ["workouts", "sleep"]
+    readPermissions().map { $0.name }
   }
 
   private func readTypes() -> Set<HKObjectType> {
-    var types = Set<HKObjectType>(quantityMetrics().map(\.type))
-    if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-      types.insert(sleep)
-    }
-    types.insert(HKObjectType.workoutType())
-    return types
+    Set(readPermissions().map { $0.type })
   }
 
   private func quantityMetrics() -> [QuantityMetric] {
@@ -309,10 +380,67 @@ public class FitpilotHealthModule: Module {
     return metrics
   }
 
-  private func queryDailyQuantitySummaries(startAt: Date, endAt: Date) async throws -> [[String: Any]] {
+  private func readDevice(
+    startAt: Date,
+    endAt: Date,
+    includeBodyRecords: Bool
+  ) async throws -> DeviceRead {
+    var pending: [String] = []
+    let quantitySummaries = try await queryDailyQuantitySummaries(
+      startAt: startAt,
+      endAt: endAt,
+      pending: &pending
+    )
+    let sleepRecords = try await readSkippingUndetermined("sleep", pending: &pending, {
+      try await self.querySleepRecords(startAt: startAt, endAt: endAt)
+    }) ?? []
+    let workoutRecords = try await readSkippingUndetermined("workouts", pending: &pending, {
+      try await self.queryWorkoutRecords(startAt: startAt, endAt: endAt)
+    }) ?? []
+    var bodyRecords: [[String: Any]] = []
+    if includeBodyRecords {
+      bodyRecords = try await queryBodyRecords(startAt: startAt, endAt: endAt, pending: &pending)
+    }
+
+    return DeviceRead(
+      summaries: mergeSummaries(quantitySummaries, records: sleepRecords + workoutRecords),
+      records: sleepRecords + workoutRecords + bodyRecords,
+      pending: pending
+    )
+  }
+
+  /**
+   * Lee un tipo y, si HealthKit responde que ese tipo sigue sin resolver, lo anota en `pending`
+   * y devuelve `nil` en vez de lanzar. Antes un solo tipo pendiente tumbaba la lectura entera y
+   * no se subía nada, ni siquiera lo que el usuario sí había concedido. Cualquier otro error
+   * (p. ej. el iPhone bloqueado) se sigue propagando: ahí fallan todos los tipos por igual y
+   * toca reintentar más tarde.
+   */
+  private func readSkippingUndetermined<T>(
+    _ permission: String,
+    pending: inout [String],
+    _ read: () async throws -> T
+  ) async throws -> T? {
+    do {
+      return try await read()
+    } catch let error where isAuthorizationNotDetermined(error) {
+      pending.append(permission)
+      return nil
+    }
+  }
+
+  private func queryDailyQuantitySummaries(
+    startAt: Date,
+    endAt: Date,
+    pending: inout [String]
+  ) async throws -> [[String: Any]] {
     var summaries: [String: [String: Any]] = [:]
     for metric in quantityMetrics().filter({ $0.summaryKey != nil }) {
-      let rows = try await queryDailyStatistics(metric: metric, startAt: startAt, endAt: endAt)
+      guard let rows = try await readSkippingUndetermined(metric.permission, pending: &pending, {
+        try await self.queryDailyStatistics(metric: metric, startAt: startAt, endAt: endAt)
+      }) else {
+        continue
+      }
       for row in rows {
         guard let date = row["date"] as? String else { continue }
         var summary = summaries[date] ?? ["date": date, "sources": ["Apple Health"]]
@@ -413,10 +541,19 @@ public class FitpilotHealthModule: Module {
     }
   }
 
-  private func queryBodyRecords(startAt: Date, endAt: Date) async throws -> [[String: Any]] {
+  private func queryBodyRecords(
+    startAt: Date,
+    endAt: Date,
+    pending: inout [String]
+  ) async throws -> [[String: Any]] {
     var records: [[String: Any]] = []
     for metric in quantityMetrics().filter({ $0.summaryKey == nil }) {
-      let samples = try await querySamples(sampleType: metric.type, startAt: startAt, endAt: endAt) as? [HKQuantitySample] ?? []
+      guard let samples = try await readSkippingUndetermined(metric.permission, pending: &pending, {
+        () async throws -> [HKQuantitySample] in
+        try await self.querySamples(sampleType: metric.type, startAt: startAt, endAt: endAt) as? [HKQuantitySample] ?? []
+      }) else {
+        continue
+      }
       records.append(contentsOf: samples.map { sample in
         [
           "type": metric.recordType,
@@ -457,9 +594,12 @@ public class FitpilotHealthModule: Module {
         let start = record["start_at"] as? String,
         let startDate = ISO8601DateFormatter.fitpilot.date(from: start)
       else { continue }
-      let date = ISO8601DateFormatter.dateOnly.string(from: startDate)
+      let isSleep = record["type"] as? String == "sleep_session"
+      let date = ISO8601DateFormatter.dateOnly.string(
+        from: isSleep ? startDate.addingTimeInterval(sleepDayShift) : startDate
+      )
       var summary = byDate[date] ?? ["date": date, "sources": ["Apple Health"]]
-      if record["type"] as? String == "sleep_session",
+      if isSleep,
          let end = record["end_at"] as? String,
          let endDate = ISO8601DateFormatter.fitpilot.date(from: end) {
         let minutes = Int(max(0, endDate.timeIntervalSince(startDate) / 60.0))
@@ -476,6 +616,22 @@ public class FitpilotHealthModule: Module {
   }
 }
 
+private extension HKAuthorizationRequestStatus {
+  /** El nombre que viaja a JS en `FitpilotHealthPermissionStatus.requestStatus`. */
+  var fitpilotName: String {
+    switch self {
+    case .shouldRequest:
+      return "shouldRequest"
+    case .unnecessary:
+      return "unnecessary"
+    case .unknown:
+      return "unknown"
+    @unknown default:
+      return "unknown"
+    }
+  }
+}
+
 private extension ISO8601DateFormatter {
   static let fitpilot: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
@@ -483,9 +639,13 @@ private extension ISO8601DateFormatter {
     return formatter
   }()
 
+  // Días en la zona horaria del iPhone. En GMT (el valor por defecto) todo lo que empezaba
+  // después de las 18:00 hora de México caía en el día siguiente, y la tarjeta mostraba
+  // "mañana" como el día más reciente.
   static let dateOnly: ISO8601DateFormatter = {
     let formatter = ISO8601DateFormatter()
     formatter.formatOptions = [.withFullDate]
+    formatter.timeZone = TimeZone.autoupdatingCurrent
     return formatter
   }()
 }
