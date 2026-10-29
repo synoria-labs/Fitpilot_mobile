@@ -3,7 +3,7 @@ import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { LinearGradient } from 'expo-linear-gradient';
 import { brandColors, fontSize } from '../../constants/colors';
 import { useThemedStyles, type AppTheme } from '../../theme';
-import { AURORA_SIGNATURE_ANGLE } from '../../theme/aurora';
+import { AURORA_SIGNATURE_ANGLE, auroraFont } from '../../theme/aurora';
 
 const HERO_GEOMETRY = Object.freeze({
   canvasWidth: 100,
@@ -618,7 +618,7 @@ const createStyles = (theme: AppTheme) =>
     },
     statusHighlighted: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: theme.colors.surface,
       lineHeight: 16,
     },
@@ -629,7 +629,7 @@ const createStyles = (theme: AppTheme) =>
     dayLabelHighlighted: {
       marginTop: 2,
       fontSize: fontSize.xs,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: theme.colors.surface,
       lineHeight: 16,
     },
@@ -650,7 +650,7 @@ const createStyles = (theme: AppTheme) =>
     },
     dateNumberHighlighted: {
       fontSize: fontSize.base,
-      fontWeight: '700',
+      ...auroraFont('extrabold'),
       color: theme.colors.primary,
       lineHeight: 22,
     },
@@ -660,7 +660,7 @@ const createStyles = (theme: AppTheme) =>
     },
     status: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: theme.colors.textSecondary,
       lineHeight: 16,
     },
@@ -686,7 +686,7 @@ const createStyles = (theme: AppTheme) =>
     dayLabel: {
       marginTop: 2,
       fontSize: fontSize.xs,
-      fontWeight: '500',
+      ...auroraFont('medium'),
       color: theme.colors.textMuted,
       lineHeight: 16,
     },
@@ -697,7 +697,7 @@ const createStyles = (theme: AppTheme) =>
     },
     dayLabelSelected: {
       color: theme.colors.primary,
-      fontWeight: '700',
+      ...auroraFont('bold'),
     },
     dayLabelRest: {
       color: theme.colors.success,
@@ -742,7 +742,7 @@ const createStyles = (theme: AppTheme) =>
     },
     dateNumber: {
       fontSize: fontSize.base,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: theme.colors.textPrimary,
       lineHeight: 22,
     },
@@ -752,7 +752,7 @@ const createStyles = (theme: AppTheme) =>
     },
     dateNumberSelectedGhost: {
       color: theme.colors.primary,
-      fontWeight: '700',
+      ...auroraFont('bold'),
     },
     dateNumberRest: {
       color: theme.colors.success,

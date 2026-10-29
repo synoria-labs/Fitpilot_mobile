@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import { borderRadius, fontSize, shadows, spacing } from '../../constants/colors';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { spacing } from '../../constants/colors';
+import { useThemedStyles, type AppTheme } from '../../theme';
+import { auroraFont, auroraRadius, auroraType, getAuroraTokens, useAurora } from '../../theme/aurora';
 import {
   SharedWeeklyCalendar,
   type SharedWeeklyCalendarDay,
@@ -44,10 +45,10 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
   onShiftWeek,
   onOpenDatePicker,
 }) => {
-  const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
   const showEyebrow = Boolean(eyebrow);
-  const resolvedAccentColor = accentColor ?? theme.colors.primary;
+  const resolvedAccentColor = accentColor ?? aurora.tones.blue.ink;
   const showDateButtonText = contentWidth >= 420;
 
   const panResponder = useMemo(
@@ -83,8 +84,7 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
   }
 
   return (
-    <View style={styles.containerShell}>
-      <View style={styles.containerSurface}>
+    <View style={styles.containerSurface}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
             {showEyebrow ? (
@@ -108,15 +108,7 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
 
           <View style={styles.actionRow}>
             {weekLabel ? (
-              <View
-                style={[
-                  styles.weekPill,
-                  {
-                    backgroundColor: theme.colors.surfaceAlt,
-                    borderColor: theme.colors.border,
-                  },
-                ]}
-              >
+              <View style={styles.weekPill}>
                 <Text
                   numberOfLines={1}
                   style={[styles.weekPillText, { color: resolvedAccentColor }]}
@@ -141,7 +133,7 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
                   <Ionicons
                     name="chevron-back"
                     size={16}
-                    color={canGoToPreviousWeek ? theme.colors.textPrimary : theme.colors.textMuted}
+                    color={canGoToPreviousWeek ? aurora.text : aurora.faint}
                   />
                 </Pressable>
 
@@ -158,7 +150,7 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
                   <Ionicons
                     name="chevron-forward"
                     size={16}
-                    color={canGoToNextWeek ? theme.colors.textPrimary : theme.colors.textMuted}
+                    color={canGoToNextWeek ? aurora.text : aurora.faint}
                   />
                 </Pressable>
               </>
@@ -172,10 +164,6 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
                 style={[
                   styles.dateButton,
                   !showDateButtonText ? styles.dateButtonIconOnly : null,
-                  {
-                    backgroundColor: theme.colors.surfaceAlt,
-                    borderColor: theme.colors.border,
-                  },
                 ]}
               >
                 <Ionicons name="calendar-clear-outline" size={18} color={resolvedAccentColor} />
@@ -204,36 +192,21 @@ export const HistoricalNavigator: React.FC<HistoricalNavigatorProps> = ({
             isTabletPortrait={isTabletPortrait}
           />
         </View>
-      </View>
     </View>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    containerShell: {
-      borderRadius: borderRadius.lg,
-      ...(Platform.OS === 'android' && theme.isDark
-        ? {
-            shadowColor: 'transparent',
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 0,
-          }
-        : shadows.sm),
-    },
+const createStyles = (theme: AppTheme) => {
+  const aurora = getAuroraTokens(theme.isDark);
+
+  return StyleSheet.create({
     containerSurface: {
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.isDark ? theme.colors.primarySoft : theme.colors.surface,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
-      borderColor:
-        Platform.OS === 'android' && theme.isDark
-          ? 'transparent'
-          : theme.isDark
-            ? theme.colors.primaryBorder
-            : theme.colors.border,
-      paddingTop: spacing.xs,
+      borderRadius: auroraRadius.card,
+      backgroundColor: aurora.surface,
+      borderWidth: 1,
+      borderColor: aurora.border,
+      boxShadow: aurora.shadow,
+      paddingTop: 8,
       paddingBottom: spacing.xs,
     },
     header: {
@@ -242,45 +215,44 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'space-between',
       gap: spacing.sm,
       minHeight: 48,
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: 12,
     },
     headerCopy: {
       flex: 1,
       minWidth: 0,
     },
     eyebrow: {
-      fontSize: fontSize.xs,
-      fontWeight: '800',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      lineHeight: 12,
+      ...auroraType.label,
     },
     title: {
-      fontSize: fontSize.sm,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-      lineHeight: 18,
+      ...auroraFont('extrabold'),
+      fontSize: 15,
+      lineHeight: 20,
+      color: aurora.text,
     },
     titleWithEyebrow: {
       marginTop: 1,
     },
     subtitle: {
+      ...auroraFont('medium'),
       marginTop: 1,
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      lineHeight: 15,
+      fontSize: 12,
+      lineHeight: 16,
+      color: aurora.faint,
     },
     weekPill: {
       minHeight: 32,
-      maxWidth: 108,
+      maxWidth: 116,
       justifyContent: 'center',
-      paddingHorizontal: spacing.sm,
-      borderRadius: borderRadius.full,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: aurora.surface2,
+      borderWidth: 1,
+      borderColor: aurora.border,
     },
     weekPillText: {
-      fontSize: 11,
-      fontWeight: '700',
+      ...auroraFont('bold'),
+      fontSize: 11.5,
       textTransform: 'capitalize',
       textAlign: 'center',
     },
@@ -294,12 +266,12 @@ const createStyles = (theme: AppTheme) =>
     navButton: {
       width: 44,
       height: 44,
-      borderRadius: 22,
+      borderRadius: 14,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
-      borderColor: theme.colors.border,
+      backgroundColor: aurora.surface2,
+      borderWidth: 1,
+      borderColor: aurora.border,
     },
     navButtonDisabled: {
       opacity: 0.5,
@@ -308,10 +280,12 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
-      borderRadius: borderRadius.full,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
       minHeight: 44,
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: 10,
+      borderRadius: 14,
+      backgroundColor: aurora.surface2,
+      borderWidth: 1,
+      borderColor: aurora.border,
     },
     dateButtonIconOnly: {
       width: 44,
@@ -319,12 +293,13 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: 'center',
     },
     dateButtonText: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
+      fontSize: 12,
     },
     calendarWrap: {
       marginTop: -4,
     },
   });
+};
 
 export default HistoricalNavigator;

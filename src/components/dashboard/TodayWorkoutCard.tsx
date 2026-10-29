@@ -12,6 +12,7 @@ import Animated, {
 import { colors, spacing, fontSize, borderRadius, shadows } from '../../constants/colors';
 import { WorkoutCardSkeleton } from '../common/Skeleton';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { auroraFont } from '../../theme/aurora';
 import type { MuscleVolumeResponse } from '../../types';
 import type { ProgramTimelineCardState } from '../../utils/programTimeline';
 import { MiniBodyMap, type BodyMapView } from './bodyMap/MiniBodyMap';
@@ -506,7 +507,7 @@ const createStyles = (theme: AppTheme) =>
     durationLabel: {
       fontSize: fontSize.xs,
       color: theme.colors.textMuted,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       textAlign: 'right',
     },
     durationLabelCompact: {
@@ -516,7 +517,7 @@ const createStyles = (theme: AppTheme) =>
     durationValue: {
       fontSize: fontSize.sm,
       color: theme.colors.textSecondary,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       marginTop: 2,
       textAlign: 'right',
     },
@@ -571,7 +572,7 @@ const createStyles = (theme: AppTheme) =>
     },
     dayBadgeText: {
       fontSize: fontSize.xs,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: colors.white,
     },
     titleArea: {
@@ -670,7 +671,7 @@ const createStyles = (theme: AppTheme) =>
     },
     bodyMapToggleButtonText: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: 'rgba(255,255,255,0.7)',
       letterSpacing: 0.3,
       textTransform: 'uppercase',
@@ -695,7 +696,7 @@ const createStyles = (theme: AppTheme) =>
     },
     sessionPillText: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: colors.white,
       letterSpacing: 0.3,
     },
@@ -711,13 +712,13 @@ const createStyles = (theme: AppTheme) =>
     },
     overduePillText: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: colors.white,
       letterSpacing: 0.3,
     },
     title: {
       fontSize: fontSize['2xl'],
-      fontWeight: 'bold',
+      ...auroraFont('extrabold'),
       color: colors.white,
       lineHeight: 32,
       textShadowColor: 'rgba(0, 0, 0, 0.5)',
@@ -729,6 +730,7 @@ const createStyles = (theme: AppTheme) =>
       lineHeight: 26,
     },
     focusText: {
+      ...auroraFont('medium'),
       fontSize: fontSize.sm,
       color: 'rgba(255,255,255,0.8)',
       marginTop: spacing.xs,
@@ -736,14 +738,14 @@ const createStyles = (theme: AppTheme) =>
     recommendationText: {
       marginTop: 2,
       fontSize: 13,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: 'rgba(255,255,255,0.92)',
       lineHeight: 17,
     },
     complianceText: {
       marginTop: 2,
       fontSize: 13,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: 'rgba(255,255,255,0.9)',
       lineHeight: 17,
     },
@@ -783,7 +785,7 @@ const createStyles = (theme: AppTheme) =>
     },
     startButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: '500',
+      ...auroraFont('bold'),
       color: theme.colors.textPrimary,
       marginRight: spacing.sm,
       textTransform: 'lowercase',
@@ -818,7 +820,7 @@ const createStyles = (theme: AppTheme) =>
     },
     secondaryButtonText: {
       fontSize: fontSize.sm,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: colors.white,
       textTransform: 'lowercase',
     },
@@ -843,16 +845,17 @@ const createStyles = (theme: AppTheme) =>
     },
     emptyDateText: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: theme.colors.textSecondary,
     },
     emptyTitle: {
       fontSize: fontSize.lg,
-      fontWeight: '600',
+      ...auroraFont('bold'),
       color: theme.colors.textPrimary,
       marginTop: spacing.md,
     },
     emptySubtitle: {
+      ...auroraFont('medium'),
       fontSize: fontSize.sm,
       color: theme.colors.textMuted,
       textAlign: 'center',
