@@ -96,6 +96,12 @@ let cachedTokens: SessionTokens = {
 };
 let tokensHydrated = false;
 let unauthorizedHandler: (() => void | Promise<void>) | null = null;
+let sessionGeneration = 0;
+let tokenStorageWrite: Promise<void> = Promise.resolve();
+const persistTokenChange = (change: () => Promise<unknown>): Promise<void> => {
+  tokenStorageWrite = tokenStorageWrite.catch(() => undefined).then(change).then(() => undefined);
+  return tokenStorageWrite;
+};
 let refreshPromise: Promise<SessionTokens | null> | null = null;
 let unauthorizedPromise: Promise<void> | null = null;
 
@@ -246,29 +252,31 @@ export const setSessionTokens = async (tokens: {
   accessToken: string;
   refreshToken: string;
 }): Promise<void> => {
+  sessionGeneration += 1;
   cachedTokens = {
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,
   };
   tokensHydrated = true;
 
-  await Promise.all([
+  await persistTokenChange(() => Promise.all([
     SecureStore.setItemAsync(ACCESS_TOKEN_KEY, tokens.accessToken),
     SecureStore.setItemAsync(REFRESH_TOKEN_KEY, tokens.refreshToken),
-  ]);
+  ]));
 };
 
 export const clearSessionTokens = async (): Promise<void> => {
+  sessionGeneration += 1;
   cachedTokens = {
     accessToken: null,
     refreshToken: null,
   };
   tokensHydrated = true;
 
-  await Promise.all([
+  await persistTokenChange(() => Promise.all([
     SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
     SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-  ]);
+  ]));
 };
 
 export const setUnauthorizedHandler = (handler: (() => void | Promise<void>) | null) => {
@@ -300,6 +308,7 @@ const refreshSession = async (): Promise<SessionTokens | null> => {
     return refreshPromise;
   }
 
+  const generation = sessionGeneration;
   refreshPromise = (async () => {
     const refreshToken = await getRefreshToken();
 
@@ -326,6 +335,7 @@ const refreshSession = async (): Promise<SessionTokens | null> => {
         refreshToken: response.data.refresh_token || refreshToken,
       };
 
+      if (generation !== sessionGeneration) return null;
       await setSessionTokens(nextTokens);
       return nextTokens;
     } catch (error) {
@@ -336,7 +346,7 @@ const refreshSession = async (): Promise<SessionTokens | null> => {
       if (isApiNetworkError(apiError)) {
         return null;
       }
-      await notifyUnauthorized();
+      if (generation === sessionGeneration) await notifyUnauthorized();
       return null;
     } finally {
       refreshPromise = null;
