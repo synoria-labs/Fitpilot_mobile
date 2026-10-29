@@ -1,35 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { LinearGradient as ExpoGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
-  type SharedValue,
-  useAnimatedProps,
+  useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Rect } from 'react-native-svg';
-import { borderRadius, brandColors, colors, fontSize, shadows, spacing } from '../../constants/colors';
-import { useAppTheme } from '../../theme';
+import { spacing } from '../../constants/colors';
+import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import type { MuscleVolumeResponse } from '../../types';
+import { AuroraCard, AuroraPill, IconBadge } from '../aurora';
 import { ChartSkeleton } from '../common/Skeleton';
 
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
 const MAX_MUSCLES_SHOWN = 6;
 const SESSION_LANDMARK_MAX = 12;
-
-const DEFAULT_BAR_METRICS = {
-  barHeight: 20,
-  trackVerticalPadding: 4,
-  trackRadius: 6,
-};
-
-const COMPACT_BAR_METRICS = {
-  barHeight: 16,
-  trackVerticalPadding: 4,
-  trackRadius: 5,
-};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -59,30 +47,12 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
   collapsible = false,
   compact = false,
 }) => {
-  const { theme } = useAppTheme();
+  const aurora = useAurora();
   const [isExpanded, setIsExpanded] = useState(false);
-  const animationProgress = useSharedValue(0);
-  const containerWidth = Math.max(320, contentWidth - horizontalPadding * 2);
-  const chartHorizontalPadding = compact ? spacing.md : spacing.lg;
-  const chartWidth = Math.max(220, containerWidth - chartHorizontalPadding * 2);
-  const labelWidth = chartWidth >= 720 ? 128 : chartWidth >= 560 ? 112 : compact ? 86 : 96;
-  const valueWidth = compact ? 38 : 48;
-  const barAreaWidth = Math.max(80, chartWidth - labelWidth - valueWidth - spacing.sm);
-  const gradientColors = theme.isDark
-    ? ([brandColors.navy, brandColors.sky] as const)
-    : ([`${brandColors.sky}22`, `${brandColors.navy}14`] as const);
-  const textColor = theme.isDark ? colors.white : brandColors.navy;
-  const subtextColor = theme.isDark ? 'rgba(255,255,255,0.72)' : `${brandColors.navy}AA`;
-
-  useEffect(() => {
-    if (muscleVolume && !isLoading) {
-      animationProgress.value = 0;
-      animationProgress.value = withDelay(
-        200,
-        withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) }),
-      );
-    }
-  }, [animationProgress, isLoading, muscleVolume]);
+  // Card padding and border come off the row; a third of it leaves room for names like
+  // "Deltoides anterior" while the bars keep most of the width.
+  const rowWidth = contentWidth - horizontalPadding * 2 - 34;
+  const labelWidth = clamp(Math.round(rowWidth * 0.36), 96, 150);
 
   const allMuscles = useMemo(() => muscleVolume?.muscles ?? [], [muscleVolume]);
   const hasHiddenMuscles = collapsible && allMuscles.length > maxRows;
@@ -94,374 +64,226 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
     return allMuscles.slice(0, limit);
   }, [allMuscles, hasHiddenMuscles, isExpanded, maxRows]);
 
+  const outerStyle = [compact ? styles.outerCompact : styles.outer, { paddingHorizontal: horizontalPadding }];
+
   if (isLoading) {
     return (
-      <View
-        style={[
-          styles.skeletonWrapper,
-          compact ? styles.skeletonWrapperCompact : null,
-          { width: containerWidth, alignSelf: 'center' },
-        ]}
-      >
+      <View style={outerStyle}>
         <ChartSkeleton />
       </View>
     );
   }
 
   const totalSets = Math.round(muscleVolume?.total_effective_sets || 0);
-
-  if (!muscleVolume || muscles.length === 0) {
-    return (
-      <View
-        style={[
-          styles.container,
-          compact ? styles.containerCompact : null,
-          {
-            width: containerWidth,
-            alignSelf: 'center',
-            borderWidth: 1,
-            borderColor: theme.isDark ? theme.colors.borderStrong : theme.colors.border,
-          },
-        ]}
-      >
-        <ExpoGradient
-          colors={gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-        <Text style={[styles.title, compact ? styles.titleCompact : null, { color: textColor }]}>
-          Volumen de entrenamiento por sesión
-        </Text>
-        <View style={[styles.emptyState, compact ? styles.emptyStateCompact : null]}>
-          <Text style={[styles.emptyText, { color: subtextColor }]}>Sin datos de volumen</Text>
-        </View>
-      </View>
-    );
-  }
+  const hasData = Boolean(muscleVolume) && muscles.length > 0;
 
   return (
-    <View
-      style={[
-        styles.container,
-        compact ? styles.containerCompact : null,
-        {
-          width: containerWidth,
-          alignSelf: 'center',
-          borderWidth: theme.isDark ? 0 : 1,
-          borderColor: theme.colors.border,
-        },
-      ]}
-    >
-      <ExpoGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={[styles.header, compact ? styles.headerCompact : null]}>
-        <Text style={[styles.title, compact ? styles.titleCompact : null, { color: textColor }]} numberOfLines={2}>
-          Volumen del entrenamiento
-        </Text>
-        <View
-          style={[
-            styles.badge,
-            compact ? styles.badgeCompact : null,
-            { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.2)' : `${brandColors.sky}22` },
-          ]}
-        >
-          <Text style={[styles.badgeText, compact ? styles.badgeTextCompact : null, { color: textColor }]}>
-            {totalSets} series
-          </Text>
+    <View style={outerStyle}>
+      <AuroraCard padding={16}>
+        <View style={styles.header}>
+          <IconBadge icon="barbell-outline" tone="blue" variant="solid" size={36} />
+          <View style={styles.titleCopy}>
+            <Text style={[auroraType.headline, { color: aurora.text }]} numberOfLines={1}>
+              Volumen del entrenamiento
+            </Text>
+            <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
+              Series efectivas por músculo
+            </Text>
+          </View>
+          {hasData ? <AuroraPill label={`${totalSets} series`} tone="blue" /> : null}
         </View>
-      </View>
 
-      <View style={[styles.toggleRow, compact ? styles.toggleRowCompact : null]}>
-        <Text
-          style={[styles.toggleLabel, compact ? styles.toggleLabelCompact : null, { color: subtextColor }]}
-          numberOfLines={1}
-        >
-          {compact ? 'Sinergistas 0.5x' : 'Contar volumen de sinergistas(0.5x)'}
-        </Text>
-        <Switch
-          value={countSecondaryMuscles}
-          onValueChange={onToggleSecondary}
-          trackColor={{
-            false: theme.isDark ? 'rgba(255,255,255,0.3)' : `${brandColors.sky}44`,
-            true: theme.isDark ? 'rgba(255,255,255,0.6)' : brandColors.sky,
-          }}
-          thumbColor={countSecondaryMuscles ? (theme.isDark ? colors.white : brandColors.navy) : colors.gray[300]}
-          style={compact ? styles.switchCompact : null}
-        />
-      </View>
+        {hasData ? (
+          <>
+            <View style={[styles.toggleRow, { borderColor: aurora.border }]}>
+              <Text style={[styles.toggleLabel, auroraFont('semibold'), { color: aurora.muted }]} numberOfLines={1}>
+                Contar sinergistas (×0.5)
+              </Text>
+              <Switch
+                accessibilityLabel="Contar el volumen de los músculos sinergistas a la mitad"
+                value={countSecondaryMuscles}
+                onValueChange={onToggleSecondary}
+                trackColor={{ false: aurora.surface3, true: aurora.tones.blue.tone }}
+                thumbColor="#ffffff"
+                ios_backgroundColor={aurora.surface3}
+                style={styles.switch}
+              />
+            </View>
 
-      <View style={[styles.chartContainer, compact ? styles.chartContainerCompact : null]}>
-        {muscles.map((muscle) => (
-          <MuscleBar
-            key={muscle.muscle_name}
-            muscle={muscle}
-            labelWidth={labelWidth}
-            valueWidth={valueWidth}
-            barAreaWidth={barAreaWidth}
-            animationProgress={animationProgress}
-            textColor={textColor}
-            barFill={theme.isDark ? 'rgba(255,255,255,0.9)' : brandColors.navy}
-            barBg={theme.isDark ? 'rgba(255,255,255,0.15)' : `${brandColors.sky}30`}
-            compact={compact}
-          />
-        ))}
-      </View>
+            <View style={styles.bars}>
+              {muscles.map((muscle, index) => (
+                <MuscleBar key={muscle.muscle_name} muscle={muscle} index={index} labelWidth={labelWidth} />
+              ))}
+            </View>
 
-      {hasHiddenMuscles ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setIsExpanded((currentValue) => !currentValue)}
-          style={[
-            styles.expandButton,
-            compact ? styles.expandButtonCompact : null,
-            {
-              backgroundColor: theme.isDark
-                ? 'rgba(255,255,255,0.14)'
-                : `${brandColors.sky}18`,
-            },
-          ]}
-        >
-          <Text style={[styles.expandButtonText, { color: textColor }]}>
-            {isExpanded ? 'Ver menos' : `Ver ${hiddenRowsCount} mas`}
-          </Text>
-        </Pressable>
-      ) : null}
+            {hasHiddenMuscles ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isExpanded }}
+                hitSlop={8}
+                onPress={() => setIsExpanded((currentValue) => !currentValue)}
+                style={styles.expandButton}
+              >
+                <Text style={[styles.expandText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>
+                  {isExpanded ? 'Ver menos' : `Ver ${hiddenRowsCount} más`}
+                </Text>
+                <Ionicons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={15}
+                  color={aurora.tones.blue.ink}
+                />
+              </Pressable>
+            ) : null}
+          </>
+        ) : (
+          <View style={[styles.emptyState, { backgroundColor: aurora.surface2 }]}>
+            <Ionicons name="bar-chart-outline" size={18} color={aurora.faint} />
+            <Text style={[auroraType.caption, { color: aurora.faint }]}>
+              Sin datos de volumen para esta sesión
+            </Text>
+          </View>
+        )}
+      </AuroraCard>
     </View>
   );
 };
 
 interface MuscleBarProps {
   muscle: { muscle_name: string; display_name: string; effective_sets: number };
+  index: number;
   labelWidth: number;
-  valueWidth: number;
-  barAreaWidth: number;
-  animationProgress: SharedValue<number>;
-  textColor?: string;
-  barFill?: string;
-  barBg?: string;
-  compact?: boolean;
 }
 
-const MuscleBar: React.FC<MuscleBarProps> = ({
-  muscle,
-  labelWidth,
-  valueWidth,
-  barAreaWidth,
-  animationProgress,
-  textColor = colors.white,
-  barFill = colors.white,
-  barBg = 'rgba(255,255,255,0.15)',
-  compact = false,
-}) => {
-  const metrics = compact ? COMPACT_BAR_METRICS : DEFAULT_BAR_METRICS;
-  const trackHeight = metrics.barHeight - metrics.trackVerticalPadding * 2;
-  const barWidth = getSessionVolumeFillRatio(muscle.effective_sets) * barAreaWidth;
+const MuscleBar: React.FC<MuscleBarProps> = ({ muscle, index, labelWidth }) => {
+  const aurora = useAurora();
+  const reduceMotion = useReducedMotion();
+  const ratio = getSessionVolumeFillRatio(muscle.effective_sets);
+  const fill = useSharedValue(reduceMotion ? ratio : 0);
+  const hasAnimatedRef = useRef(false);
 
-  const animatedProps = useAnimatedProps(() => ({
-    width: barWidth * animationProgress.value,
-  }));
+  // The first fill staggers row by row; later changes (the synergist switch) glide from where
+  // the bar already is.
+  useEffect(() => {
+    if (reduceMotion) {
+      fill.value = ratio;
+      return;
+    }
+
+    const grow = withTiming(ratio, { duration: 700, easing: Easing.out(Easing.cubic) });
+    fill.value = hasAnimatedRef.current ? grow : withDelay(120 + index * 70, grow);
+    hasAnimatedRef.current = true;
+  }, [fill, index, ratio, reduceMotion]);
+
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
+  const value = muscle.effective_sets.toFixed(1);
 
   return (
-    <View style={[styles.barRow, compact ? styles.barRowCompact : null]}>
+    <View
+      accessible
+      accessibilityLabel={`${muscle.display_name}: ${value} series efectivas`}
+      style={styles.barRow}
+    >
       <Text
-        style={[
-          styles.muscleLabel,
-          compact ? styles.muscleLabelCompact : null,
-          { width: labelWidth, color: textColor },
-        ]}
+        style={[styles.muscleLabel, auroraFont('semibold'), { width: labelWidth, color: aurora.text }]}
         numberOfLines={1}
       >
         {muscle.display_name}
       </Text>
-      <View style={styles.barContainer}>
-        <Svg height={metrics.barHeight} width={barAreaWidth}>
-          <Rect
-            x={0}
-            y={metrics.trackVerticalPadding}
-            width={barAreaWidth}
-            height={trackHeight}
-            rx={metrics.trackRadius}
-            fill={barBg}
+      <View style={[styles.track, { backgroundColor: aurora.surface3 }]}>
+        <Animated.View style={[styles.fill, fillStyle]}>
+          <LinearGradient
+            colors={aurora.tones.blue.gradient}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
           />
-          <AnimatedRect
-            x={0}
-            y={metrics.trackVerticalPadding}
-            height={trackHeight}
-            rx={metrics.trackRadius}
-            fill={barFill}
-            fillOpacity={0.9}
-            animatedProps={animatedProps}
-          />
-        </Svg>
+        </Animated.View>
       </View>
-      <Text
-        style={[
-          styles.valueLabel,
-          compact ? styles.valueLabelCompact : null,
-          { width: valueWidth, color: textColor },
-        ]}
-      >
-        {muscle.effective_sets.toFixed(1)}
-      </Text>
+      <Text style={[styles.valueLabel, auroraFont('extrabold'), { color: aurora.text }]}>{value}</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: spacing.md,
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    overflow: 'hidden',
-    ...shadows.lg,
-  },
-  containerCompact: {
-    marginVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-  },
-  skeletonWrapper: {
+  outer: {
     marginVertical: spacing.md,
   },
-  skeletonWrapperCompact: {
+  outerCompact: {
     marginVertical: spacing.sm,
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
-    gap: spacing.sm,
+    gap: 12,
   },
-  headerCompact: {
-    marginBottom: spacing.xs,
-  },
-  title: {
+  titleCopy: {
     flex: 1,
-    fontSize: fontSize.lg,
-    fontWeight: '600',
-    color: colors.white,
-  },
-  titleCompact: {
-    fontSize: fontSize.base,
-    lineHeight: 20,
-    fontWeight: '800',
-  },
-  badge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-  },
-  badgeCompact: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-  },
-  badgeText: {
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    color: colors.white,
-  },
-  badgeTextCompact: {
-    fontSize: fontSize.xs,
+    minWidth: 0,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.md,
-  },
-  toggleRowCompact: {
-    marginBottom: 0,
-    paddingVertical: 0,
-    gap: spacing.sm,
+    gap: 12,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
   },
   toggleLabel: {
     flex: 1,
-    fontSize: fontSize.xs,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '500',
+    fontSize: 12.5,
   },
-  toggleLabelCompact: {
-    fontSize: 11,
-    fontWeight: '700',
+  switch: {
+    transform: [{ scale: 0.86 }],
+    marginRight: -4,
   },
-  switchCompact: {
-    transform: [{ scale: 0.82 }],
-    marginRight: -6,
-  },
-  chartContainer: {
-    marginTop: spacing.sm,
-  },
-  chartContainerCompact: {
-    marginTop: spacing.xs,
+  bars: {
+    gap: 10,
+    marginTop: 6,
   },
   barRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  barRowCompact: {
-    marginBottom: 3,
+    gap: 10,
   },
   muscleLabel: {
-    fontSize: fontSize.xs,
-    color: colors.white,
-    fontWeight: '500',
-    paddingRight: spacing.sm,
+    fontSize: 13,
   },
-  muscleLabelCompact: {
-    fontSize: 11,
-    paddingRight: spacing.xs,
-  },
-  barContainer: {
+  track: {
     flex: 1,
+    height: 10,
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: '100%',
+    borderRadius: 5,
+    overflow: 'hidden',
   },
   valueLabel: {
-    fontSize: fontSize.xs,
-    color: colors.white,
-    fontWeight: '600',
+    minWidth: 30,
+    fontSize: 13,
     textAlign: 'right',
-    paddingLeft: spacing.xs,
-  },
-  valueLabelCompact: {
-    fontSize: 11,
-  },
-  emptyState: {
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyStateCompact: {
-    height: 48,
-  },
-  emptyText: {
-    fontSize: fontSize.sm,
-    color: 'rgba(255, 255, 255, 0.6)',
+    fontVariant: ['tabular-nums'],
   },
   expandButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     alignSelf: 'flex-start',
-    marginTop: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    gap: 4,
+    minHeight: 36,
+    marginTop: 6,
   },
-  expandButtonCompact: {
-    marginTop: 3,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+  expandText: {
+    fontSize: 13,
   },
-  expandButtonText: {
-    fontSize: fontSize.xs,
-    fontWeight: '800',
+  emptyState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 16,
   },
 });
 

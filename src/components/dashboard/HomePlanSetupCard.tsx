@@ -2,40 +2,33 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  borderRadius,
-  fontSize,
-  shadows,
-  spacing,
-} from '../../constants/colors';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { AuroraCard, AuroraPill, IconBadge, type AuroraIconName } from '../aurora';
+import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 
-const PENDING_PLAN_CHIPS = [
+const PENDING_PLAN_CHIPS: { key: string; label: string; icon: AuroraIconName }[] = [
   {
     key: 'training',
     label: 'Entrenamiento pendiente',
-    icon: 'fitness-outline' as const,
+    icon: 'barbell-outline',
   },
   {
     key: 'nutrition',
     label: 'Nutrición pendiente',
-    icon: 'restaurant-outline' as const,
+    icon: 'restaurant-outline',
   },
 ];
 
 export const HomePlanSetupCard: React.FC = () => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
 
   return (
-    <View style={styles.card}>
+    <AuroraCard padding={16} radius={24} style={styles.card}>
       <View style={styles.headerRow}>
-        <View style={styles.iconShell}>
-          <Ionicons name="sparkles-outline" size={20} color={theme.colors.primary} />
-        </View>
+        <IconBadge icon="sparkles-outline" tone="violet" variant="solid" size={40} />
         <View style={styles.headerCopy}>
-          <Text style={styles.title}>Completa tus planes</Text>
-          <Text style={styles.description}>
+          <Text style={[auroraType.headline, { color: aurora.text }]}>Completa tus planes</Text>
+          <Text style={[styles.description, auroraFont('medium'), { color: aurora.muted }]}>
             Cuando tengas profesionales o planes asignados, verás aquí tu
             entrenamiento y nutrición activos.
           </Text>
@@ -44,10 +37,7 @@ export const HomePlanSetupCard: React.FC = () => {
 
       <View style={styles.chipRow}>
         {PENDING_PLAN_CHIPS.map((chip) => (
-          <View key={chip.key} style={styles.statusChip}>
-            <Ionicons name={chip.icon} size={14} color={theme.colors.textMuted} />
-            <Text style={styles.statusChipText}>{chip.label}</Text>
-          </View>
+          <AuroraPill key={chip.key} label={chip.label} icon={chip.icon} tone="slate" />
         ))}
       </View>
 
@@ -55,100 +45,61 @@ export const HomePlanSetupCard: React.FC = () => {
         accessibilityRole="button"
         accessibilityLabel="Buscar profesionales"
         onPress={() => router.push('/professionals')}
-        style={({ pressed }) => [
-          styles.ctaButton,
-          pressed ? styles.ctaButtonPressed : null,
-        ]}
+        style={({ pressed }) => [styles.ctaPress, { transform: [{ scale: pressed ? 0.98 : 1 }] }]}
       >
-        <Text style={styles.ctaText}>Buscar profesionales</Text>
-        <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
+        <LinearGradient
+          colors={aurora.tones.blue.gradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[styles.ctaButton, { boxShadow: `0px 12px 24px -14px ${aurora.tones.blue.tone}` }]}
+        >
+          <Ionicons name="search-outline" size={16} color={aurora.onTone} />
+          <Text style={[styles.ctaText, auroraFont('extrabold'), { color: aurora.onTone }]}>
+            Buscar profesionales
+          </Text>
+        </LinearGradient>
       </Pressable>
-    </View>
+    </AuroraCard>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    card: {
-      gap: spacing.md,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...shadows.sm,
-    },
-    headerRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.md,
-    },
-    iconShell: {
-      width: 40,
-      height: 40,
-      borderRadius: borderRadius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primarySoft,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-    },
-    headerCopy: {
-      flex: 1,
-      minWidth: 0,
-      gap: spacing.xs,
-    },
-    title: {
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    description: {
-      fontSize: fontSize.sm,
-      lineHeight: 20,
-      color: theme.colors.textMuted,
-    },
-    chipRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.xs,
-    },
-    statusChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 7,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    statusChipText: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.textMuted,
-    },
-    ctaButton: {
-      minHeight: 38,
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.md,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-    },
-    ctaButtonPressed: {
-      opacity: 0.82,
-    },
-    ctaText: {
-      fontSize: fontSize.sm,
-      fontWeight: '800',
-      color: theme.colors.primary,
-    },
-  });
+const styles = StyleSheet.create({
+  card: {
+    gap: 14,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  description: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  ctaPress: {
+    alignSelf: 'stretch',
+  },
+  ctaButton: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+  },
+  ctaText: {
+    fontSize: 14,
+  },
+});
 
 export default HomePlanSetupCard;

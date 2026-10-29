@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   borderRadius,
   fontSize,
@@ -8,7 +9,9 @@ import {
   spacing,
 } from '../../constants/colors';
 import { Skeleton } from '../common';
+import { AuroraCard, AuroraPill, type AuroraIconName } from '../aurora';
 import { useAppTheme, useThemedStyles } from '../../theme';
+import { auroraFont, useAurora, type AuroraTone } from '../../theme/aurora';
 import type {
   AssignedProfessionalDomain,
   AssignedProfessionalSummary,
@@ -34,6 +37,13 @@ const DOMAIN_LABELS: Record<AssignedProfessionalDomain, string> = {
   nutrition: 'Nutrición',
 };
 
+const DOMAIN_STYLES: Record<AssignedProfessionalDomain, { tone: AuroraTone; icon: AuroraIconName }> = {
+  training: { tone: 'blue', icon: 'barbell-outline' },
+  nutrition: { tone: 'emerald', icon: 'restaurant-outline' },
+};
+
+const AVATAR_GRADIENT = ['#0ea5e9', '#4f46e5'] as const;
+
 const EMPTY_MESSAGES: Record<AssignedProfessionalDomain, string> = {
   training: 'Aún no tienes entrenador asignado para entrenamiento.',
   nutrition: 'Aún no tienes nutriólogo asignado para nutrición.',
@@ -53,7 +63,6 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
   const [hasImageError, setHasImageError] = useState(false);
-  const isSummary = variant === 'summary';
 
   useEffect(() => {
     setHasImageError(false);
@@ -75,31 +84,48 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
       : 'Aún no tienes profesionales asignados para tus planes actuales.';
   const canRenderAvatarImage =
     state === 'assigned' && Boolean(summary?.avatarUrl) && !hasImageError;
+  const headline =
+    state === 'assigned'
+      ? summary?.fullName ?? joinDomainLabels(domains)
+      : joinDomainLabels(domains);
+  const roleLabel =
+    state === 'assigned' ? summary?.roleLabel : state === 'error' ? 'No disponible' : 'Sin asignación';
+  const contextLabel =
+    state === 'assigned'
+      ? summary?.contextLabel
+      : state === 'error'
+        ? errorMessage ?? 'No fue posible cargar esta asignación.'
+        : emptyMessage;
+  const contextParts = contextLabel
+    ?.split(' / ')
+    .map((part) => part.trim())
+    .filter(Boolean) ?? [];
+
+  if (variant === 'summary') {
+    return (
+      <ProfessionalSummary
+        domains={domains}
+        state={state}
+        headline={headline}
+        roleLabel={roleLabel ?? null}
+        contextParts={contextParts}
+        initials={initials}
+        avatarUrl={canRenderAvatarImage ? summary?.avatarUrl ?? null : null}
+        onAvatarError={() => setHasImageError(true)}
+      />
+    );
+  }
 
   if (state === 'loading') {
     return (
-      <View
-        style={[
-          styles.card,
-          compact || isSummary ? styles.cardCompact : styles.cardExpanded,
-          isSummary ? styles.cardSummary : null,
-        ]}
-      >
-        {!isSummary ? (
-          <View style={styles.badgeRow}>
-            {domains.map((domain) => (
-              <DomainBadge key={domain} domain={domain} />
-            ))}
-          </View>
-        ) : null}
-        <View style={[styles.loadingRow, isSummary ? styles.loadingRowSummary : null]}>
-          <View
-            style={[
-              styles.avatarBase,
-              compact || isSummary ? styles.avatarCompact : styles.avatarExpanded,
-              isSummary ? styles.avatarSummary : null,
-            ]}
-          />
+      <View style={[styles.card, compact ? styles.cardCompact : styles.cardExpanded]}>
+        <View style={styles.badgeRow}>
+          {domains.map((domain) => (
+            <DomainBadge key={domain} domain={domain} />
+          ))}
+        </View>
+        <View style={styles.loadingRow}>
+          <View style={[styles.avatarBase, compact ? styles.avatarCompact : styles.avatarExpanded]} />
           <View style={styles.loadingTextGroup}>
             <Skeleton width="62%" height={18} />
             <Skeleton width="44%" height={14} style={styles.loadingLine} />
@@ -110,45 +136,19 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
     );
   }
 
-  const headline =
-    state === 'assigned'
-      ? summary?.fullName ?? joinDomainLabels(domains)
-      : joinDomainLabels(domains);
-  const roleLabel =
-    state === 'assigned' ? summary?.roleLabel : state === 'error' ? 'No disponible' : 'Sin asignacion';
-  const contextLabel =
-    state === 'assigned'
-      ? summary?.contextLabel
-      : state === 'error'
-        ? errorMessage ?? 'No fue posible cargar esta asignacion.'
-        : emptyMessage;
-  const contextParts = contextLabel
-    ?.split(' / ')
-    .map((part) => part.trim())
-    .filter(Boolean) ?? [];
-
   return (
-    <View
-      style={[
-        styles.card,
-        compact || isSummary ? styles.cardCompact : styles.cardExpanded,
-        isSummary ? styles.cardSummary : null,
-      ]}
-    >
-      {!isSummary ? (
-        <View style={styles.badgeRow}>
-          {domains.map((domain) => (
-            <DomainBadge key={domain} domain={domain} />
-          ))}
-        </View>
-      ) : null}
+    <View style={[styles.card, compact ? styles.cardCompact : styles.cardExpanded]}>
+      <View style={styles.badgeRow}>
+        {domains.map((domain) => (
+          <DomainBadge key={domain} domain={domain} />
+        ))}
+      </View>
 
-      <View style={[styles.bodyRow, isSummary ? styles.bodyRowSummary : null]}>
+      <View style={styles.bodyRow}>
         <View
           style={[
             styles.avatarBase,
-            compact || isSummary ? styles.avatarCompact : styles.avatarExpanded,
-            isSummary ? styles.avatarSummary : null,
+            compact ? styles.avatarCompact : styles.avatarExpanded,
             state === 'error'
               ? styles.avatarError
               : state === 'unassigned'
@@ -163,59 +163,165 @@ export const AssignedProfessionalCard: React.FC<AssignedProfessionalCardProps> =
               onError={() => setHasImageError(true)}
             />
           ) : state === 'error' ? (
-            <Ionicons name="alert-circle-outline" size={compact || isSummary ? 22 : 24} color={theme.colors.error} />
+            <Ionicons name="alert-circle-outline" size={compact ? 22 : 24} color={theme.colors.error} />
           ) : state === 'unassigned' ? (
-            <Ionicons name="person-outline" size={compact || isSummary ? 20 : 22} color={theme.colors.icon} />
+            <Ionicons name="person-outline" size={compact ? 20 : 22} color={theme.colors.icon} />
           ) : (
             <Text style={styles.avatarText}>{initials}</Text>
           )}
         </View>
 
         <View style={styles.copyColumn}>
-          <View style={isSummary ? styles.summaryTopRow : null}>
-            <View style={styles.summaryNameRole}>
-              <Text style={[styles.headline, isSummary ? styles.headlineSummary : null]} numberOfLines={1}>
-                {headline}
-              </Text>
-              {roleLabel ? (
-                <Text style={[styles.roleLabel, isSummary ? styles.roleLabelSummary : null]} numberOfLines={1}>
-                  {roleLabel}
-                </Text>
-              ) : null}
-            </View>
-
-            {isSummary ? (
-              <View style={styles.badgeRowSummary}>
-                {domains.map((domain) => (
-                  <DomainBadge key={domain} domain={domain} compact />
-                ))}
-              </View>
-            ) : null}
-          </View>
-
-          {contextParts.length ? (
-            isSummary ? (
-              <View style={styles.contextListSummary}>
-                {contextParts.map((part) => (
-                  <Text key={part} style={styles.contextLabelSummary} numberOfLines={1}>
-                    {part}
-                  </Text>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.contextLabel}>{contextLabel}</Text>
-            )
+          <Text style={styles.headline} numberOfLines={1}>
+            {headline}
+          </Text>
+          {roleLabel ? (
+            <Text style={styles.roleLabel} numberOfLines={1}>
+              {roleLabel}
+            </Text>
           ) : null}
+          {contextParts.length ? <Text style={styles.contextLabel}>{contextLabel}</Text> : null}
         </View>
       </View>
     </View>
   );
 };
 
-const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain; compact?: boolean }> = ({
-  domain,
-  compact = false,
+type ProfessionalSummaryProps = {
+  domains: AssignedProfessionalDomain[];
+  state: AssignedProfessionalCardState;
+  headline: string;
+  roleLabel: string | null;
+  contextParts: string[];
+  initials: string;
+  avatarUrl: string | null;
+  onAvatarError: () => void;
+};
+
+/** Inicio's version of the card: who is on the team, what they cover and what they set up. */
+const ProfessionalSummary: React.FC<ProfessionalSummaryProps> = ({
+  domains,
+  state,
+  headline,
+  roleLabel,
+  contextParts,
+  initials,
+  avatarUrl,
+  onAvatarError,
 }) => {
+  const aurora = useAurora();
+
+  if (state === 'loading') {
+    return (
+      <AuroraCard padding={16} radius={24} style={summaryStyles.row}>
+        <View style={[summaryStyles.avatar, { backgroundColor: aurora.surface3 }]} />
+        <View style={summaryStyles.copy}>
+          <Skeleton width="62%" height={16} />
+          <Skeleton width="40%" height={12} style={summaryStyles.skeletonLine} />
+          <Skeleton width="70%" height={12} style={summaryStyles.skeletonLine} />
+        </View>
+      </AuroraCard>
+    );
+  }
+
+  // The backend joins one context line per domain, in the same order as the domains.
+  const lineDomains = contextParts.length === domains.length ? domains : null;
+
+  return (
+    <AuroraCard padding={16} radius={24}>
+      <View style={summaryStyles.row}>
+        {avatarUrl ? (
+          <LinearGradient
+            colors={AVATAR_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[summaryStyles.avatar, summaryStyles.avatarRing]}
+          >
+            <Image
+              source={{ uri: avatarUrl }}
+              style={[summaryStyles.avatarImage, { borderColor: aurora.surface }]}
+              onError={onAvatarError}
+            />
+          </LinearGradient>
+        ) : state === 'assigned' ? (
+          <LinearGradient
+            colors={AVATAR_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[summaryStyles.avatar, { boxShadow: '0px 12px 24px -12px #4f46e5' }]}
+          >
+            <Text style={[summaryStyles.initials, auroraFont('extrabold')]}>{initials}</Text>
+          </LinearGradient>
+        ) : (
+          <View
+            style={[
+              summaryStyles.avatar,
+              {
+                backgroundColor: state === 'error' ? aurora.tones.rose.soft : aurora.surface2,
+                borderWidth: 1,
+                borderColor: state === 'error' ? aurora.tones.rose.line : aurora.border,
+              },
+            ]}
+          >
+            <Ionicons
+              name={state === 'error' ? 'alert-circle-outline' : 'person-outline'}
+              size={22}
+              color={state === 'error' ? aurora.tones.rose.ink : aurora.faint}
+            />
+          </View>
+        )}
+
+        <View style={summaryStyles.copy}>
+          <Text style={[summaryStyles.name, auroraFont('extrabold'), { color: aurora.text }]} numberOfLines={1}>
+            {headline}
+          </Text>
+          {roleLabel ? (
+            <Text style={[summaryStyles.role, auroraFont('medium'), { color: aurora.muted }]} numberOfLines={1}>
+              {roleLabel}
+            </Text>
+          ) : null}
+          <View style={summaryStyles.pills}>
+            {domains.map((domain) => (
+              <AuroraPill
+                key={domain}
+                label={DOMAIN_LABELS[domain]}
+                tone={DOMAIN_STYLES[domain].tone}
+                icon={DOMAIN_STYLES[domain].icon}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {contextParts.length ? (
+        <View style={[summaryStyles.context, { backgroundColor: aurora.surface2 }]}>
+          {contextParts.map((part, index) => {
+            const domain = lineDomains?.[index];
+            const tone = domain ? aurora.tones[DOMAIN_STYLES[domain].tone] : aurora.tones.slate;
+
+            return (
+              <View key={part} style={summaryStyles.contextLine}>
+                <Ionicons
+                  name={domain ? DOMAIN_STYLES[domain].icon : 'information-circle-outline'}
+                  size={16}
+                  color={tone.tone}
+                />
+                <Text
+                  style={[summaryStyles.contextText, auroraFont('semibold'), { color: aurora.text }]}
+                  numberOfLines={2}
+                >
+                  {part}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      ) : null}
+    </AuroraCard>
+  );
+};
+
+const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain }> = ({ domain }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
 
@@ -238,7 +344,6 @@ const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain; compact?: bool
     <View
       style={[
         styles.badge,
-        compact ? styles.badgeCompact : null,
         {
           backgroundColor: palette.backgroundColor,
           borderColor: palette.borderColor,
@@ -253,6 +358,74 @@ const DomainBadge: React.FC<{ domain: AssignedProfessionalDomain; compact?: bool
   );
 };
 
+const summaryStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  avatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarRing: {
+    padding: 2,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 25,
+    borderWidth: 2,
+  },
+  initials: {
+    fontSize: 18,
+    color: '#ffffff',
+  },
+  copy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  name: {
+    fontSize: 16,
+    lineHeight: 21,
+  },
+  role: {
+    marginTop: 2,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  pills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  context: {
+    gap: 10,
+    marginTop: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+  },
+  contextLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  contextText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  skeletonLine: {
+    marginTop: 6,
+  },
+});
+
 const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
   StyleSheet.create({
     card: {
@@ -264,10 +437,6 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     cardCompact: {
       padding: spacing.md,
-    },
-    cardSummary: {
-      padding: spacing.sm,
-      borderRadius: borderRadius.lg,
     },
     cardExpanded: {
       padding: spacing.lg,
@@ -286,10 +455,6 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
     },
-    badgeCompact: {
-      paddingHorizontal: spacing.xs,
-      paddingVertical: 4,
-    },
     badgeText: {
       fontSize: fontSize.xs,
       fontWeight: '600',
@@ -299,17 +464,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       marginTop: spacing.md,
     },
-    bodyRowSummary: {
-      alignItems: 'flex-start',
-      marginTop: 0,
-    },
     loadingRow: {
       flexDirection: 'row',
       alignItems: 'center',
       marginTop: spacing.md,
-    },
-    loadingRowSummary: {
-      marginTop: 0,
     },
     avatarBase: {
       borderRadius: borderRadius.full,
@@ -323,10 +481,6 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     avatarCompact: {
       width: 52,
       height: 52,
-    },
-    avatarSummary: {
-      width: 44,
-      height: 44,
     },
     avatarExpanded: {
       width: 64,
@@ -354,31 +508,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       marginLeft: spacing.md,
       minWidth: 0,
     },
-    summaryTopRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-    },
-    summaryNameRole: {
-      flex: 1,
-      minWidth: 0,
-    },
-    badgeRowSummary: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'flex-end',
-      gap: 4,
-      maxWidth: '48%',
-    },
     headline: {
       fontSize: fontSize.base,
       fontWeight: '700',
       color: theme.colors.textPrimary,
-    },
-    headlineSummary: {
-      fontSize: fontSize.sm,
-      fontWeight: '800',
     },
     roleLabel: {
       marginTop: 2,
@@ -386,23 +519,11 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       fontWeight: '600',
       color: theme.colors.textSecondary,
     },
-    roleLabelSummary: {
-      fontSize: fontSize.xs,
-    },
     contextLabel: {
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
       color: theme.colors.textMuted,
       lineHeight: 20,
-    },
-    contextListSummary: {
-      marginTop: spacing.xs,
-      gap: 2,
-    },
-    contextLabelSummary: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      lineHeight: 16,
     },
     loadingTextGroup: {
       flex: 1,

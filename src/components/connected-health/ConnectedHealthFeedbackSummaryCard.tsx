@@ -1,43 +1,42 @@
-import React, { useCallback, useEffect } from 'react';
-import {
-  AppState,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+import React, { useCallback, useEffect, useId } from 'react';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { Card } from '../common';
+import Svg, { Circle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import { spacing } from '../../constants/colors';
+import { AuroraCard, AuroraPill, IconBadge, type AuroraIconName } from '../aurora';
+import { toSvgId } from '../aurora/AuroraBackdrop';
 import { useConnectedHealthFeedback } from '../../hooks/useConnectedHealthFeedback';
 import { getConnectedHealthStateCopy } from '../../utils/connectedHealthFeedback';
-import {
-  borderRadius,
-  fontSize,
-  spacing,
-} from '../../constants/colors';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { auroraFont, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import type {
+  ConnectedHealthFeedbackModel,
   ConnectedHealthMetricCard,
   ConnectedHealthMetricKey,
+  ConnectedHealthReadinessStatus,
 } from '../../types/connectedHealthFeedback';
-import {
-  ConnectedHealthCardSkeleton,
-  ConnectedHealthEmptyState,
-  ConnectedHealthErrorText,
-  ConnectedHealthFreshnessBadge,
-  ConnectedHealthInlineAction,
-  ConnectedHealthMetricTile,
-} from './ConnectedHealthFeedbackParts';
+import { ConnectedHealthCardSkeleton } from './ConnectedHealthFeedbackParts';
 
 interface ConnectedHealthFeedbackSummaryCardProps {
   contentWidth?: number;
   horizontalPadding?: number;
   variant?: 'card' | 'compact';
 }
+
+type HealthAction = {
+  label: string;
+  icon: AuroraIconName;
+  onPress: () => void;
+  loading?: boolean;
+};
 
 const SUMMARY_METRICS: ConnectedHealthMetricKey[] = [
   'recovery',
@@ -53,34 +52,160 @@ const COMPACT_CHIP_ORDER: ConnectedHealthMetricKey[] = [
   'active_energy',
 ];
 
-const resolveMetricTint = (
-  theme: AppTheme,
-  tone: ConnectedHealthMetricCard['tone'],
-): string => {
-  if (tone === 'positive') return theme.colors.success;
-  if (tone === 'warning') return theme.colors.warning;
-  return theme.colors.primary;
+// Each signal keeps the tone it has across the app: steps green, sleep violet, recovery rose.
+const METRIC_TONES: Record<ConnectedHealthMetricKey, AuroraTone> = {
+  steps: 'emerald',
+  distance: 'emerald',
+  sleep: 'violet',
+  recovery: 'rose',
+  hrv: 'rose',
+  resting_hr: 'rose',
+  active_energy: 'amber',
+  total_energy: 'amber',
 };
 
-const MetricStatTile: React.FC<{ metric: ConnectedHealthMetricCard }> = ({ metric }) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  const tint = resolveMetricTint(theme, metric.tone);
+const READINESS_TONES: Record<ConnectedHealthReadinessStatus, AuroraTone> = {
+  good: 'emerald',
+  watch: 'amber',
+  low: 'rose',
+  unknown: 'slate',
+};
+
+const EMPTY_VALUE = '--';
+const RING_SIZE = 64;
+const RING_STROKE = 6;
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+/** Readiness score as a ring that fills on appear, coloured by how ready the body is. */
+const ReadinessRing: React.FC<{ score: number | null; tone: AuroraTone }> = ({ score, tone }) => {
+  const aurora = useAurora();
+  const reduceMotion = useReducedMotion();
+  const gradientId = toSvgId(useId());
+  const colors = aurora.tones[tone];
+  const target = score == null ? 0 : Math.min(100, Math.max(0, score)) / 100;
+  const progress = useSharedValue(reduceMotion ? target : 0);
+
+  useEffect(() => {
+    progress.value = reduceMotion
+      ? target
+      : withTiming(target, { duration: 900, easing: Easing.out(Easing.cubic) });
+  }, [progress, reduceMotion, target]);
+
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: RING_CIRCUMFERENCE * (1 - progress.value),
+  }));
 
   return (
-    <View style={styles.statTile}>
-      <View style={[styles.statIcon, { backgroundColor: `${tint}1F` }]}>
-        <Ionicons name={metric.icon} size={16} color={tint} />
-      </View>
-      <View style={styles.statCopy}>
-        <Text style={styles.statValue} numberOfLines={1}>
-          {metric.value}
+    <View style={styles.ring}>
+      <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
+        <Defs>
+          <SvgLinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0" stopColor={colors.tone} />
+            <Stop offset="1" stopColor={colors.tone2} />
+          </SvgLinearGradient>
+        </Defs>
+        <Circle
+          cx={RING_SIZE / 2}
+          cy={RING_SIZE / 2}
+          r={RING_RADIUS}
+          stroke={aurora.surface3}
+          strokeWidth={RING_STROKE}
+          fill="none"
+        />
+        {score != null ? (
+          <AnimatedCircle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            stroke={`url(#${gradientId})`}
+            strokeWidth={RING_STROKE}
+            strokeLinecap="round"
+            strokeDasharray={`${RING_CIRCUMFERENCE} ${RING_CIRCUMFERENCE}`}
+            fill="none"
+            animatedProps={arcProps}
+          />
+        ) : null}
+      </Svg>
+      <Text style={[styles.ringValue, auroraFont('extrabold'), { color: score == null ? aurora.faint : aurora.text }]}>
+        {score == null ? '—' : Math.round(score)}
+      </Text>
+    </View>
+  );
+};
+
+const HealthMetricTile: React.FC<{ metric: ConnectedHealthMetricCard }> = ({ metric }) => {
+  const aurora = useAurora();
+  const hasValue = metric.value !== EMPTY_VALUE;
+
+  return (
+    <View style={[styles.metricTile, { backgroundColor: aurora.surface2 }]}>
+      <IconBadge icon={metric.icon} tone={METRIC_TONES[metric.key]} size={32} />
+      <View style={styles.metricCopy}>
+        <Text
+          style={[styles.metricValue, auroraFont('extrabold'), { color: hasValue ? aurora.text : aurora.faint }]}
+          numberOfLines={1}
+        >
+          {hasValue ? metric.value : '—'}
         </Text>
-        <Text style={styles.statLabel} numberOfLines={1}>
+        <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={2}>
           {metric.label}
         </Text>
       </View>
+      {metric.tone === 'warning' ? (
+        <View
+          accessibilityLabel="Requiere atención"
+          style={[styles.warningDot, { backgroundColor: aurora.tones.amber.tone, borderColor: aurora.surface2 }]}
+        />
+      ) : null}
     </View>
+  );
+};
+
+const FreshnessPill: React.FC<{ feedback: ConnectedHealthFeedbackModel; isSyncing: boolean }> = ({
+  feedback,
+  isSyncing,
+}) => {
+  if (isSyncing) {
+    return <AuroraPill label="Sincronizando" tone="blue" icon="sync-outline" />;
+  }
+
+  return (
+    <AuroraPill
+      label={feedback.freshnessLabel}
+      tone={feedback.isStale ? 'amber' : 'emerald'}
+      icon={feedback.isStale ? 'time-outline' : 'checkmark-circle'}
+    />
+  );
+};
+
+const HealthActionButton: React.FC<{ action: HealthAction }> = ({ action }) => {
+  const aurora = useAurora();
+  const blue = aurora.tones.blue;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      accessibilityState={{ busy: action.loading }}
+      disabled={action.loading}
+      onPress={action.onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        { backgroundColor: blue.soft, borderColor: blue.line, transform: [{ scale: pressed ? 0.97 : 1 }] },
+      ]}
+    >
+      {action.loading ? (
+        <ActivityIndicator color={blue.ink} size="small" />
+      ) : (
+        <Ionicons name={action.icon} size={15} color={blue.ink} />
+      )}
+      <Text style={[styles.actionLabel, auroraFont('bold'), { color: blue.ink }]} numberOfLines={1}>
+        {action.label}
+      </Text>
+    </Pressable>
   );
 };
 
@@ -88,8 +213,7 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
   horizontalPadding = spacing.md,
   variant = 'card',
 }) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
   const isCompact = variant === 'compact';
   const {
     feedback,
@@ -129,22 +253,20 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
   const metricsByKey = new Map<ConnectedHealthMetricKey, ConnectedHealthMetricCard>(
     feedback.metrics.map((m) => [m.key, m]),
   );
-  const chipMetrics = COMPACT_CHIP_ORDER
-    .map((key) => metricsByKey.get(key))
-    .filter((m): m is ConnectedHealthMetricCard => Boolean(m));
-
-  const nonCompactMetrics = feedback.metrics.filter((metric) =>
-    SUMMARY_METRICS.includes(metric.key),
-  );
+  const visibleMetrics = isCompact
+    ? COMPACT_CHIP_ORDER
+        .map((key) => metricsByKey.get(key))
+        .filter((m): m is ConnectedHealthMetricCard => Boolean(m))
+    : feedback.metrics.filter((metric) => SUMMARY_METRICS.includes(metric.key));
 
   const primaryInsight = feedback.insights[0] ?? null;
   const showLoading = isLoading && !feedback.hasRealData;
 
   const stateCopy = getConnectedHealthStateCopy(connectionState, feedback.sourceLabel);
 
-  const syncAction = {
+  const syncAction: HealthAction = {
     label: 'Sincronizar',
-    icon: 'sync-outline' as const,
+    icon: 'sync-outline',
     onPress: () => {
       void sync();
     },
@@ -153,11 +275,11 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
 
   // El CTA lleva directamente a la acción que resuelve el estado, en vez de dejar al
   // usuario en la pantalla de perfil buscando qué tocar.
-  const emptyStateAction =
+  const emptyStateAction: HealthAction =
     stateCopy.action === 'permissions'
       ? {
           label: 'Conceder permisos',
-          icon: 'key-outline' as const,
+          icon: 'key-outline',
           onPress: () => {
             void requestPermissions();
           },
@@ -166,7 +288,7 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
       : stateCopy.action === 'settings'
         ? {
             label: `Abrir ${feedback.sourceLabel}`,
-            icon: 'open-outline' as const,
+            icon: 'open-outline',
             onPress: () => {
               void openSettings();
             },
@@ -184,415 +306,243 @@ export const ConnectedHealthFeedbackSummaryCard: React.FC<ConnectedHealthFeedbac
     } as never);
   };
 
-  const readinessScoreLabel =
-    feedback.readiness.score == null
-      ? '--'
-      : Math.round(feedback.readiness.score).toString();
-
-  const cardContent = (
-    <Card
-      style={[styles.card, isCompact ? styles.cardCompact : null] as StyleProp<ViewStyle>}
-      padding={isCompact ? 'md' : 'lg'}
-    >
-      <View style={styles.header}>
-        <View style={styles.titleWrap}>
-          <View style={[styles.iconBubble, isCompact ? styles.iconBubbleCompact : null]}>
-            <Ionicons
-              name="pulse-outline"
-              size={isCompact ? 16 : 18}
-              color={theme.colors.primary}
-            />
-          </View>
-          <View style={styles.titleCopy}>
-            <Text style={styles.eyebrow}>Salud conectada</Text>
-            {!isCompact ? (
-              <Text style={styles.title} numberOfLines={1}>
-                Preparación de hoy
-              </Text>
-            ) : null}
-          </View>
-        </View>
-        <View style={styles.headerActions}>
-          <ConnectedHealthFreshnessBadge feedback={feedback} isSyncing={isSyncing} />
-          {isCompact ? (
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={theme.colors.iconMuted}
-            />
-          ) : null}
-        </View>
-      </View>
-
-      {showLoading ? (
-        <ConnectedHealthCardSkeleton compact={isCompact} />
-      ) : feedback.hasRealData ? (
-        isCompact ? (
-          <View style={styles.bodyCompact}>
-            <Text style={styles.readinessInline} numberOfLines={1}>
-              <Text style={styles.readinessInlineScore}>
-                Preparación {readinessScoreLabel}
-              </Text>
-              <Text style={styles.readinessInlineDivider}>  -  </Text>
-              <Text style={styles.readinessInlineTitle}>
-                {feedback.readiness.title}
-              </Text>
-            </Text>
-            {chipMetrics.length > 0 ? (
-              <View style={styles.statsRow}>
-                {chipMetrics.map((metric) => (
-                  <MetricStatTile key={metric.key} metric={metric} />
-                ))}
-              </View>
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.body}>
-            <View style={styles.readinessBlock}>
-              <Text style={styles.readinessValue}>{readinessScoreLabel}</Text>
-              <View style={styles.readinessCopy}>
-                <Text style={styles.readinessTitle} numberOfLines={1}>
-                  {feedback.readiness.title}
-                </Text>
-                <Text style={styles.readinessMessage}>
-                  {feedback.readiness.message}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.metricsGrid}>
-              {nonCompactMetrics.map((metric) => (
-                <ConnectedHealthMetricTile key={metric.key} metric={metric} compact />
-              ))}
-            </View>
-            {primaryInsight ? (
-              <View style={styles.insightPreview}>
-                <Ionicons
-                  name={
-                    primaryInsight.tone === 'warning'
-                      ? 'alert-circle-outline'
-                      : 'sparkles-outline'
-                  }
-                  size={16}
-                  color={
-                    primaryInsight.tone === 'warning'
-                      ? theme.colors.warning
-                      : theme.colors.primary
-                  }
-                />
-                <Text style={styles.insightPreviewText} numberOfLines={2}>
-                  {primaryInsight.title}: {primaryInsight.message}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        )
-      ) : isCompact ? (
-        <View style={styles.compactEmptyState}>
-          <View style={styles.compactEmptyCopy}>
-            <Text style={styles.compactEmptyTitle}>{stateCopy.title}</Text>
-            <Text style={styles.compactEmptyMessage} numberOfLines={1}>
-              {stateCopy.compactMessage}
-            </Text>
-          </View>
-          <ConnectedHealthInlineAction action={emptyStateAction} />
-        </View>
-      ) : (
-        <ConnectedHealthEmptyState
-          title={stateCopy.title}
-          message={stateCopy.message}
-          action={emptyStateAction}
-        />
-      )}
-
-      {!isCompact ? (
-        <View style={styles.footer}>
-          {/* Sin botón de actualizar: la tarjeta relee el dispositivo en cada foco, así
-              que no hay nada que el usuario pueda pulsar para conseguir un dato más
-              reciente del que ya está viendo. */}
-          <Text style={styles.sourceText}>
-            Fuente: {feedback.sourceLabel} - {feedback.latestDateLabel}
-          </Text>
-        </View>
-      ) : null}
-
-      {needsPermissionUpgradeCta && feedback.hasRealData && !isCompact ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Completar permisos de salud conectada"
-          onPress={() => {
-            void requestPermissions();
-          }}
-          style={styles.partialPermissionsRow}
-        >
-          <Ionicons
-            name="key-outline"
-            size={16}
-            color={theme.colors.warning}
-          />
-          <Text style={styles.partialPermissionsText} numberOfLines={2}>
-            Permisos incompletos
-            {missingPermissionsLabel ? `: faltan ${missingPermissionsLabel}` : ''}.
-            Actívalos para completar tu recuperación.
-          </Text>
-        </Pressable>
-      ) : null}
-
-      <ConnectedHealthErrorText
-        message={syncError ?? error ?? feedback.lastSyncErrorMessage}
-      />
-    </Card>
-  );
+  const errorMessage = syncError ?? error ?? feedback.lastSyncErrorMessage;
+  const insightTone = primaryInsight?.tone === 'warning' ? aurora.tones.amber : aurora.tones.blue;
 
   return (
-    <View
-      style={[
-        styles.outer,
-        isCompact ? styles.outerCompact : null,
-        { paddingHorizontal: horizontalPadding },
-      ]}
-    >
+    <View style={[isCompact ? styles.outerCompact : styles.outer, { paddingHorizontal: horizontalPadding }]}>
       <Pressable
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel="Ver detalles de salud conectada"
-        style={({ pressed }) => (pressed ? styles.pressed : undefined)}
+        style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.985 : 1 }] })}
       >
-        {cardContent}
+        <AuroraCard padding={16} style={styles.card}>
+          <View style={styles.header}>
+            <IconBadge icon="pulse-outline" tone="rose" variant="solid" size={36} />
+            <View style={styles.titleCopy}>
+              <Text style={[auroraType.headline, { color: aurora.text }]} numberOfLines={1}>
+                Salud conectada
+              </Text>
+              <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
+                {isCompact ? feedback.sourceLabel : 'Preparación de hoy'}
+              </Text>
+            </View>
+            <FreshnessPill feedback={feedback} isSyncing={isSyncing} />
+            {isCompact ? <Ionicons name="chevron-forward" size={18} color={aurora.faint} /> : null}
+          </View>
+
+          {showLoading ? (
+            <ConnectedHealthCardSkeleton compact={isCompact} />
+          ) : feedback.hasRealData ? (
+            <>
+              <View style={styles.readinessRow}>
+                <ReadinessRing
+                  score={feedback.readiness.score}
+                  tone={READINESS_TONES[feedback.readiness.status]}
+                />
+                <View style={styles.readinessCopy}>
+                  <Text style={[auroraType.label, { color: aurora.faint }]}>Preparación</Text>
+                  <Text
+                    style={[styles.readinessTitle, auroraFont('extrabold'), { color: aurora.text }]}
+                    numberOfLines={1}
+                  >
+                    {feedback.readiness.title}
+                  </Text>
+                  <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={isCompact ? 2 : 3}>
+                    {feedback.readiness.message}
+                  </Text>
+                </View>
+              </View>
+
+              {visibleMetrics.length > 0 ? (
+                <View style={styles.metricsGrid}>
+                  {visibleMetrics.map((metric) => (
+                    <HealthMetricTile key={metric.key} metric={metric} />
+                  ))}
+                </View>
+              ) : null}
+
+              {!isCompact && primaryInsight ? (
+                <View style={[styles.insight, { backgroundColor: insightTone.soft }]}>
+                  <Ionicons
+                    name={primaryInsight.tone === 'warning' ? 'alert-circle-outline' : 'sparkles-outline'}
+                    size={16}
+                    color={insightTone.ink}
+                  />
+                  <Text style={[styles.insightText, auroraFont('medium'), { color: aurora.muted }]} numberOfLines={2}>
+                    {primaryInsight.title}: {primaryInsight.message}
+                  </Text>
+                </View>
+              ) : null}
+            </>
+          ) : (
+            <View style={[styles.emptyRow, { backgroundColor: aurora.surface2 }]}>
+              <View style={styles.emptyCopy}>
+                <Text style={[styles.emptyTitle, auroraFont('extrabold'), { color: aurora.text }]}>
+                  {stateCopy.title}
+                </Text>
+                <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={isCompact ? 2 : 4}>
+                  {isCompact ? stateCopy.compactMessage : stateCopy.message}
+                </Text>
+              </View>
+              <HealthActionButton action={emptyStateAction} />
+            </View>
+          )}
+
+          {!isCompact ? (
+            // Sin botón de actualizar: la tarjeta relee el dispositivo en cada foco, así que no
+            // hay nada que el usuario pueda pulsar para conseguir un dato más reciente.
+            <Text style={[auroraType.caption, { color: aurora.faint }]}>
+              Fuente: {feedback.sourceLabel} - {feedback.latestDateLabel}
+            </Text>
+          ) : null}
+
+          {needsPermissionUpgradeCta && feedback.hasRealData && !isCompact ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Completar permisos de salud conectada"
+              onPress={() => {
+                void requestPermissions();
+              }}
+              style={[styles.insight, { backgroundColor: aurora.tones.amber.soft }]}
+            >
+              <Ionicons name="key-outline" size={16} color={aurora.tones.amber.ink} />
+              <Text style={[styles.insightText, auroraFont('medium'), { color: aurora.muted }]} numberOfLines={2}>
+                Permisos incompletos
+                {missingPermissionsLabel ? `: faltan ${missingPermissionsLabel}` : ''}.
+                Actívalos para completar tu recuperación.
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {errorMessage ? (
+            <Text style={[auroraType.caption, { color: aurora.tones.rose.ink }]}>{errorMessage}</Text>
+          ) : null}
+        </AuroraCard>
       </Pressable>
     </View>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    outer: {
-      marginVertical: spacing.md,
-    },
-    outerCompact: {
-      marginVertical: spacing.sm,
-    },
-    pressed: {
-      opacity: 0.85,
-    },
-    card: {
-      gap: spacing.md,
-    },
-    cardCompact: {
-      gap: spacing.sm,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-    },
-    titleWrap: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-    },
-    headerActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-    },
-    iconBubble: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.primarySoft,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-    },
-    iconBubbleCompact: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-    },
-    titleCopy: {
-      flex: 1,
-      gap: 2,
-    },
-    eyebrow: {
-      fontSize: fontSize.xs,
-      fontWeight: '800',
-      color: theme.colors.primary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.4,
-    },
-    title: {
-      fontSize: fontSize.lg,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    body: {
-      gap: spacing.md,
-    },
-    bodyCompact: {
-      gap: spacing.sm,
-    },
-    readinessBlock: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      padding: spacing.md,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    readinessValue: {
-      width: 54,
-      textAlign: 'center',
-      fontSize: fontSize['2xl'],
-      fontWeight: '900',
-      color: theme.colors.primary,
-      fontVariant: ['tabular-nums'],
-    },
-    readinessCopy: {
-      flex: 1,
-      gap: 3,
-    },
-    readinessTitle: {
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    readinessMessage: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-      lineHeight: 19,
-    },
-    readinessInline: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textSecondary,
-    },
-    readinessInlineScore: {
-      fontWeight: '900',
-      color: theme.colors.primary,
-      fontVariant: ['tabular-nums'],
-    },
-    readinessInlineDivider: {
-      color: theme.colors.textMuted,
-    },
-    readinessInlineTitle: {
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
-    },
-    metricsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.sm,
-    },
-    statsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.xs,
-    },
-    statTile: {
-      flexBasis: '48%',
-      flexGrow: 1,
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.xs,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.surfaceAlt,
-    },
-    statIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    statCopy: {
-      flex: 1,
-      minWidth: 0,
-    },
-    statValue: {
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-      fontVariant: ['tabular-nums'],
-    },
-    statLabel: {
-      marginTop: 1,
-      fontSize: 11,
-      color: theme.colors.textMuted,
-    },
-    insightPreview: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      padding: spacing.sm,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.primarySoft,
-    },
-    insightPreviewText: {
-      flex: 1,
-      fontSize: fontSize.sm,
-      color: theme.colors.textSecondary,
-      lineHeight: 19,
-    },
-    footer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-      flexWrap: 'wrap',
-    },
-    sourceText: {
-      flex: 1,
-      minWidth: 180,
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      lineHeight: 17,
-    },
-    compactEmptyState: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      padding: spacing.sm,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    compactEmptyCopy: {
-      flex: 1,
-      minWidth: 0,
-      gap: 2,
-    },
-    compactEmptyTitle: {
-      fontSize: fontSize.sm,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    compactEmptyMessage: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      lineHeight: 16,
-    },
-    partialPermissionsRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: spacing.sm,
-      marginTop: spacing.sm,
-      paddingVertical: spacing.sm,
-      paddingHorizontal: spacing.md,
-      borderRadius: borderRadius.md,
-      backgroundColor: `${theme.colors.warning}12`,
-    },
-    partialPermissionsText: {
-      flex: 1,
-      fontSize: fontSize.xs,
-      color: theme.colors.textSecondary,
-      lineHeight: 16,
-    },
-  });
+const styles = StyleSheet.create({
+  outer: {
+    marginVertical: spacing.md,
+  },
+  outerCompact: {
+    marginVertical: spacing.sm,
+  },
+  card: {
+    gap: 14,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  titleCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  readinessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  ring: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringSvg: {
+    position: 'absolute',
+    transform: [{ rotate: '-90deg' }],
+  },
+  ringValue: {
+    fontSize: 19,
+    fontVariant: ['tabular-nums'],
+  },
+  readinessCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  readinessTitle: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  metricTile: {
+    flexBasis: '45%',
+    flexGrow: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 10,
+    borderRadius: 16,
+  },
+  metricCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metricValue: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
+  },
+  warningDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
+  insight: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 12,
+    borderRadius: 14,
+  },
+  insightText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  emptyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 16,
+  },
+  emptyCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  actionLabel: {
+    fontSize: 13,
+  },
+});
