@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   View,
@@ -11,18 +11,26 @@ import {
   Pressable,
   useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../src/store/authStore';
-import { Button, Input, Logo } from '../src/components/common';
+import { AuthBackdrop } from '../src/components/auth/AuthBackdrop';
+import { AuthBrand } from '../src/components/auth/AuthBrand';
+import { AuthPrimaryButton, AuthSecondaryButton } from '../src/components/auth/AuthButtons';
+import { AuthGlassCard } from '../src/components/auth/AuthGlassCard';
+import { AuthErrorBanner, AuthInfoNote } from '../src/components/auth/AuthNotice';
+import { AuthTextField } from '../src/components/auth/AuthTextField';
 import { TurnstileChallengeModal } from '../src/components/auth/TurnstileChallengeModal';
-import { brandColors, spacing, fontSize, scaledFontSize, borderRadius } from '../src/constants/colors';
 import { clientForgotPasswordUrl } from '../src/constants/support';
-import { useThemedStyles, type AppTheme } from '../src/theme';
+import { auroraFont, useAurora } from '../src/theme/aurora';
 import { isSmallScreen, isVerySmallScreen } from '../src/utils/responsive';
 import type { LoginCredentials } from '../src/types';
+
+const INFO_PARAGRAPHS = [
+  'Crea tu cuenta desde la app y completa el onboarding para que podamos personalizar tu experiencia.',
+  'Si ya trabajas con un profesional, usa el mismo correo que compartiste con él.',
+] as const;
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -31,28 +39,11 @@ export default function LoginScreen() {
   const [captchaSessionKey, setCaptchaSessionKey] = useState(0);
   const [pendingCredentials, setPendingCredentials] = useState<LoginCredentials | null>(null);
   const { login, isLoading, error, clearError, isAuthenticated, user } = useAuthStore();
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const smallScreen = isSmallScreen(width);
   const verySmallScreen = isVerySmallScreen(width);
-
-  const scaledText = useMemo(
-    () => ({
-      tagline: { fontSize: scaledFontSize('sm', width) },
-      welcomeTitle: { fontSize: scaledFontSize('2xl', width) },
-      welcomeSubtitle: { fontSize: scaledFontSize('base', width) },
-      errorText: { fontSize: scaledFontSize('sm', width) },
-      forgotPasswordText: { fontSize: scaledFontSize('sm', width) },
-      createAccountText: { fontSize: scaledFontSize('sm', width) },
-      infoCardTitle: { fontSize: scaledFontSize('sm', width) },
-      infoCardText: { fontSize: scaledFontSize('xs', width) },
-      infoCardTextSecondary: { fontSize: scaledFontSize('xs', width) },
-    }),
-    [width],
-  );
-
-  const headerPaddingBottom = verySmallScreen ? 14 : smallScreen ? 18 : 36;
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -155,123 +146,100 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <LinearGradient
-        colors={[brandColors.navy, brandColors.sky]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          styles.headerGradient,
-          {
-            paddingTop: insets.top + spacing.md,
-            paddingBottom: headerPaddingBottom,
-          },
-        ]}
+    <View style={[styles.root, { backgroundColor: aurora.ground }]}>
+      <AuthBackdrop width={width} height={height} />
+
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={styles.logoContainer}>
-          <View
-            style={[
-              styles.logoBackground,
-              smallScreen ? styles.logoBackgroundSmall : null,
-              verySmallScreen ? styles.logoBackgroundXSmall : null,
-            ]}
-          >
-            <Logo
-              size={verySmallScreen ? 'xs' : smallScreen ? 'sm' : 'md'}
-              showText
-              animated
-            />
-          </View>
-          <Text style={[styles.tagline, scaledText.tagline]}>
-            Tu entrenamiento y dieta personalizados
-          </Text>
-        </View>
-      </LinearGradient>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + (smallScreen ? 20 : 36),
+              paddingBottom: Math.max(insets.bottom + 24, 32),
+            },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View entering={FadeInDown.duration(560)}>
+            <AuthBrand compact={verySmallScreen} />
+          </Animated.View>
 
-      <ScrollView
-        style={styles.formContainer}
-        contentContainerStyle={[
-          styles.formContent,
-          {
-            flexGrow: 1,
-            paddingBottom: Math.max(insets.bottom + spacing.lg, spacing.lg),
-          },
-        ]}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={[styles.welcomeTitle, scaledText.welcomeTitle]}>Bienvenido</Text>
-        <Text style={[styles.welcomeSubtitle, scaledText.welcomeSubtitle]}>
-          Inicia sesión o crea tu cuenta para comenzar tu programa
-        </Text>
+          <Animated.View entering={FadeInDown.duration(560).delay(80)} style={styles.cardSlot}>
+            <AuthGlassCard>
+              <Text accessibilityRole="header" style={[styles.title, { color: aurora.text }]}>
+                Bienvenido
+              </Text>
+              <Text style={[styles.subtitle, { color: aurora.muted }]}>
+                Inicia sesión o crea tu cuenta para comenzar tu programa
+              </Text>
 
-        {error ? (
-          <View style={styles.errorContainer}>
-            <View style={styles.errorHeader}>
-              <Ionicons name="alert-circle" size={20} color={styles.errorIcon.color} />
-              <Text style={styles.errorTitle}>No se pudo iniciar sesión</Text>
-            </View>
-            <Text style={[styles.errorText, scaledText.errorText]}>{error}</Text>
-          </View>
-        ) : null}
+              {error ? (
+                <AuthErrorBanner
+                  title="No se pudo iniciar sesión"
+                  message={error}
+                  style={styles.banner}
+                />
+              ) : null}
 
-        <Input
-          label="Correo electrónico"
-          placeholder="tu@email.com"
-          value={email}
-          onChangeText={handleChangeEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          icon="mail-outline"
-        />
+              <AuthTextField
+                label="Correo electrónico"
+                icon="mail-outline"
+                placeholder="tu@email.com"
+                value={email}
+                onChangeText={handleChangeEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
 
-        <Input
-          label="Contraseña"
-          placeholder="********"
-          value={password}
-          onChangeText={handleChangePassword}
-          secureTextEntry
-          autoComplete="password"
-          icon="lock-closed-outline"
-        />
+              <AuthTextField
+                label="Contraseña"
+                icon="lock-closed-outline"
+                placeholder="Tu contraseña"
+                value={password}
+                onChangeText={handleChangePassword}
+                secureTextEntry
+                autoComplete="password"
+              />
 
-        <Pressable onPress={handleForgotPassword} style={styles.forgotPasswordLink}>
-          <Text style={[styles.forgotPasswordText, scaledText.forgotPasswordText]}>
-            Olvide mi contraseña
-          </Text>
-        </Pressable>
+              <Pressable
+                onPress={handleForgotPassword}
+                accessibilityRole="link"
+                hitSlop={8}
+                style={styles.forgotPassword}
+              >
+                <Text style={[styles.forgotPasswordText, { color: aurora.tones.blue.ink }]}>
+                  Olvidé mi contraseña
+                </Text>
+              </Pressable>
 
-        <Button
-          title="Iniciar sesión"
-          onPress={handleLogin}
-          isLoading={isLoading}
-          disabled={!email.trim() || !password.trim()}
-          style={styles.loginButton}
-        />
+              <AuthPrimaryButton
+                title="Iniciar sesión"
+                onPress={handleLogin}
+                loading={isLoading}
+                disabled={!email.trim() || !password.trim()}
+                style={styles.loginButton}
+              />
 
-        <Pressable onPress={() => router.push('/register')} style={styles.createAccountButton}>
-          <Text style={[styles.createAccountText, scaledText.createAccountText]}>
-            Crear cuenta nueva
-          </Text>
-        </Pressable>
+              <AuthSecondaryButton
+                title="Crear cuenta nueva"
+                icon="person-add-outline"
+                onPress={() => router.push('/register')}
+                style={styles.createAccount}
+              />
+            </AuthGlassCard>
+          </Animated.View>
 
-        <View style={styles.infoCard}>
-          <View style={styles.infoCardHeader}>
-            <Ionicons name="information-circle-outline" size={20} color={brandColors.sky} />
-            <Text style={[styles.infoCardTitle, scaledText.infoCardTitle]}>Empieza en FitPilot</Text>
-          </View>
-          <Text style={[styles.infoCardText, scaledText.infoCardText]}>
-            Crea tu cuenta desde la app y completa el onboarding para que podamos
-            personalizar tu experiencia.
-          </Text>
-          <Text style={[styles.infoCardTextSecondary, scaledText.infoCardTextSecondary]}>
-            Si ya trabajas con un profesional, usa el mismo correo que compartiste con el.
-          </Text>
-        </View>
-      </ScrollView>
+          <Animated.View entering={FadeInDown.duration(560).delay(160)} style={styles.noteSlot}>
+            <AuthInfoNote title="Empieza en FitPilot" paragraphs={INFO_PARAGRAPHS} />
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <TurnstileChallengeModal
         key={captchaSessionKey}
@@ -279,143 +247,55 @@ export default function LoginScreen() {
         onClose={() => setIsCaptchaVisible(false)}
         onToken={handleCaptchaToken}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    headerGradient: {
-      borderBottomLeftRadius: 30,
-      borderBottomRightRadius: 30,
-    },
-    logoContainer: {
-      alignItems: 'center',
-    },
-    logoBackground: {
-      backgroundColor: theme.isDark ? 'rgba(15, 23, 42, 0.86)' : 'rgba(255, 255, 255, 0.85)',
-      borderRadius: 20,
-      padding: spacing.lg,
-      marginBottom: spacing.md,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
-    },
-    logoBackgroundSmall: {
-      padding: spacing.sm,
-      borderRadius: 14,
-    },
-    logoBackgroundXSmall: {
-      padding: spacing.xs,
-      borderRadius: 12,
-    },
-    tagline: {
-      fontSize: fontSize.sm,
-      color: 'rgba(255, 255, 255, 0.9)',
-      fontWeight: '500',
-    },
-    formContainer: {
-      flex: 1,
-    },
-    formContent: {
-      padding: spacing.lg,
-      paddingTop: spacing.xl,
-    },
-    welcomeTitle: {
-      fontSize: fontSize['2xl'],
-      fontWeight: 'bold',
-      color: theme.colors.textPrimary,
-      marginBottom: spacing.xs,
-    },
-    welcomeSubtitle: {
-      fontSize: fontSize.base,
-      color: theme.colors.textMuted,
-      marginBottom: spacing.xl,
-    },
-    errorContainer: {
-      backgroundColor: `${theme.colors.error}12`,
-      borderRadius: borderRadius.md,
-      padding: spacing.md,
-      marginBottom: spacing.md,
-      borderLeftWidth: 4,
-      borderLeftColor: theme.colors.error,
-    },
-    errorHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 6,
-    },
-    errorIcon: {
-      color: theme.colors.error,
-    },
-    errorTitle: {
-      color: theme.colors.error,
-      fontSize: fontSize.sm,
-      fontWeight: '700',
-    },
-    errorText: {
-      color: theme.colors.error,
-      fontSize: fontSize.sm,
-      lineHeight: 20,
-    },
-    loginButton: {
-      marginTop: spacing.md,
-    },
-    createAccountButton: {
-      alignItems: 'center',
-      marginTop: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    createAccountText: {
-      color: brandColors.sky,
-      fontSize: fontSize.sm,
-      fontWeight: '700',
-    },
-    forgotPasswordLink: {
-      alignSelf: 'flex-end',
-      marginTop: spacing.xs,
-    },
-    forgotPasswordText: {
-      color: brandColors.sky,
-      fontSize: fontSize.sm,
-      fontWeight: '600',
-    },
-    infoCard: {
-      marginTop: spacing.xl,
-      backgroundColor: 'rgba(103, 181, 222, 0.08)',
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-      borderWidth: 1,
-      borderColor: theme.isDark ? 'rgba(103, 181, 222, 0.2)' : 'rgba(103, 181, 222, 0.15)',
-    },
-    infoCardHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 6,
-    },
-    infoCardTitle: {
-      fontSize: fontSize.sm,
-      fontWeight: '700',
-      color: brandColors.sky,
-    },
-    infoCardText: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textSecondary,
-      lineHeight: 18,
-    },
-    infoCardTextSecondary: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      lineHeight: 18,
-      marginTop: 4,
-      fontStyle: 'italic',
-    },
-  });
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+  },
+  cardSlot: {
+    marginTop: 22,
+  },
+  title: {
+    ...auroraFont('extrabold'),
+    fontSize: 25,
+    lineHeight: 29,
+    letterSpacing: -0.5,
+  },
+  subtitle: {
+    ...auroraFont('medium'),
+    marginTop: 6,
+    fontSize: 14.5,
+    lineHeight: 22,
+  },
+  banner: {
+    marginTop: 16,
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    paddingVertical: 8,
+  },
+  forgotPasswordText: {
+    ...auroraFont('bold'),
+    fontSize: 13.5,
+  },
+  loginButton: {
+    marginTop: 6,
+  },
+  createAccount: {
+    marginTop: 10,
+  },
+  noteSlot: {
+    marginTop: 14,
+  },
+});
