@@ -71,6 +71,40 @@ const EMPTY_ICONS: Record<string, AuroraIconName> = {
   'no-executed': 'time-outline',
 };
 
+// Muscle heads fold into the short group names the chips use ("Deltoides", "Core").
+const MUSCLE_GROUPS: Record<string, string> = {
+  anterior_deltoid: 'Deltoides',
+  lateral_deltoid: 'Deltoides',
+  posterior_deltoid: 'Deltoides',
+  abs: 'Core',
+  obliques: 'Core',
+  chest: 'Pecho',
+  lats: 'Dorsales',
+  upper_back: 'Espalda alta',
+  lower_back: 'Espalda baja',
+  biceps: 'Bíceps',
+  triceps: 'Tríceps',
+  forearms: 'Antebrazos',
+  quadriceps: 'Cuádriceps',
+  hamstrings: 'Isquios',
+  glutes: 'Glúteos',
+  adductors: 'Aductores',
+  calves: 'Pantorrillas',
+  tibialis: 'Tibial',
+};
+
+const getTopMuscleGroups = (muscles: MuscleVolumeItem[], limit = 2) => {
+  const volumeByGroup = new Map<string, number>();
+  muscles.forEach((muscle) => {
+    const group = MUSCLE_GROUPS[muscle.muscle_name] ?? muscle.display_name.trim().split(/\s+/)[0];
+    volumeByGroup.set(group, (volumeByGroup.get(group) ?? 0) + muscle.effective_sets);
+  });
+  return [...volumeByGroup.entries()]
+    .sort(([, left], [, right]) => right - left)
+    .slice(0, limit)
+    .map(([group]) => group);
+};
+
 // Shows the side of the body that carries most of the session's volume.
 const pickBodyView = (muscles: MuscleVolumeItem[]): BodyMapView => {
   const weight = (view: BodyMapView) =>
@@ -194,7 +228,9 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   // Up to where the notch's diagonal crosses the pill's top edge, less a small gap.
   const pillMaxWidth =
     cardWidth - CARD_PADDING * 2 - NOTCH_WIDTH - NOTCH_RUN + NOTCH_RUN * (CARD_PADDING / NOTCH_DEPTH) - 6;
-  const topMuscles = [...muscles].sort((a, b) => b.effective_sets - a.effective_sets).slice(0, 2);
+  const muscleGroups = getTopMuscleGroups(muscles);
+  // Two chips always share one row beside the figure; a long name shortens instead of wrapping.
+  const chipMaxWidth = (cardWidth - CARD_PADDING * 2 - FIGURE_WIDTH - 8 - 6) / 2;
   const action = isSession ? ACTIONS[cardState.actionLabel] ?? { label: cardState.actionLabel, icon: 'play' } : null;
   const completion = isSession ? Math.round(cardState.session.completion_percentage) : 0;
 
@@ -337,10 +373,10 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                   </View>
                 ) : null}
               </View>
-              {topMuscles.length ? (
+              {muscleGroups.length ? (
                 <View style={styles.muscleRow}>
-                  {topMuscles.map((muscle) => (
-                    <View key={muscle.muscle_name} style={styles.musclePill}>
+                  {muscleGroups.map((group) => (
+                    <View key={group} style={[styles.musclePill, { maxWidth: chipMaxWidth }]}>
                       <LinearGradient
                         colors={['#7dd3fc', '#818cf8']}
                         start={{ x: 0, y: 0 }}
@@ -348,7 +384,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
                         style={styles.muscleDot}
                       />
                       <Text style={[styles.muscleText, auroraFont('bold')]} numberOfLines={1}>
-                        {muscle.display_name}
+                        {group}
                       </Text>
                     </View>
                   ))}
@@ -577,7 +613,6 @@ const styles = StyleSheet.create({
   },
   muscleRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 6,
     marginTop: 14,
   },
@@ -586,7 +621,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     height: 28,
-    maxWidth: 150,
     paddingHorizontal: 11,
     borderRadius: 999,
     backgroundColor: 'rgba(125, 211, 252, 0.12)',

@@ -23,6 +23,14 @@ const ROW_TOP_PADDING = 7;
 const SWIPE_ACTIVATION = 10;
 const SWIPE_THRESHOLD = 28;
 
+// One letter per weekday, Sunday first (Date#getDay order), as on the proposal's card.
+const WEEKDAY_LETTERS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+const getWeekdayLetter = (day: SharedWeeklyCalendarDay) => {
+  const [year, month, date] = day.dateKey.split('-').map(Number);
+  return year && month && date ? WEEKDAY_LETTERS[new Date(year, month - 1, date).getDay()] : day.dayLabel;
+};
+
 // Offsets of the letter, number and dot from the capsule's centre, so they follow its slant.
 const shiftFor = (dy: number) => ({ transform: [{ translateX: dy * SLANT }] });
 const LETTER_SHIFT = shiftFor(-26.5);
@@ -157,10 +165,12 @@ export const CardWeekStrip = ({
           <SlantedCapsule
             width={CAPSULE_WIDTH}
             height={CAPSULE_HEIGHT}
-            colors={['rgba(125, 211, 252, 0.3)', 'rgba(99, 102, 241, 0.3)']}
-            stroke="rgba(255, 255, 255, 0.72)"
+            colors={['#7dd3fc', '#6366f1']}
+            fillOpacity={0.3}
+            stroke="#ffffff"
+            strokeOpacity={0.72}
             strokeWidth={1.5}
-            glow="rgba(125, 211, 252, 0.45)"
+            halo="#7dd3fc"
           />
         </Animated.View>
       ) : null}
@@ -189,7 +199,7 @@ export const CardWeekStrip = ({
                 selected ? LETTER_SHIFT : null,
               ]}
             >
-              {day.dayLabel}
+              {getWeekdayLetter(day)}
             </Text>
             <View style={selected ? NUMBER_SHIFT : null}>
               {look.gradient ? (

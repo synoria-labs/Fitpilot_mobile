@@ -3,26 +3,36 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { AURORA_SIGNATURE_ANGLE } from '../../theme/aurora';
 import { toSvgId } from './AuroraBackdrop';
 
-const GLOW_WIDTH = 6;
+// A soft halo without SVG blur: concentric strokes that fade outwards.
+const HALO_RINGS = [
+  { width: 18, opacity: 0.05 },
+  { width: 13, opacity: 0.08 },
+  { width: 8, opacity: 0.13 },
+  { width: 4, opacity: 0.2 },
+] as const;
+const HALO_REACH = HALO_RINGS[0].width / 2;
 
 type SlantedCapsuleProps = {
   width: number;
   height: number;
+  /** Solid colours; translucency comes from `fillOpacity` (SVG drops the alpha of rgba stops). */
   colors: readonly [string, string];
+  fillOpacity?: number;
   angle?: number;
   stroke?: string;
+  strokeOpacity?: number;
   strokeWidth?: number;
-  /** A soft halo around the outline. */
-  glow?: string;
-  /** A blurred-looking copy below the capsule, for light surfaces. */
+  /** Colour of a soft glow around the outline. */
+  halo?: string;
+  /** A soft copy below the capsule, for light surfaces. */
   shadow?: string;
 };
 
 /** Size of the canvas a slanted capsule needs, so callers can centre it on a point. */
 export const getSlantedCapsuleBox = (width: number, height: number, angle = AURORA_SIGNATURE_ANGLE) => {
   const lean = Math.tan((angle * Math.PI) / 180) * (height / 2);
-  const margin = Math.ceil(lean) + GLOW_WIDTH;
-  return { width: width + margin * 2, height: height + GLOW_WIDTH * 2 + 8 };
+  const margin = Math.ceil(lean + HALO_REACH) + 2;
+  return { width: width + margin * 2, height: height + Math.ceil(HALO_REACH) * 2 + 8 };
 };
 
 /**
@@ -33,10 +43,12 @@ export const SlantedCapsule = ({
   width,
   height,
   colors,
+  fillOpacity = 1,
   angle = AURORA_SIGNATURE_ANGLE,
   stroke,
+  strokeOpacity = 1,
   strokeWidth = 0,
-  glow,
+  halo,
   shadow,
 }: SlantedCapsuleProps) => {
   const gradientId = toSvgId(useId());
@@ -47,13 +59,14 @@ export const SlantedCapsule = ({
   const cy = box.height / 2;
   const slant = `translate(${cx} ${cy}) skewX(${angle}) translate(${-cx} ${-cy})`;
   const radius = width / 2;
+  const shape = { x, y, width, height, rx: radius, transform: slant };
 
   return (
     <Svg width={box.width} height={box.height}>
       <Defs>
         <LinearGradient id={gradientId} x1="0.2" y1="0" x2="0.8" y2="1">
-          <Stop offset="0" stopColor={colors[0]} />
-          <Stop offset="1" stopColor={colors[1]} />
+          <Stop offset="0" stopColor={colors[0]} stopOpacity={fillOpacity} />
+          <Stop offset="1" stopColor={colors[1]} stopOpacity={fillOpacity} />
         </LinearGradient>
       </Defs>
       {shadow ? (
@@ -68,30 +81,24 @@ export const SlantedCapsule = ({
           transform={slant}
         />
       ) : null}
-      {glow ? (
-        <Rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          rx={radius}
-          fill="none"
-          stroke={glow}
-          strokeWidth={GLOW_WIDTH}
-          opacity={0.45}
-          transform={slant}
-        />
-      ) : null}
+      {halo
+        ? HALO_RINGS.map((ring) => (
+            <Rect
+              key={ring.width}
+              {...shape}
+              fill="none"
+              stroke={halo}
+              strokeWidth={ring.width}
+              strokeOpacity={ring.opacity}
+            />
+          ))
+        : null}
       <Rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={radius}
+        {...shape}
         fill={`url(#${gradientId})`}
         stroke={stroke}
+        strokeOpacity={strokeOpacity}
         strokeWidth={strokeWidth}
-        transform={slant}
       />
     </Svg>
   );
