@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SlantedCapsule, getSlantedCapsuleBox } from '../aurora';
 import { brandColors, fontSize } from '../../constants/colors';
 import { useThemedStyles, type AppTheme } from '../../theme';
 import { AURORA_SIGNATURE_ANGLE, auroraFont } from '../../theme/aurora';
@@ -90,28 +90,34 @@ type HeroCapsuleMetrics = {
 
 // The selected day is a capsule leaning at the brand's 14°, the same angle as the today
 // card's chamfer. Its content stays upright and is shifted along the lean instead.
+// Drawn in SVG: Android ignores skewX on views, so a skewed view would stand upright there.
 const HeroCapsule: React.FC<{ slotWidth: number; capsule: HeroCapsuleMetrics; offset: number }> = ({
   slotWidth,
   capsule,
   offset,
-}) => (
-  <LinearGradient
-    colors={HERO_GRADIENT_COLORS}
-    start={{ x: 0.2, y: 0 }}
-    end={{ x: 0.8, y: 1 }}
-    style={[
-      staticStyles.heroCapsule,
-      {
-        left: (slotWidth - capsule.width) / 2 + offset,
-        top: capsule.top,
-        width: capsule.width,
-        height: capsule.height,
-        borderRadius: capsule.width / 2,
-        transform: [{ skewX: `${AURORA_SIGNATURE_ANGLE}deg` }],
-      },
-    ]}
-  />
-);
+}) => {
+  const box = getSlantedCapsuleBox(capsule.width, capsule.height);
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        staticStyles.heroCapsule,
+        {
+          left: (slotWidth - box.width) / 2 + offset,
+          top: capsule.top - (box.height - capsule.height) / 2,
+        },
+      ]}
+    >
+      <SlantedCapsule
+        width={capsule.width}
+        height={capsule.height}
+        colors={HERO_GRADIENT_COLORS}
+        shadow={brandColors.navy}
+      />
+    </View>
+  );
+};
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -776,7 +782,6 @@ export default SharedWeeklyCalendar;
 const staticStyles = StyleSheet.create({
   heroCapsule: {
     position: 'absolute',
-    boxShadow: '0px 12px 22px -12px rgba(24, 47, 80, 0.7)',
   },
   heroMask: {
     backgroundColor: 'transparent',
