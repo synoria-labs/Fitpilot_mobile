@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MaskedView from '@react-native-masked-view/masked-view';
 import { LinearGradient } from 'expo-linear-gradient';
-import DateFormShape from '../../../assets/date-form1.svg';
 import { brandColors, fontSize } from '../../constants/colors';
 import { useThemedStyles, type AppTheme } from '../../theme';
+import { AURORA_SIGNATURE_ANGLE } from '../../theme/aurora';
 
 const HERO_GEOMETRY = Object.freeze({
   canvasWidth: 100,
@@ -78,33 +77,41 @@ interface CalendarMetrics {
   heroEdgeGutter: number;
 }
 
-const DayShapeBackground: React.FC<{ width: number; height: number }> = ({ width, height }) => {
-  return (
-    <MaskedView
-      style={{ width, height }}
-      maskElement={
-        <View
-          style={[
-            staticStyles.heroMask,
-            {
-              width,
-              height,
-            },
-          ]}
-        >
-          <DateFormShape width={width} height={height} color="#ffffff" />
-        </View>
-      }
-    >
-      <LinearGradient
-        colors={HERO_GRADIENT_COLORS}
-        start={{ x: 0.2, y: 0 }}
-        end={{ x: 0.8, y: 1 }}
-        style={{ width, height }}
-      />
-    </MaskedView>
-  );
+type HeroCapsuleMetrics = {
+  top: number;
+  height: number;
+  width: number;
+  /** How far the top and bottom lean away from the capsule's centre line. */
+  lean: number;
+  shiftStatus: number;
+  shiftLabel: number;
+  shiftCircle: number;
 };
+
+// The selected day is a capsule leaning at the brand's 14°, the same angle as the today
+// card's chamfer. Its content stays upright and is shifted along the lean instead.
+const HeroCapsule: React.FC<{ slotWidth: number; capsule: HeroCapsuleMetrics; offset: number }> = ({
+  slotWidth,
+  capsule,
+  offset,
+}) => (
+  <LinearGradient
+    colors={HERO_GRADIENT_COLORS}
+    start={{ x: 0.2, y: 0 }}
+    end={{ x: 0.8, y: 1 }}
+    style={[
+      staticStyles.heroCapsule,
+      {
+        left: (slotWidth - capsule.width) / 2 + offset,
+        top: capsule.top,
+        width: capsule.width,
+        height: capsule.height,
+        borderRadius: capsule.width / 2,
+        transform: [{ skewX: `${AURORA_SIGNATURE_ANGLE}deg` }],
+      },
+    ]}
+  />
+);
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
@@ -312,6 +319,25 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
     };
   }, [contentWidth, hasHero, isCompactDensity, isTabletPortrait]);
 
+  const heroCapsule = useMemo<HeroCapsuleMetrics>(() => {
+    const top = Math.max(0, metrics.textContainerTop - 8);
+    const bottom = Math.min(metrics.shapeSize, metrics.circleCenterY + metrics.circleRadius + 6);
+    const height = Math.max(0, bottom - top);
+    const centerY = top + height / 2;
+    const slope = Math.tan((AURORA_SIGNATURE_ANGLE * Math.PI) / 180);
+    // Each line moves to the capsule's centre at its own height: up is left, down is right.
+    const shiftAt = (y: number) => (y - centerY) * slope;
+    return {
+      top,
+      height,
+      width: metrics.circleRadius * 2 + 10,
+      lean: (height / 2) * slope,
+      shiftStatus: shiftAt(metrics.textContainerTop + 7),
+      shiftLabel: shiftAt(metrics.textContainerTop + 22),
+      shiftCircle: shiftAt(metrics.circleCenterY),
+    };
+  }, [metrics.circleCenterY, metrics.circleRadius, metrics.shapeSize, metrics.textContainerTop]);
+
   const slotLayouts = useMemo(() => {
     let startX = 0;
 
@@ -343,11 +369,7 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
 
   const rowWidth = useMemo(() => {
     const lastSlot = slotLayouts[slotLayouts.length - 1];
-    if (!lastSlot) {
-      return 0;
-    }
-
-    return lastSlot.startX + lastSlot.width;
+    return lastSlot ? lastSlot.startX + lastSlot.width : 0;
   }, [slotLayouts]);
 
   return (
@@ -372,17 +394,18 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
           const showSpecialShape = slotLayout?.showSpecialShape ?? false;
           const statusText = day.statusText || ' ';
           const slotWidth = slotLayout?.width ?? metrics.defaultSlotWidth;
-          const preferredHeroLeft = slotWidth / 2 - metrics.circleCenterX;
-          const minHeroLeft = slotLayout
-            ? metrics.heroEdgeGutter - slotLayout.startX - metrics.footprintMinXScaled
-            : preferredHeroLeft;
-          const maxHeroLeft = slotLayout
-            ? rowWidth -
-              slotLayout.startX -
-              metrics.footprintMaxXScaled -
-              metrics.heroEdgeGutter
-            : preferredHeroLeft;
-          const clampedHeroLeft = clamp(preferredHeroLeft, minHeroLeft, maxHeroLeft);
+          // On the first and last day the leaning corners would cross the row's edge: slide the
+          // capsule, and its content with it, back inside.
+          const capsuleReach = heroCapsule.width / 2 + heroCapsule.lean;
+          const capsuleCentre = (slotLayout?.startX ?? 0) + slotWidth / 2;
+          const heroOffset =
+            showSpecialShape && slotLayout
+              ? clamp(
+                  0,
+                  metrics.heroEdgeGutter + capsuleReach - capsuleCentre,
+                  rowWidth - metrics.heroEdgeGutter - capsuleReach - capsuleCentre,
+                )
+              : 0;
 
           return (
             <TouchableOpacity
@@ -411,21 +434,21 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
                     style={[
                       styles.shapeContainer,
                       {
-                        left: clampedHeroLeft,
-                        width: metrics.shapeSize,
+                        left: 0,
+                        width: slotWidth,
                         height: metrics.shapeSize,
                       },
                     ]}
                   >
-                    <DayShapeBackground width={metrics.shapeSize} height={metrics.shapeSize} />
+                    <HeroCapsule slotWidth={slotWidth} capsule={heroCapsule} offset={heroOffset} />
 
                     <View
                       style={[
                         styles.textContainerHighlighted,
                         {
-                          left: metrics.textContainerLeft,
+                          left: 0,
                           top: metrics.textContainerTop,
-                          width: metrics.textContainerWidth,
+                          width: slotWidth,
                           height: metrics.textContainerHeight,
                         },
                       ]}
@@ -434,6 +457,7 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
                         style={[
                           styles.statusHighlighted,
                           isCompactDensity ? styles.statusHighlightedCompact : null,
+                          { transform: [{ translateX: heroCapsule.shiftStatus + heroOffset }] },
                         ]}
                       >
                         {statusText}
@@ -442,6 +466,7 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
                         style={[
                           styles.dayLabelHighlighted,
                           isCompactDensity ? styles.dayLabelHighlightedCompact : null,
+                          { transform: [{ translateX: heroCapsule.shiftLabel + heroOffset }] },
                         ]}
                       >
                         {day.dayLabel}
@@ -452,8 +477,9 @@ export const SharedWeeklyCalendar: React.FC<SharedWeeklyCalendarProps> = ({
                       style={[
                         styles.circleContainerHighlighted,
                         {
-                          left: metrics.circleCenterX - metrics.circleRadius,
+                          left: slotWidth / 2 - metrics.circleRadius,
                           top: metrics.circleCenterY - metrics.circleRadius,
+                          transform: [{ translateX: heroCapsule.shiftCircle + heroOffset }],
                           width: metrics.circleRadius * 2,
                           height: metrics.circleRadius * 2,
                         },
@@ -748,6 +774,10 @@ const createStyles = (theme: AppTheme) =>
 export default SharedWeeklyCalendar;
 
 const staticStyles = StyleSheet.create({
+  heroCapsule: {
+    position: 'absolute',
+    boxShadow: '0px 12px 22px -12px rgba(24, 47, 80, 0.7)',
+  },
   heroMask: {
     backgroundColor: 'transparent',
     alignItems: 'center',

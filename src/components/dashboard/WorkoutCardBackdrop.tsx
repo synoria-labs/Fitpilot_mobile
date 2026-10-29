@@ -146,12 +146,14 @@ const getPalette = (
   visualState: WorkoutCardVisualState,
   accentColor: string,
 ): WorkoutCardPalette => {
+  // Every state keeps the Aurora navy; the state only tints the far corner and the glows,
+  // so an overdue session no longer turns the whole card brown.
   const baseByState: Record<WorkoutCardVisualState, readonly [string, string, string]> = {
-    focused: ['#081423', '#0e2237', '#173a5d'],
-    overdue: ['#0a1423', '#1b2133', '#3d2c1a'],
-    in_progress: ['#061522', '#0c2840', '#0d4966'],
-    completed: ['#07131e', '#0d2333', '#0f3f3a'],
-    abandoned: ['#091322', '#201d30', '#43311e'],
+    focused: ['#0a1630', '#13284a', '#0b2b3c'],
+    overdue: ['#0a1630', '#13284a', '#272c40'],
+    in_progress: ['#0a1630', '#0f2c4f', '#0b3a52'],
+    completed: ['#0a1630', '#0f2a40', '#0b3b3a'],
+    abandoned: ['#0a1630', '#182640', '#2a2a3a'],
   };
 
   const stateAccentByState: Record<WorkoutCardVisualState, string> = {
@@ -264,25 +266,6 @@ export const WorkoutCardBackdrop: React.FC<WorkoutCardBackdropProps> = ({
     ],
   }));
 
-  const upperTracePath = `
-    M ${cardWidth * 0.06} ${cardHeight * 0.3}
-    C ${cardWidth * 0.24} ${cardHeight * 0.12},
-      ${cardWidth * 0.46} ${cardHeight * 0.12},
-      ${cardWidth * 0.72} ${cardHeight * 0.2}
-  `;
-  const lowerTracePath = `
-    M ${cardWidth * 0.18} ${cardHeight * 0.83}
-    C ${cardWidth * 0.38} ${cardHeight * 0.77},
-      ${cardWidth * 0.62} ${cardHeight * 0.89},
-      ${cardWidth * 0.92} ${cardHeight * 0.8}
-  `;
-  const sideTracePath = `
-    M ${cardWidth * 0.73} ${cardHeight * 0.1}
-    C ${cardWidth * 0.84} ${cardHeight * 0.22},
-      ${cardWidth * 0.9} ${cardHeight * 0.34},
-      ${cardWidth * 0.86} ${cardHeight * 0.58}
-  `;
-
   return (
     <View pointerEvents="none" style={styles.container}>
       <LinearGradient
@@ -376,29 +359,6 @@ export const WorkoutCardBackdrop: React.FC<WorkoutCardBackdropProps> = ({
           stroke="url(#workoutCardFrame)"
           strokeWidth={1.05}
           strokeLinejoin="round"
-        />
-
-        <Path
-          d={upperTracePath}
-          fill="none"
-          stroke="url(#workoutCardTrace)"
-          strokeLinecap="round"
-          strokeWidth={1.25}
-        />
-        <Path
-          d={lowerTracePath}
-          fill="none"
-          stroke="url(#workoutCardTraceSubtle)"
-          strokeLinecap="round"
-          strokeWidth={1.05}
-        />
-        <Path
-          d={sideTracePath}
-          fill="none"
-          stroke="url(#workoutCardTraceSoft)"
-          strokeDasharray="5 8"
-          strokeLinecap="round"
-          strokeWidth={1}
         />
 
         <Circle

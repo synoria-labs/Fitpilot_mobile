@@ -12,6 +12,7 @@ import Animated, {
 import { colors, spacing, fontSize, borderRadius, shadows } from '../../constants/colors';
 import { WorkoutCardSkeleton } from '../common/Skeleton';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { AURORA_SIGNATURE_ANGLE } from '../../theme/aurora';
 import type { MuscleVolumeResponse } from '../../types';
 import type { ProgramTimelineCardState } from '../../utils/programTimeline';
 import { MiniBodyMap, type BodyMapView } from './bodyMap/MiniBodyMap';
@@ -20,9 +21,12 @@ import { WorkoutCardBackdrop } from './WorkoutCardBackdrop';
 const BASE_CARD_HEIGHT = 272;
 const CORNER_RADIUS = borderRadius.xl;
 
-const getChamferHorizontal = (cardWidth: number) => Math.max(84, Math.min(110, cardWidth * 0.16));
-const getHorizontalSegment = (cardWidth: number) => Math.max(56, Math.min(88, cardWidth * 0.12));
 const CHAMFER_VERTICAL = 45;
+// The chamfer leans at the brand's 14°, the same angle as the selected day in the week strips.
+const CHAMFER_SLOPE = Math.tan((AURORA_SIGNATURE_ANGLE * Math.PI) / 180);
+const getHorizontalSegment = (cardWidth: number) => Math.max(76, Math.min(104, cardWidth * 0.24));
+const getChamferHorizontal = (cardWidth: number) =>
+  getHorizontalSegment(cardWidth) + CHAMFER_VERTICAL * CHAMFER_SLOPE;
 const CHAMFER_RADIUS = 12;
 
 const getCardShapePath = (
