@@ -42,6 +42,16 @@ export const getConnectedHealthAuthorizationRecoveryMessage = (): string =>
     : 'iOS no aplicó los permisos de Salud. Reinicia el iPhone y vuelve a intentar: suele bastar, incluso si en Ajustes > Privacidad y seguridad > Salud > FitPilot los permisos ya aparecen activados.';
 
 /**
+ * iOS: después de pedir permiso, HealthKit sigue diciendo que haría falta presentar la hoja.
+ * No se aplicó: se presentó en blanco y se cerró sola, o se interrumpió. Repetir la petición
+ * rara vez lo arregla, así que quien llama debe mostrar los pasos de recuperación en vez de
+ * seguir de largo como si hubiera permisos.
+ */
+export const isConnectedHealthAuthorizationNotApplied = (
+  permissions: FitpilotHealthPermissionStatus | null | undefined,
+): boolean => permissions?.requestStatus === 'shouldRequest';
+
+/**
  * Mismo contrato que el error tipado del módulo nativo, para los cortes que hace la propia
  * capa JS. Llevar el código permite que el auto-sync trate "sin permisos" como estado
  * silencioso —la tarjeta ya muestra su propio CTA— en vez de pintar un banner de error rojo
@@ -163,10 +173,9 @@ export type ConnectedHealthPermissionState = 'unknown' | 'none' | 'partial' | 'f
 /**
  * Estado real de los permisos, con la granularidad que la UI necesita.
  *
- * En Android `missing` es información fiable que devuelve Health Connect. En iOS el módulo
- * nativo siempre responde con todos los permisos concedidos y `missing` vacío (HealthKit no
- * revela las decisiones de lectura por privacidad), así que allí esto resuelve siempre a
- * `full` y el comportamiento no cambia.
+ * En Android `missing` es información fiable que devuelve Health Connect. En iOS `missing` son
+ * los tipos que HealthKit todavía no ha resuelto (la hoja no se aplicó); una lectura negada
+ * sigue contando como `granted`, porque HealthKit no revela esa decisión por privacidad.
  */
 export const getConnectedHealthPermissionState = (
   permissions: FitpilotHealthPermissionStatus | null | undefined,
