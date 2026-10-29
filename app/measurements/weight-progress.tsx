@@ -31,6 +31,7 @@ import {
   parseMeasurementNumber,
 } from '../../src/utils/measurements';
 import { convertMeasurementUnitValue } from '../../src/utils/measurementUnits';
+import { buildMonotonePath, getLineChartDomain } from '../../src/utils/chartScale';
 import { useMeasurementPreferenceStore } from '../../src/store/measurementPreferenceStore';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 
@@ -156,23 +157,12 @@ const subtractDays = (value: Date, days: number) => {
   return nextDate;
 };
 
-const buildLinePath = (points: ChartPoint[]) => {
-  if (points.length === 0) {
-    return '';
-  }
-
-  return points.reduce((path, point, index) => {
-    const command = index === 0 ? 'M' : 'L';
-    return `${path}${command}${point.x} ${point.y} `;
-  }, '');
-};
-
 const buildAreaPath = (points: ChartPoint[], baselineY: number) => {
   if (points.length === 0) {
     return '';
   }
 
-  const linePath = buildLinePath(points);
+  const linePath = buildMonotonePath(points);
   const firstPoint = points[0];
   const lastPoint = points[points.length - 1];
 
@@ -484,16 +474,13 @@ export function MeasurementProgressScreen({
     }
 
     const values = filteredRecords.map((point) => point.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const spread = Math.max(max - min, 1);
-    const verticalPadding = spread * 0.2;
+    const domain = getLineChartDomain(values);
 
     return {
-      min,
-      max,
-      paddedMin: min - verticalPadding,
-      paddedMax: max + verticalPadding,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      paddedMin: domain.min,
+      paddedMax: domain.max,
     };
   }, [filteredRecords]);
 
@@ -548,7 +535,7 @@ export function MeasurementProgressScreen({
     theme,
   );
 
-  const linePath = buildLinePath(chartPoints);
+  const linePath = buildMonotonePath(chartPoints);
   const baselineY = CHART_HEIGHT - CHART_VERTICAL_PADDING;
   const areaPath = buildAreaPath(chartPoints, baselineY);
   const minLabel = filteredRecords.length > 0

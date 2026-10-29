@@ -23,6 +23,7 @@ import {
   formatConnectedHealthHistoryChange,
   formatConnectedHealthHistoryValue,
 } from '../../utils/connectedHealthFeedback';
+import { buildMonotonePath, getLineChartDomain } from '../../utils/chartScale';
 import { formatLocalDate } from '../../utils/date';
 
 type ConnectedHealthHistoryCardProps = {
@@ -56,28 +57,18 @@ const getValueDomain = (series: ConnectedHealthHistorySeries) => {
     return { min: 0, max: Math.max(...values, 1) * 1.08 };
   }
 
-  const observedMin = Math.min(...values);
-  const observedMax = Math.max(...values);
-  if (observedMin === observedMax) {
-    const padding = Math.max(1, Math.abs(observedMin) * 0.1);
-    return { min: observedMin - padding, max: observedMax + padding };
-  }
-
-  const padding = (observedMax - observedMin) * 0.12;
-  return { min: observedMin - padding, max: observedMax + padding };
+  return getLineChartDomain(values);
 };
 
 const buildLinePaths = (coordinates: (ChartCoordinate | null)[]) => {
-  const paths: string[] = [];
-  let currentPath = '';
-  let currentPointCount = 0;
+  const segments: ChartCoordinate[][] = [];
+  let currentSegment: ChartCoordinate[] = [];
 
   const flush = () => {
-    if (currentPointCount > 1) {
-      paths.push(currentPath.trim());
+    if (currentSegment.length > 1) {
+      segments.push(currentSegment);
     }
-    currentPath = '';
-    currentPointCount = 0;
+    currentSegment = [];
   };
 
   coordinates.forEach((coordinate) => {
@@ -86,12 +77,11 @@ const buildLinePaths = (coordinates: (ChartCoordinate | null)[]) => {
       return;
     }
 
-    currentPath += `${currentPointCount === 0 ? 'M' : 'L'}${coordinate.x} ${coordinate.y} `;
-    currentPointCount += 1;
+    currentSegment.push(coordinate);
   });
   flush();
 
-  return paths;
+  return segments.map((segment) => buildMonotonePath(segment).trim());
 };
 
 const formatChartDate = (date: string) =>
