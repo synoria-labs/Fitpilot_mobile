@@ -1,17 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
+import { useSlidingCapsuleStyle, useWeekSwipe } from '../../hooks/useWeekStripMotion';
 import { AURORA_SIGNATURE_ANGLE, auroraFont } from '../../theme/aurora';
 import { SlantedCapsule, getSlantedCapsuleBox } from '../aurora';
 import type { SharedWeeklyCalendarDay } from '../calendar/SharedWeeklyCalendar';
+import { getWeekdayLetter } from '../../utils/weekdayLetter';
 
 const SLOT_WIDTH = 40;
 const CIRCLE_SIZE = 36;
@@ -20,16 +15,6 @@ const CAPSULE_HEIGHT = 82;
 const SLANT = Math.tan((AURORA_SIGNATURE_ANGLE * Math.PI) / 180);
 const CAPSULE_BOX = getSlantedCapsuleBox(CAPSULE_WIDTH, CAPSULE_HEIGHT);
 const ROW_TOP_PADDING = 7;
-const SWIPE_ACTIVATION = 10;
-const SWIPE_THRESHOLD = 28;
-
-// One letter per weekday, Sunday first (Date#getDay order), as on the proposal's card.
-const WEEKDAY_LETTERS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
-
-const getWeekdayLetter = (day: SharedWeeklyCalendarDay) => {
-  const [year, month, date] = day.dateKey.split('-').map(Number);
-  return year && month && date ? WEEKDAY_LETTERS[new Date(year, month - 1, date).getDay()] : day.dayLabel;
-};
 
 // Offsets of the letter, number and dot from the capsule's centre, so they follow its slant.
 const shiftFor = (dy: number) => ({ transform: [{ translateX: dy * SLANT }] });
@@ -97,58 +82,15 @@ export const CardWeekStrip = ({
   canGoToNextWeek = true,
   onShiftWeek,
 }: CardWeekStripProps) => {
-  const reduceMotion = useReducedMotion();
   const [rowWidth, setRowWidth] = useState(0);
   const selectedIndex = days.findIndex((day) => day.isSelected);
-  const capsuleX = useSharedValue(0);
-  const stretch = useSharedValue(1);
-  const hasPlacedRef = useRef(false);
-
   const step = days.length > 1 ? (rowWidth - SLOT_WIDTH) / (days.length - 1) : 0;
-
-  useEffect(() => {
-    if (selectedIndex < 0 || rowWidth <= 0) {
-      return;
-    }
-
-    const x = selectedIndex * step + SLOT_WIDTH / 2 - CAPSULE_BOX.width / 2;
-    if (!hasPlacedRef.current || reduceMotion) {
-      capsuleX.value = x;
-      hasPlacedRef.current = true;
-      return;
-    }
-
-    // It glides to the new day and stretches a little on the way, then settles.
-    capsuleX.value = withSpring(x, { damping: 18, stiffness: 190, mass: 0.9 });
-    stretch.value = withSequence(
-      withTiming(1.14, { duration: 130 }),
-      withSpring(1, { damping: 12, stiffness: 170 }),
-    );
-  }, [capsuleX, reduceMotion, rowWidth, selectedIndex, step, stretch]);
-
-  const capsuleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: capsuleX.value }, { scaleX: stretch.value }],
-  }));
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          Math.abs(gesture.dx) > SWIPE_ACTIVATION && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderTerminationRequest: () => false,
-        onPanResponderRelease: (_, gesture) => {
-          if (!onShiftWeek || Math.abs(gesture.dx) < SWIPE_THRESHOLD) {
-            return;
-          }
-          if (gesture.dx < 0 && canGoToNextWeek) {
-            onShiftWeek(1);
-          } else if (gesture.dx > 0 && canGoToPreviousWeek) {
-            onShiftWeek(-1);
-          }
-        },
-      }),
-    [canGoToNextWeek, canGoToPreviousWeek, onShiftWeek],
+  const capsuleStyle = useSlidingCapsuleStyle(
+    selectedIndex >= 0 && rowWidth > 0
+      ? selectedIndex * step + SLOT_WIDTH / 2 - CAPSULE_BOX.width / 2
+      : null,
   );
+  const swipeHandlers = useWeekSwipe({ onShiftWeek, canGoToPreviousWeek, canGoToNextWeek });
 
   const handleLayout = (event: LayoutChangeEvent) => setRowWidth(event.nativeEvent.layout.width);
 
@@ -158,22 +100,20 @@ export const CardWeekStrip = ({
       accessibilityLabel="Semana de entrenamiento"
       onLayout={handleLayout}
       style={styles.row}
-      {...panResponder.panHandlers}
+      {...swipeHandlers}
     >
-      {selectedIndex >= 0 && rowWidth > 0 ? (
-        <Animated.View pointerEvents="none" style={[styles.capsule, capsuleStyle]}>
-          <SlantedCapsule
-            width={CAPSULE_WIDTH}
-            height={CAPSULE_HEIGHT}
-            colors={['#7dd3fc', '#6366f1']}
-            fillOpacity={0.3}
-            stroke="#ffffff"
-            strokeOpacity={0.72}
-            strokeWidth={1.5}
-            halo="#7dd3fc"
-          />
-        </Animated.View>
-      ) : null}
+      <Animated.View pointerEvents="none" style={[styles.capsule, capsuleStyle]}>
+        <SlantedCapsule
+          width={CAPSULE_WIDTH}
+          height={CAPSULE_HEIGHT}
+          colors={['#7dd3fc', '#6366f1']}
+          fillOpacity={0.3}
+          stroke="#ffffff"
+          strokeOpacity={0.72}
+          strokeWidth={1.5}
+          halo="#7dd3fc"
+        />
+      </Animated.View>
 
       {days.map((day) => {
         const look = getDayLook(day);
@@ -199,7 +139,7 @@ export const CardWeekStrip = ({
                 selected ? LETTER_SHIFT : null,
               ]}
             >
-              {getWeekdayLetter(day)}
+              {getWeekdayLetter(day.dateKey) ?? day.dayLabel}
             </Text>
             <View style={selected ? NUMBER_SHIFT : null}>
               {look.gradient ? (
