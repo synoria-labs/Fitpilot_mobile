@@ -701,13 +701,13 @@ export default function DietScreen() {
 
   const handleOpenRecipeIngredientSwap = useCallback(
     (recipe: ClientDietRecipeCard, ingredient: ClientDietIngredientRow) => {
-      if (!ingredient.exchangeGroupId || !ingredient.recipeIngredientId) {
+      if (!ingredient.exchangeGroupId || !ingredient.menuItemId || !recipe.menuId) {
         return;
       }
 
       setSelectedSwapTarget({
-        type: 'recipe',
-        recipeId: recipe.recipeId,
+        type: 'standalone',
+        menuId: recipe.menuId!,
         ingredient,
       });
       setSwapFoods([]);

@@ -938,6 +938,7 @@ export interface ClientRecipeSummary {
 }
 
 export interface ClientDietPortion {
+  display?: import('./menu-view-v2.generated').PortionDisplay[];
   householdLabel: string | null;
   equivalents: number | null;
   grams: number | null;
@@ -994,6 +995,8 @@ export interface ClientFoodSwapCandidate {
 }
 
 export interface ClientDietRecipeCard {
+  menuId?: number;
+  menuMealId?: number;
   id: string;
   recipeId: number;
   title: string;

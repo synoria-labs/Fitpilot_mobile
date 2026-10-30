@@ -27,9 +27,9 @@ import {
 import {
   getClientDietRecipeInMenu,
   getDietRecipeDetail,
+  swapDietStandaloneFood,
+  resetDietStandaloneFoodSwap,
   getFoodsByExchangeGroup,
-  resetDietRecipeIngredientSwap,
-  swapDietRecipeIngredient,
 } from '../../src/services/diet';
 import { useAuthStore } from '../../src/store/authStore';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
@@ -104,7 +104,7 @@ const IngredientCard = ({
   const styles = useThemedStyles(createStyles);
   const measure = useMemo(() => getIngredientMeasure(ingredient), [ingredient]);
   const hasPortionData = Boolean(ingredient.portion.householdLabel || measure);
-  const isSwappable = Boolean(ingredient.exchangeGroupId && ingredient.recipeIngredientId);
+  const isSwappable = Boolean(ingredient.exchangeGroupId && ingredient.menuItemId);
 
   const content = (
     <>
@@ -341,7 +341,7 @@ export default function RecipeDetailScreen() {
   }, [isSwapModalVisible, loadSwapFoods, selectedIngredient]);
 
   const handleOpenSwapModal = useCallback((ingredient: ClientDietIngredientRow) => {
-    if (!ingredient.exchangeGroupId || !ingredient.recipeIngredientId) {
+    if (!ingredient.exchangeGroupId || !ingredient.menuItemId) {
       return;
     }
 
@@ -370,56 +370,32 @@ export default function RecipeDetailScreen() {
   }, [loadSwapFoods, selectedIngredient]);
 
   const handleSelectSwapFood = useCallback(async (food: ClientFoodSwapCandidate) => {
-    if (!parsedRecipeId || !selectedIngredient?.recipeIngredientId) {
-      return;
-    }
-
+    if (!menuContext || !selectedIngredient?.menuItemId) return;
     setIsSavingSwap(true);
     setSwapFoodsError(null);
-
     try {
-      const response = await swapDietRecipeIngredient(
-        parsedRecipeId,
-        selectedIngredient.recipeIngredientId,
-        food.id,
-      );
-      // Re-read the menu after saving so the swapped food shows the client's portion.
-      setDetail(mergeMenuRecipe(response, await loadMenuRecipe()));
-      setError(null);
+      await swapDietStandaloneFood(menuContext.menuId, selectedIngredient.menuItemId, food.id, menuContext.date);
+      await loadDetail({ refresh: true });
       setIsSwapModalVisible(false);
       setSelectedIngredientId(null);
-    } catch (saveError) {
-      const apiError = saveError as ApiError;
-      setSwapFoodsError(apiError.message || 'No fue posible guardar el cambio.');
-    } finally {
-      setIsSavingSwap(false);
-    }
-  }, [loadMenuRecipe, parsedRecipeId, selectedIngredient?.recipeIngredientId]);
+    } catch (error) {
+      setSwapFoodsError((error as ApiError).message || 'No fue posible guardar el cambio.');
+    } finally { setIsSavingSwap(false); }
+  }, [loadDetail, menuContext, selectedIngredient]);
 
   const handleResetSwap = useCallback(async () => {
-    if (!parsedRecipeId || !selectedIngredient?.recipeIngredientId) {
-      return;
-    }
-
+    if (!menuContext || !selectedIngredient?.menuItemId) return;
     setIsSavingSwap(true);
     setSwapFoodsError(null);
-
     try {
-      const response = await resetDietRecipeIngredientSwap(
-        parsedRecipeId,
-        selectedIngredient.recipeIngredientId,
-      );
-      setDetail(mergeMenuRecipe(response, await loadMenuRecipe()));
-      setError(null);
+      await resetDietStandaloneFoodSwap(menuContext.menuId, selectedIngredient.menuItemId, menuContext.date);
+      await loadDetail({ refresh: true });
       setIsSwapModalVisible(false);
       setSelectedIngredientId(null);
-    } catch (resetError) {
-      const apiError = resetError as ApiError;
-      setSwapFoodsError(apiError.message || 'No fue posible restaurar el ingrediente original.');
-    } finally {
-      setIsSavingSwap(false);
-    }
-  }, [loadMenuRecipe, parsedRecipeId, selectedIngredient?.recipeIngredientId]);
+    } catch (error) {
+      setSwapFoodsError((error as ApiError).message || 'No fue posible restaurar el ingrediente original.');
+    } finally { setIsSavingSwap(false); }
+  }, [loadDetail, menuContext, selectedIngredient]);
 
   if (!isInitialized) {
     return <LoadingSpinner fullScreen text="Validando sesión..." />;
