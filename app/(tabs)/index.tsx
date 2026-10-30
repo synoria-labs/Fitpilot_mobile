@@ -61,7 +61,7 @@ import type {
   MicrocycleSessionProgress,
   MuscleVolumeResponse,
 } from '../../src/types';
-import { formatLocalDate, getTodayDateKey, toLocalDateKey } from '../../src/utils/date';
+import { compareDateKeys, formatLocalDate, getTodayDateKey, toLocalDateKey } from '../../src/utils/date';
 import {
   getDashboardContentWidth,
   getPrimaryScreenHorizontalPadding,
@@ -679,6 +679,18 @@ export default function HomeScreen() {
   const handleOpenChat = useCallback(() => {
     router.push('/(tabs)/chat');
   }, []);
+  const handleGoToToday = useCallback(() => {
+    setFocusedDateKey(getTodayDateKey());
+    setIsSessionPickerVisible(false);
+  }, []);
+  // The timeline clamps the focus to the program's dates, so «Hoy» only helps while today is inside them.
+  const todayKey = getTodayDateKey();
+  const canReachToday = Boolean(
+    programTimelineModel.calendarStartDateKey &&
+      programTimelineModel.calendarEndDateKey &&
+      compareDateKeys(todayKey, programTimelineModel.calendarStartDateKey) >= 0 &&
+      compareDateKeys(todayKey, programTimelineModel.calendarEndDateKey) <= 0,
+  );
   const handleViewPlan = useCallback((domains: AssignedProfessionalDomain[]) => {
     router.push(domains.includes('training') ? '/(tabs)/workouts' : '/(tabs)/diet');
   }, []);
@@ -816,6 +828,7 @@ export default function HomeScreen() {
                 showWeekButtons={isTablet}
                 onShiftWeek={handleShiftWeek}
                 onOpenDatePicker={canOpenDatePicker ? handleOpenDatePicker : undefined}
+                onGoToToday={canReachToday ? handleGoToToday : undefined}
                 mode={microcycleMode}
                 onModeChange={setMicrocycleMode}
                 contentWidth={contentWidth}

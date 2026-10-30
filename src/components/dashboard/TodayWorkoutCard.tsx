@@ -154,6 +154,8 @@ interface TodayWorkoutCardProps {
   showWeekButtons?: boolean;
   onShiftWeek: (direction: -1 | 1) => void;
   onOpenDatePicker?: () => void;
+  /** Brings the week back to the current one; only passed when today is within the program. */
+  onGoToToday?: () => void;
   mode: MicrocycleMode;
   onModeChange: (mode: MicrocycleMode) => void;
   contentWidth?: number;
@@ -181,6 +183,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   showWeekButtons = false,
   onShiftWeek,
   onOpenDatePicker,
+  onGoToToday,
   mode,
   onModeChange,
   contentWidth = 390,
@@ -233,6 +236,7 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
   const chipMaxWidth = (cardWidth - CARD_PADDING * 2 - FIGURE_WIDTH - 8 - 6) / 2;
   const action = isSession ? ACTIONS[cardState.actionLabel] ?? { label: cardState.actionLabel, icon: 'play' } : null;
   const completion = isSession ? Math.round(cardState.session.completion_percentage) : 0;
+  const showsCurrentWeek = weekDays.some((day) => day.isToday);
 
   const week = (
     <View style={styles.weekBlock}>
@@ -245,12 +249,26 @@ export const TodayWorkoutCard: React.FC<TodayWorkoutCardProps> = ({
         />
       </View>
       <View style={styles.weekHeader}>
+        {/* The range only matters away from the current week, where the days could pass for this one. */}
         <View style={styles.weekTitle}>
-          <Text style={[styles.weekEyebrow, auroraFont('bold')]}>Semana</Text>
-          {weekLabel ? (
-            <Text style={[styles.weekRange, auroraFont('bold')]} numberOfLines={1}>
-              {weekLabel}
-            </Text>
+          {!showsCurrentWeek && weekLabel ? (
+            <>
+              <Text style={[styles.weekRange, auroraFont('bold')]} numberOfLines={1}>
+                {weekLabel}
+              </Text>
+              {onGoToToday ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Volver a la semana actual"
+                  onPress={onGoToToday}
+                  hitSlop={6}
+                  style={({ pressed }) => [styles.todayButton, { transform: [{ scale: pressed ? 0.95 : 1 }] }]}
+                >
+                  <Ionicons name="arrow-undo" size={12} color="#e0f2fe" />
+                  <Text style={[styles.todayText, auroraFont('bold')]}>Hoy</Text>
+                </Pressable>
+              ) : null}
+            </>
           ) : null}
         </View>
         <View style={styles.weekActions}>
@@ -738,19 +756,28 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 8,
-  },
-  weekEyebrow: {
-    fontSize: 10,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: '#8ea3c2',
   },
   weekRange: {
     flexShrink: 1,
     fontSize: 12,
     color: '#dbe7f7',
+  },
+  todayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 26,
+    paddingHorizontal: 9,
+    borderRadius: 9,
+    backgroundColor: 'rgba(125, 211, 252, 0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(125, 211, 252, 0.4)',
+  },
+  todayText: {
+    fontSize: 11.5,
+    color: '#e0f2fe',
   },
   weekActions: {
     flexDirection: 'row',
