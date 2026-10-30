@@ -8,6 +8,7 @@ import {
   swapDietRecipeIngredient,
 } from './diet';
 import { buildDietCourseSections } from '../utils/dietCourseSections';
+import { mergeDietMenuOptions } from '../utils/dietMenuSelection';
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(),
@@ -116,7 +117,7 @@ describe('menu portions with course sections', () => {
       portion: { householdLabel: '2 piezas', equivalents: 2, grams: 42 },
       courseCategoryId: category.id,
     });
-    expect(recipe.ingredients[0].menuItemId).toBeUndefined();
+    expect(recipe.ingredients[0].menuItemId).toBe(1001);
     expect(recipe.ingredients[1].portion).toMatchObject({ equivalents: 4, grams: 120 });
     expect(meal.standaloneFoods[0]).toMatchObject({
       menuItemId: 1003,
@@ -130,6 +131,18 @@ describe('menu portions with course sections', () => {
       recipes: [recipe],
       standaloneFoods: meal.standaloneFoods,
     });
+  });
+
+  it('prefers an updated menu with stable item IDs over legacy recipe ingredient IDs', () => {
+    const prior = mapDietMenuResponse(buildMenu(), assignedDate);
+    const raw = buildMenu();
+    const row = raw.menu_meals![0].menu_items_menu_items_menu_meal_idTomenu_meals![0];
+    delete row.recipe_food_id;
+    row.portion_detail = { household_label: '1 taza', equivalents: 190 / 46.5, grams: 190,
+      display: [{key:'grams',value:'190 g',approximate:false},{key:'household',value:'1 taza',approximate:true}] };
+    const updated = mapDietMenuResponse(raw, assignedDate);
+    expect(mergeDietMenuOptions([prior], [updated])[0]).toBe(updated);
+    expect(updated.meals[0].recipes[0].ingredients[0]).toMatchObject({menuItemId:1001,portion:{grams:190}});
   });
 
   it('keeps legacy menu portions when category metadata is missing', () => {
@@ -201,7 +214,7 @@ describe('recipe video metadata', () => {
 });
 
 describe('diet calendar cache migration', () => {
-  it.each([2, 3])('only accepts offline calendar entries from version 3 (stored: %s)', async (version) => {
+  it.each([2, 3, 4])('only accepts offline calendar entries from version 4 (stored: %s)', async (version) => {
     const networkError = new Error('Offline');
     const days = [{
       id: assignedDate, assignedDate,
@@ -214,7 +227,7 @@ describe('diet calendar cache migration', () => {
       version, cachedAt: new Date().toISOString(), value: days,
     }));
 
-    if (version === 2) {
+    if (version !== 4) {
       await expect(getClientDietCalendar('185', assignedDate)).rejects.toBe(networkError);
       expect(mocks.removeItem).toHaveBeenCalledOnce();
     } else {

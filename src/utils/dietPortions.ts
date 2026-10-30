@@ -40,6 +40,7 @@ const getEquivalentsDisplayValue = (portion: ClientDietPortion) => {
 export const getDietPortionDisplayItems = (
   portion: ClientDietPortion,
 ): DietPortionDisplayItem[] => {
+  if (portion.display) return portion.display.map(d=>({key:d.key,label:d.key==='grams'?'Gramos':d.key==='household'?'Unidad casera':'Alimentos equivalentes',value:`${d.approximate?'≈ ':''}${d.value}`}));
   const gramsValue = getGramsDisplayValue(portion);
   const householdValue = getHouseholdDisplayValue(portion);
   const equivalentsValue = getEquivalentsDisplayValue(portion);

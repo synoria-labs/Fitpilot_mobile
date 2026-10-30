@@ -34,6 +34,7 @@ import {
 } from '../utils/dietMenuSelection';
 
 type NutritionPortionResponse = {
+  display?: import('../types/menu-view-v2.generated').PortionDisplay[];
   household_label?: string | null;
   equivalents?: number | string | null;
   grams?: number | string | null;
@@ -87,6 +88,8 @@ type NutritionRecipeDetailResponse = {
 };
 
 type NutritionRecipeDetailIngredientResponse = {
+  menu_item_id?: number;
+  portion_detail?: NutritionPortionResponse | null;
   id: number | string;
   food_id?: number | null;
   serving_unit_id?: number | null;
@@ -226,8 +229,8 @@ type RecipeGroupAccumulator = {
 };
 
 const DIET_LOOKAHEAD_DAYS = 7;
-// Version 3 preserves client menu portions and invalidates entries without course categories.
-const DIET_CALENDAR_CACHE_VERSION = 3;
+// Version 4 preserves backend v2 portions and invalidates older presentation data.
+const DIET_CALENDAR_CACHE_VERSION = 4;
 const DIET_CALENDAR_CACHE_PREFIX = 'fitpilot:cache:diet-calendar';
 
 const buildDietCalendarCacheKey = (clientId: number, weekStartDate: string) =>
@@ -449,11 +452,7 @@ const buildPortion = (
 
 const derivePortionFromMenuItem = (item: NutritionMenuItemResponse): ClientDietPortion => {
   if (item.portion_detail) {
-    return buildPortion(
-      item.portion_detail.household_label?.trim() || null,
-      toNumber(item.portion_detail.equivalents),
-      toNumber(item.portion_detail.grams),
-    );
+    return {householdLabel:item.portion_detail.household_label?.trim() || null,equivalents:toNumber(item.portion_detail.equivalents),grams:toNumber(item.portion_detail.grams),display:item.portion_detail.display};
   }
 
   const quantity = toNumber(item.quantity);
@@ -496,6 +495,7 @@ const derivePortionFromMenuItem = (item: NutritionMenuItemResponse): ClientDietP
 const derivePortionFromRecipeIngredient = (
   ingredient: NutritionRecipeDetailIngredientResponse,
 ): ClientDietPortion => {
+  if (ingredient.portion_detail) return {householdLabel:ingredient.portion_detail.household_label || null,equivalents:toNumber(ingredient.portion_detail.equivalents),grams:toNumber(ingredient.portion_detail.grams),display:ingredient.portion_detail.display};
   const quantity = toNumber(ingredient.quantity);
   const gramEquivalent = toNumber(ingredient.serving_unit?.gram_equivalent);
   const baseServingSize = resolveFoodBaseServingSize(ingredient.food);
@@ -644,7 +644,7 @@ const mapStandaloneFoodRow = (item: NutritionMenuItemResponse): ClientDietFoodRo
 // recipe ingredient that the swap endpoints expect.
 const mapRecipeMenuItemRow = (item: NutritionMenuItemResponse): ClientDietIngredientRow => ({
   ...mapStandaloneFoodRow(item),
-  menuItemId: undefined,
+  menuItemId: item.id,
   recipeIngredientId: item.recipe_food_id ?? undefined,
   label:
     item.foods?.name?.trim() ||
@@ -657,6 +657,7 @@ const mapRecipeIngredientRow = (
 ): ClientDietIngredientRow => ({
   id: String(ingredient.id),
   recipeIngredientId: toNumber(ingredient.id) ?? undefined,
+  menuItemId: ingredient.menu_item_id,
   foodId: ingredient.food_id ?? null,
   exchangeGroupId: ingredient.exchange_group_id ?? ingredient.food?.exchange_group_id ?? null,
   label: ingredient.food?.name?.trim() || 'Ingrediente',
@@ -744,7 +745,7 @@ const mapDietMenu = (
   assignedDate: string,
   recipeSummaryMap: Map<number, ClientRecipeSummary>,
 ): ClientDietMenu => {
-  const meals = (menu.menu_meals ?? []).map((meal) => mapDietMeal(meal, recipeSummaryMap));
+  const meals = (menu.menu_meals ?? []).map((meal) => {const mapped=mapDietMeal(meal,recipeSummaryMap);return {...mapped,recipes:mapped.recipes.map(recipe=>({...recipe,menuId:menu.id,menuMealId:meal.id}))};});
   const totalItems = meals.reduce((count, meal) => count + meal.totalEntries, 0);
   const totalRecipes = meals.reduce((count, meal) => count + meal.recipes.length, 0);
   const mealsWithEntries = meals.filter((meal) => meal.totalEntries > 0);
@@ -792,7 +793,17 @@ const mapDietRecipeDetailResponse = (
 
 export const getDietRecipeDetail = async (
   recipeId: number,
+  menuId?: number,
+  menuMealId?: number,
 ): Promise<ClientDietRecipeDetail> => {
+  if (menuId) {
+    const response = await nutritionClient.get<NutritionMenuResponse>(`/menus/${menuId}`);
+    const menu=mapDietMenuResponse(response,getTodayDateKey());
+    const recipe=menu.meals.filter(m=>!menuMealId || Number(m.id)===menuMealId).flatMap(m=>m.recipes).find(r=>r.recipeId===recipeId);
+    if(!recipe)throw new Error('Esta receta ya no está en el menú');
+    const metadata=await nutritionClient.get<NutritionRecipeDetailResponse>(`/recipes/${recipeId}`);
+    return {...recipe,videoUrl:metadata.video_url ?? null,description:metadata.description ?? null,descriptionRich:metadata.description_rich ?? null};
+  }
   const recipe = await nutritionClient.get<NutritionRecipeDetailResponse>(`/recipes/${recipeId}`);
   return mapDietRecipeDetailResponse(recipe);
 };
