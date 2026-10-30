@@ -26,9 +26,10 @@ const NOTCH_SMOOTHING = 16;
 const NOTCH_CORNER = 22;
 const CORNER = 28;
 const CARD_PADDING = 20;
-const FIGURE_TOP = 72;
-const FIGURE_WIDTH = 80;
-const FIGURE_HEIGHT = 146;
+// The body map is height-bound (its outline is about 0.46 as wide as tall), so its height sets its size.
+const FIGURE_TOP = 66;
+const FIGURE_WIDTH = 92;
+const FIGURE_HEIGHT = 184;
 const INITIAL_HEIGHT = 420;
 
 const r2 = (value: number) => Math.round(value * 100) / 100;
