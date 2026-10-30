@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import type { AuroraIconName } from '../aurora';
 import { ExchangeGroupIcon } from './ExchangeGroupIcon';
+import { DishHalo, RecipeDish } from './RecipeDish';
 import { auroraFont, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import type {
   ClientDietFoodRow,
@@ -23,17 +24,55 @@ import {
 } from '../../utils/dietPortions';
 import { buildDietRecipeDetailRoute } from '../../utils/dietRecipeRoute';
 import { getExchangeGroupKey, type ExchangeGroupKey } from '../../utils/exchangeGroups';
+import { getRecipeCutoutUri } from '../../utils/recipeImage';
 
-type MealLook = { colors: readonly [string, string]; ink: string; icon: AuroraIconName };
+type MealLook = {
+  colors: readonly [string, string];
+  /** A paler tile for a dish photo without background to sit on, in light and dark. */
+  tile: readonly [string, string];
+  tileDark: readonly [string, string];
+  ink: string;
+  icon: AuroraIconName;
+};
 
 // Thumb colours from the proposal: sunrise for breakfast, pink for snacks, green for the main
 // meal and indigo for dinner.
 export const MEAL_LOOKS: Record<DietMealKind, MealLook> = {
-  desayuno: { colors: ['#fde68a', '#fb923c'], ink: '#7c2d12', icon: 'sunny-outline' },
-  colacion: { colors: ['#fbcfe8', '#f472b6'], ink: '#831843', icon: 'nutrition-outline' },
-  comida: { colors: ['#a7f3d0', '#10b981'], ink: '#064e3b', icon: 'leaf-outline' },
-  cena: { colors: ['#c7d2fe', '#6366f1'], ink: '#1e1b4b', icon: 'moon-outline' },
-  otra: { colors: ['#e2e8f0', '#94a3b8'], ink: '#1e293b', icon: 'restaurant-outline' },
+  desayuno: {
+    colors: ['#fde68a', '#fb923c'],
+    tile: ['#fef3c7', '#fdba74'],
+    tileDark: ['rgba(251, 191, 36, 0.2)', 'rgba(251, 146, 60, 0.34)'],
+    ink: '#7c2d12',
+    icon: 'sunny-outline',
+  },
+  colacion: {
+    colors: ['#fbcfe8', '#f472b6'],
+    tile: ['#fce7f3', '#f9a8d4'],
+    tileDark: ['rgba(244, 114, 182, 0.18)', 'rgba(236, 72, 153, 0.32)'],
+    ink: '#831843',
+    icon: 'nutrition-outline',
+  },
+  comida: {
+    colors: ['#a7f3d0', '#10b981'],
+    tile: ['#d1fae5', '#6ee7b7'],
+    tileDark: ['rgba(52, 211, 153, 0.16)', 'rgba(16, 185, 129, 0.32)'],
+    ink: '#064e3b',
+    icon: 'leaf-outline',
+  },
+  cena: {
+    colors: ['#c7d2fe', '#6366f1'],
+    tile: ['#e0e7ff', '#a5b4fc'],
+    tileDark: ['rgba(165, 180, 252, 0.16)', 'rgba(99, 102, 241, 0.34)'],
+    ink: '#1e1b4b',
+    icon: 'moon-outline',
+  },
+  otra: {
+    colors: ['#e2e8f0', '#94a3b8'],
+    tile: ['#f1f5f9', '#cbd5e1'],
+    tileDark: ['rgba(148, 163, 184, 0.14)', 'rgba(148, 163, 184, 0.28)'],
+    ink: '#1e293b',
+    icon: 'restaurant-outline',
+  },
 };
 
 // Each group takes the colour of the macro it mostly brings: protein blue, carbohydrates amber,
@@ -186,6 +225,11 @@ const MealRow = ({
 }: MealRowProps) => {
   const aurora = useAurora();
   const emerald = aurora.tones.emerald;
+  const [dishFailed, setDishFailed] = useState(false);
+  // The first recipe photo without background stands for the meal.
+  const dishUri = dishFailed
+    ? null
+    : meal.recipes.map((recipe) => getRecipeCutoutUri(recipe.imageUrl)).find(Boolean) ?? null;
   const kcal = meal.nutrients?.kcal ?? meal.totalCalories;
   const macroLine = getMacroLine(meal);
   const mealTitle = getMealTitle(meal);
@@ -211,9 +255,21 @@ const MealRow = ({
         onPress={onToggle}
         style={({ pressed }) => [styles.mealHeader, { opacity: pressed ? 0.85 : 1 }]}
       >
-        <LinearGradient colors={look.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.thumb}>
-          <Ionicons name={look.icon} size={24} color={look.ink} />
-        </LinearGradient>
+        {dishUri ? (
+          <View style={styles.thumbBox}>
+            <LinearGradient
+              colors={aurora.isDark ? look.tileDark : look.tile}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.thumbTile}
+            />
+            <RecipeDish uri={dishUri} size={54} style={styles.thumbDish} onError={() => setDishFailed(true)} />
+          </View>
+        ) : (
+          <LinearGradient colors={look.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.thumb}>
+            <Ionicons name={look.icon} size={24} color={look.ink} />
+          </LinearGradient>
+        )}
         <View style={styles.mealCopy}>
           <View style={styles.eyebrowRow}>
             <Text
@@ -393,6 +449,8 @@ const RecipeBlock = ({
   showHungerHint: boolean;
 }) => {
   const aurora = useAurora();
+  const [dishFailed, setDishFailed] = useState(false);
+  const cutoutUri = getRecipeCutoutUri(recipe.imageUrl);
 
   return (
     <View style={styles.detailsStack}>
@@ -402,7 +460,12 @@ const RecipeBlock = ({
         onPress={onOpen}
         style={({ pressed }) => [styles.recipeHeader, { opacity: pressed ? 0.8 : 1 }]}
       >
-        {recipe.imageUrl ? (
+        {cutoutUri && !dishFailed ? (
+          <View style={styles.recipeDishBox}>
+            <DishHalo size={76} color={mealLook.colors[1]} style={styles.recipeHalo} />
+            <RecipeDish uri={cutoutUri} size={60} style={styles.recipeDish} onError={() => setDishFailed(true)} />
+          </View>
+        ) : recipe.imageUrl && !cutoutUri ? (
           <Image source={{ uri: recipe.imageUrl }} style={styles.recipeThumb} resizeMode="cover" />
         ) : (
           <LinearGradient colors={mealLook.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.recipeThumb}>
@@ -725,6 +788,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: '0px 10px 20px -12px rgba(15, 23, 42, 0.5)',
   },
+  // A dish photo without background rises 10 px over its tile.
+  thumbBox: {
+    width: 56,
+    height: 56,
+  },
+  thumbTile: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 18,
+    boxShadow: '0px 10px 20px -12px rgba(15, 23, 42, 0.5)',
+  },
+  thumbDish: {
+    position: 'absolute',
+    left: 1,
+    top: -10,
+  },
   mealCopy: {
     flex: 1,
     minWidth: 0,
@@ -808,6 +886,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  recipeDishBox: {
+    width: 52,
+    height: 52,
+  },
+  // The halo is wider than the dish so its glow shows around it.
+  recipeHalo: {
+    position: 'absolute',
+    left: -12,
+    top: -12,
+  },
+  recipeDish: {
+    position: 'absolute',
+    left: -4,
+    top: -8,
   },
   recipeCopy: {
     flex: 1,
