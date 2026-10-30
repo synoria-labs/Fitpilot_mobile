@@ -37,6 +37,33 @@ const getEquivalentsDisplayValue = (portion: ClientDietPortion) => {
   return formattedValue ? `${formattedValue} eq` : null;
 };
 
+/**
+ * The portion's equivalents as the client sees them, also when the backend's display leaves them
+ * out: plans are built in equivalents, so they stay next to grams and household measures.
+ */
+export const getDietPortionEquivalentsValue = (portion: ClientDietPortion): string | null => {
+  const shown = portion.display?.find((item) => item.key === 'equivalents');
+  if (shown) {
+    const value = /eq/i.test(shown.value) ? shown.value : `${shown.value} eq`;
+    return `${shown.approximate ? '≈ ' : ''}${value}`;
+  }
+
+  return portion.equivalents !== null && portion.equivalents > 0 ? getEquivalentsDisplayValue(portion) : null;
+};
+
+/** Equivalents of several portions together, or null when any of them lacks them. */
+export const sumDietPortionEquivalents = (portions: ClientDietPortion[]): string | null => {
+  let total = 0;
+  for (const portion of portions) {
+    if (portion.equivalents === null || portion.equivalents <= 0) {
+      return null;
+    }
+    total += portion.equivalents;
+  }
+
+  return portions.length ? `${formatPortionNumber(total)} eq` : null;
+};
+
 export const getDietPortionDisplayItems = (
   portion: ClientDietPortion,
 ): DietPortionDisplayItem[] => {

@@ -952,6 +952,14 @@ export interface ClientDietCourseCategory {
   sortOrder: number;
 }
 
+/** Energy and macros from the menu resolver (backend v2); older responses leave them out. */
+export interface ClientDietNutrients {
+  kcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+}
+
 export interface ClientDietIngredientRow {
   id: string;
   menuItemId?: number;
@@ -964,6 +972,7 @@ export interface ClientDietIngredientRow {
   originalFoodId?: number | null;
   originalLabel?: string | null;
   portion: ClientDietPortion;
+  nutrients?: ClientDietNutrients | null;
   courseCategoryId: number | null;
   courseCategory: ClientDietCourseCategory | null;
 }
@@ -1023,6 +1032,7 @@ export interface ClientDietMeal {
   id: string;
   name: string;
   totalCalories: number | null;
+  nutrients?: ClientDietNutrients | null;
   recipes: ClientDietRecipeCard[];
   standaloneFoods: ClientDietFoodRow[];
   totalEntries: number;
@@ -1038,6 +1048,7 @@ export interface ClientDietMenu {
   meals: ClientDietMeal[];
   totalMeals: number;
   totalCalories: number | null;
+  nutrients?: ClientDietNutrients | null;
   totalItems: number;
   totalRecipes: number;
 }

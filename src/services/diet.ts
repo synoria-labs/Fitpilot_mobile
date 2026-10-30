@@ -10,6 +10,7 @@ import type {
   ClientDietIngredientRow,
   ClientDietMenu,
   ClientDietMeal,
+  ClientDietNutrients,
   ClientDietPortion,
   ClientDietRecipeCard,
   ClientDietRecipeDetail,
@@ -32,6 +33,13 @@ import {
   applyDietRotationMenuOptions,
   resolveVisibleDietMenu,
 } from '../utils/dietMenuSelection';
+
+type NutritionNutrientsResponse = {
+  calories_kcal?: number | string | null;
+  protein_g?: number | string | null;
+  carbs_g?: number | string | null;
+  fat_g?: number | string | null;
+};
 
 type NutritionPortionResponse = {
   display?: import('../types/menu-view-v2.generated').PortionDisplay[];
@@ -89,6 +97,7 @@ type NutritionRecipeDetailResponse = {
 
 type NutritionRecipeDetailIngredientResponse = {
   menu_item_id?: number;
+  nutrients?: NutritionNutrientsResponse | null;
   portion_detail?: NutritionPortionResponse | null;
   id: number | string;
   food_id?: number | null;
@@ -147,6 +156,7 @@ type NutritionExchangeSystemResponse = {
 
 type NutritionMenuItemResponse = {
   id: number;
+  nutrients?: NutritionNutrientsResponse | null;
   food_id?: number | null;
   exchange_group_id?: number | null;
   quantity?: number | string | null;
@@ -185,11 +195,13 @@ type NutritionMenuMealResponse = {
   id: number;
   name?: string | null;
   total_calories?: number | string | null;
+  nutrients?: NutritionNutrientsResponse | null;
   menu_items_menu_items_menu_meal_idTomenu_meals?: NutritionMenuItemResponse[];
 };
 
 type NutritionMenuResponse = {
   id: number;
+  nutrients?: NutritionNutrientsResponse | null;
   title?: string | null;
   description_?: string | null;
   exchange_system?: NutritionExchangeSystemResponse | null;
@@ -618,6 +630,18 @@ const resolveRecipeForItem = (
   mapRecipeSummaryFromDetail(item.recipe_detail) ||
   (item.recipe_id ? recipeSummaryMap.get(item.recipe_id) ?? null : null);
 
+const mapNutrients = (
+  nutrients: NutritionNutrientsResponse | null | undefined,
+): ClientDietNutrients | null =>
+  nutrients
+    ? {
+        kcal: toNumber(nutrients.calories_kcal),
+        proteinG: toNumber(nutrients.protein_g),
+        carbsG: toNumber(nutrients.carbs_g),
+        fatG: toNumber(nutrients.fat_g),
+      }
+    : null;
+
 const mapStandaloneFoodRow = (item: NutritionMenuItemResponse): ClientDietFoodRow => {
   const courseCategory = normalizeDietCourseCategory(item);
   return {
@@ -634,6 +658,7 @@ const mapStandaloneFoodRow = (item: NutritionMenuItemResponse): ClientDietFoodRo
     originalFoodId: item.original_food_id ?? null,
     originalLabel: item.original_food_name?.trim() || null,
     portion: derivePortionFromMenuItem(item),
+    nutrients: mapNutrients(item.nutrients),
     courseCategoryId: courseCategory.courseCategoryId,
     courseCategory: courseCategory.courseCategory,
   };
@@ -666,6 +691,7 @@ const mapRecipeIngredientRow = (
   originalFoodId: ingredient.original_food_id ?? null,
   originalLabel: ingredient.original_food_name?.trim() || null,
   portion: derivePortionFromRecipeIngredient(ingredient),
+  nutrients: mapNutrients(ingredient.nutrients),
   courseCategoryId: null,
   courseCategory: null,
 });
@@ -734,6 +760,7 @@ const mapDietMeal = (
     id: String(meal.id),
     name: meal.name?.trim() || 'Comida',
     totalCalories: toNumber(meal.total_calories),
+    nutrients: mapNutrients(meal.nutrients),
     recipes,
     standaloneFoods,
     totalEntries: recipes.length + standaloneFoods.length,
@@ -763,6 +790,7 @@ const mapDietMenu = (
     meals,
     totalMeals: meals.length,
     totalCalories,
+    nutrients: mapNutrients(menu.nutrients),
     totalItems,
     totalRecipes,
   };
