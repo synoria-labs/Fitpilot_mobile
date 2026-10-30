@@ -5,7 +5,7 @@ const hasSwappableRecipeIngredients = (menu: ClientDietMenu) =>
   menu.meals.some((meal) =>
     meal.recipes.some((recipe) =>
       recipe.ingredients.some((ingredient) => (
-        Boolean(ingredient.recipeIngredientId && ingredient.exchangeGroupId)
+        Boolean((ingredient.menuItemId || ingredient.recipeIngredientId) && ingredient.exchangeGroupId)
       )),
     ),
   );
