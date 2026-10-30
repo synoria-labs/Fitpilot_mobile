@@ -7,6 +7,7 @@ import {
   spacing,
 } from '../../constants/colors';
 import { useAppTheme, useThemedStyles } from '../../theme';
+import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import type {
   AssignedProfessionalDomain,
   AssignedProfessionalSummary,
@@ -34,6 +35,8 @@ type CareTeamSectionProps = {
   actionIcon?: React.ComponentProps<typeof Ionicons>['name'];
   actionAccessibilityLabel?: string;
   onActionPress?: () => void;
+  onMessagePress?: () => void;
+  onViewPlanPress?: (domains: AssignedProfessionalDomain[]) => void;
 };
 
 type CareTeamCardModel = {
@@ -134,15 +137,39 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
   actionIcon = 'search-outline',
   actionAccessibilityLabel,
   onActionPress,
+  onMessagePress,
+  onViewPlanPress,
 }) => {
   const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
   const cards = useMemo(
     () => buildCareTeamCards(summaries, errors, isLoading),
     [errors, isLoading, summaries],
   );
   const isSummary = variant === 'summary';
-  const action = onActionPress ? (
+  const action = !onActionPress ? null : isSummary ? (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={actionAccessibilityLabel ?? actionLabel}
+      onPress={onActionPress}
+      style={({ pressed }) => [
+        styles.auroraAction,
+        {
+          backgroundColor: aurora.tones.blue.soft,
+          borderColor: aurora.tones.blue.line,
+          transform: [{ scale: pressed ? 0.97 : 1 }],
+        },
+      ]}
+    >
+      <Ionicons name={actionIcon} size={15} color={aurora.tones.blue.ink} />
+      {actionLabel ? (
+        <Text style={[styles.auroraActionText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>
+          {actionLabel}
+        </Text>
+      ) : null}
+    </Pressable>
+  ) : (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={actionAccessibilityLabel ?? actionLabel}
@@ -155,7 +182,7 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
       <Ionicons name={actionIcon} size={14} color={theme.colors.primary} />
       {actionLabel ? <Text style={styles.actionButtonText}>{actionLabel}</Text> : null}
     </Pressable>
-  ) : null;
+  );
   const shouldShowCombinedEmptySummary =
     isSummary &&
     emptyPresentation === 'combined-summary' &&
@@ -175,7 +202,7 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
     >
       {isSummary ? (
         <View style={styles.summaryHeader}>
-          <Text style={styles.summaryTitle} numberOfLines={1}>
+          <Text style={[styles.summaryTitle, auroraType.title, { color: aurora.text }]} numberOfLines={1}>
             {title}
           </Text>
           {action}
@@ -205,6 +232,8 @@ export const CareTeamSection: React.FC<CareTeamSectionProps> = ({
               errorMessage={card.errorMessage}
               compact={compact}
               variant={isSummary ? 'summary' : 'full'}
+              onMessagePress={onMessagePress}
+              onViewPlanPress={onViewPlanPress}
             />
           ))
         )}
@@ -219,7 +248,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       width: '100%',
     },
     containerSummary: {
-      marginTop: spacing.sm,
+      marginTop: spacing.lg,
     },
     header: {
       marginBottom: spacing.md,
@@ -229,7 +258,19 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.sm,
-      marginBottom: spacing.xs,
+      marginBottom: 10,
+    },
+    auroraAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      height: 36,
+      paddingHorizontal: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+    },
+    auroraActionText: {
+      fontSize: 13,
     },
     headerTitleRow: {
       flexDirection: 'row',
@@ -247,9 +288,6 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     summaryTitle: {
       flex: 1,
       minWidth: 0,
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
     },
     subtitle: {
       marginTop: spacing.xs,
@@ -282,7 +320,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderRadius: borderRadius.xl,
     },
     cardsColumnSummary: {
-      gap: spacing.xs,
+      gap: 10,
       padding: 0,
     },
   });

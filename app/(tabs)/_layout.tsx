@@ -1,18 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { InteractionManager, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
+import { auroraFont, getAuroraTokens, type AuroraTokens } from '../../src/theme/aurora';
 import {
   BottomTabBarVisibilityProvider,
   useBottomTabBarVisibility,
@@ -26,6 +30,21 @@ import {
   handleNotificationResponse,
 } from '../../src/utils/notificationNavigation';
 
+// The active tab's pill takes its module's tone; Inicio mixes the brand's blue and violet.
+const getIndicatorGradient = (routeName: string | undefined, aurora: AuroraTokens): readonly [string, string] => {
+  switch (routeName) {
+    case 'diet':
+      return aurora.tones.emerald.gradient;
+    case 'measurements':
+      return aurora.tones.violet.gradient;
+    case 'workouts':
+    case 'chat':
+      return aurora.tones.blue.gradient;
+    default:
+      return [aurora.tones.blue.tone, aurora.tones.violet.tone];
+  }
+};
+
 const TABLET_EXPANDED_WIDTH = 152;
 const TABLET_COLLAPSED_WIDTH = 84;
 const TABLET_TOP_PADDING = 88;
@@ -34,6 +53,12 @@ const TABLET_TOGGLE_TOP = 44;
 const PHONE_TAB_BAR_HEIGHT = 60;
 const PHONE_TAB_BAR_VERTICAL_PADDING = 8;
 const HIDDEN_CONTENT_BOTTOM_INSET = 12;
+// The floating bar sits inside a screen gutter; its 1 dp border and the row padding narrow the tabs.
+const PHONE_TAB_BAR_GUTTER = 16;
+const PHONE_TAB_ROW_PADDING = 8;
+const PHONE_TAB_ICON_TOP = 12;
+const PHONE_TAB_PILL_WIDTH = 48;
+const PHONE_TAB_PILL_HEIGHT = 32;
 
 interface TabletTabBarProps {
   props: BottomTabBarProps;
@@ -189,14 +214,18 @@ const TabletTabBar: React.FC<TabletTabBarProps> = ({
 const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
   const { state, descriptors, navigation } = props;
   const { theme } = useAppTheme();
+  const aurora = getAuroraTokens(theme.isDark);
   const styles = useThemedStyles(createStyles);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { isVisible, setContentInsetBottom } = useBottomTabBarVisibility();
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
-  const tabWidth = (width - 32) / state.routes.length;
+  const reduceMotion = useReducedMotion();
+  const tabWidth = (width - (PHONE_TAB_BAR_GUTTER + 1 + PHONE_TAB_ROW_PADDING) * 2) / state.routes.length;
   const indicatorX = useSharedValue(state.index * tabWidth);
+  const indicatorStretch = useSharedValue(1);
+  const previousIndexRef = useRef(state.index);
   const visiblePaddingBottom = Math.max(insets.bottom, 16);
   const hiddenOffset = PHONE_TAB_BAR_HEIGHT + visiblePaddingBottom + 24;
   const visibleContentInset = PHONE_TAB_BAR_HEIGHT + visiblePaddingBottom + 16;
@@ -228,14 +257,34 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
     visibleContentInset,
   ]);
 
+  // The pill stretches while it travels to the new tab and settles back to its size.
+  useEffect(() => {
+    if (previousIndexRef.current === state.index) {
+      return;
+    }
+
+    previousIndexRef.current = state.index;
+    if (!reduceMotion) {
+      indicatorStretch.value = withSequence(
+        withTiming(1.4, { duration: 120 }),
+        withSpring(1, { damping: 14, stiffness: 180 }),
+      );
+    }
+  }, [indicatorStretch, reduceMotion, state.index]);
+
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
     opacity: opacity.value,
   }));
 
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: indicatorX.value + (tabWidth - 48) / 2 }],
-  }));
+  const indicatorStyle = useAnimatedStyle(() => {
+    const pillWidth = PHONE_TAB_PILL_WIDTH * indicatorStretch.value;
+
+    return {
+      width: pillWidth,
+      transform: [{ translateX: indicatorX.value + (tabWidth - pillWidth) / 2 }],
+    };
+  });
 
   return (
     <Animated.View
@@ -245,7 +294,7 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
         animatedStyle,
         {
           paddingBottom: visiblePaddingBottom,
-          paddingHorizontal: 16,
+          paddingHorizontal: PHONE_TAB_BAR_GUTTER,
         },
       ]}
     >
@@ -258,8 +307,16 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
       >
         <View style={styles.customTabBarContainer}>
           <Animated.View
-            style={[styles.customTabIconWrapperActive, styles.slidingIndicator, indicatorStyle]}
-          />
+            pointerEvents="none"
+            style={[styles.slidingIndicator, styles.auroraIndicator, indicatorStyle]}
+          >
+            <LinearGradient
+              colors={getIndicatorGradient(state.routes[state.index]?.name, aurora)}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
           {state.routes.map((route, index) => {
             const { options } = descriptors[route.key];
             const isFocused = state.index === index;
@@ -289,15 +346,15 @@ const PhoneTabBar: React.FC<PhoneTabBarProps> = ({ props }) => {
                 <AnimatedTabIcon
                   focused={isFocused}
                   icon={options.tabBarIcon as TabBarIconRenderer | undefined}
-                  activeColor={theme.colors.phoneNavIconActive}
+                  activeColor={aurora.onTone}
                   inactiveColor={theme.colors.phoneNavIconInactive}
                   styles={styles}
                 />
                 <AnimatedLabel
                   focused={isFocused}
                   label={label === 'index' ? 'Inicio' : label}
-                  activeColor={theme.colors.phoneNavLabelActive}
-                  inactiveColor={theme.colors.phoneNavLabelInactive}
+                  activeColor={aurora.text}
+                  inactiveColor={aurora.faint}
                   styles={styles}
                 />
               </Pressable>
@@ -324,14 +381,19 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
   inactiveColor,
   styles,
 }) => {
-  const scale = useSharedValue(focused ? 1.15 : 1);
+  const scale = useSharedValue(1);
   const opacity = useSharedValue(focused ? 1 : 0.7);
+  const wasFocusedRef = useRef(focused);
 
   useEffect(() => {
-    scale.value = withSpring(focused ? 1.15 : 1, {
-      damping: 12,
-      stiffness: 200,
-    });
+    // The active icon already sits on the pill, so it only gives a short pop when it gains focus.
+    if (focused && !wasFocusedRef.current) {
+      scale.value = withSequence(
+        withTiming(0.82, { duration: 90 }),
+        withSpring(1, { damping: 10, stiffness: 260 }),
+      );
+    }
+    wasFocusedRef.current = focused;
     opacity.value = withTiming(focused ? 1 : 0.7, { duration: 250 });
   }, [focused, opacity, scale]);
 
@@ -345,7 +407,7 @@ const AnimatedTabIcon: React.FC<AnimatedTabIconProps> = ({
       {icon?.({
         focused,
         color: focused ? activeColor : inactiveColor,
-        size: 24,
+        size: 22,
       })}
     </Animated.View>
   );
@@ -387,7 +449,7 @@ const AnimatedLabel: React.FC<AnimatedLabelProps> = ({
       numberOfLines={1}
       style={[
         styles.customTabText,
-        focused && styles.customTabTextActive,
+        auroraFont(focused ? 'extrabold' : 'semibold'),
         { color: focused ? activeColor : inactiveColor },
         animatedStyle,
       ]}
@@ -609,37 +671,40 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     customTabBarContainer: {
       flexDirection: 'row',
       height: 72,
-      alignItems: 'center',
+      alignItems: 'stretch',
       justifyContent: 'space-around',
-      paddingHorizontal: 8,
+      paddingHorizontal: PHONE_TAB_ROW_PADDING,
     },
     customTabItem: {
       flex: 1,
       alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 8,
+      // A fixed top keeps every icon level with the sliding pill whatever the label's height.
+      paddingTop: PHONE_TAB_ICON_TOP,
     },
     customTabIconWrapper: {
-      width: 48,
-      height: 32,
-      borderRadius: 16,
+      width: PHONE_TAB_PILL_WIDTH,
+      height: PHONE_TAB_PILL_HEIGHT,
+      borderRadius: PHONE_TAB_PILL_HEIGHT / 2,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 4,
     },
-    customTabIconWrapperActive: {
-      backgroundColor: theme.colors.phoneNavIndicatorBackground,
-    },
     slidingIndicator: {
       position: 'absolute',
-      top: 20,
+      top: PHONE_TAB_ICON_TOP,
+    },
+    auroraIndicator: {
+      // Absolute children start at the row's edge, before its padding.
+      left: PHONE_TAB_ROW_PADDING,
+      width: PHONE_TAB_PILL_WIDTH,
+      height: PHONE_TAB_PILL_HEIGHT,
+      borderRadius: PHONE_TAB_PILL_HEIGHT / 2,
+      overflow: 'hidden',
+      boxShadow: theme.isDark ? undefined : '0px 8px 18px -8px rgba(37, 99, 235, 0.7)',
     },
     customTabText: {
-      fontSize: 10,
-      fontWeight: '500',
-    },
-    customTabTextActive: {
-      fontWeight: '600',
+      fontSize: 11,
+      lineHeight: 14,
     },
     phoneTabBarLabel: {
       fontSize: 11,

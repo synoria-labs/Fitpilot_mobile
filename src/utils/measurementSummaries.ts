@@ -11,8 +11,13 @@ export interface MeasurementSummaryItem {
   latestDate: string;
   unit: string;
   changeFromPrevious: number | null;
+  previousDate: string | null;
+  /** Últimos valores registrados, del más antiguo al más reciente, para la tendencia. */
+  history: number[];
   emphasizeDecrease: boolean;
 }
+
+const HISTORY_POINTS = 8;
 
 const toFiniteNumber = (value: MeasurementHistoryItem[SummaryMetricKey]): number | null => {
   if (value === null || value === undefined) {
@@ -48,6 +53,11 @@ export const buildMeasurementSummaries = (
     const previousValue = previousMeasurement
       ? toFiniteNumber(previousMeasurement[metric.key])
       : null;
+    const history = measurements
+      .map((measurement) => toFiniteNumber(measurement[metric.key]))
+      .filter((value): value is number => value !== null)
+      .slice(0, HISTORY_POINTS)
+      .reverse();
 
     return [{
       key: metric.key,
@@ -57,6 +67,8 @@ export const buildMeasurementSummaries = (
       latestDate: latestMeasurement.date ?? latestMeasurement.logged_at ?? '',
       unit: metric.unit ?? '',
       changeFromPrevious: previousValue === null ? null : latestValue - previousValue,
+      previousDate: previousMeasurement ? previousMeasurement.date ?? previousMeasurement.logged_at ?? null : null,
+      history,
       emphasizeDecrease: metric.emphasizeDecrease ?? false,
     }];
   });

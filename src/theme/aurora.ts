@@ -77,7 +77,7 @@ export type AuroraTokens = {
   heat: Record<AuroraHeatMode, AuroraHeatRamp>;
 };
 
-/** The brand's diagonal: the today card's chamfer and the selected day share this angle. */
+/** Lean of the selected day's capsule in the week strips. The today card's chamfer keeps its own, steeper cut. */
 export const AURORA_SIGNATURE_ANGLE = 14;
 
 export const auroraRadius = { chip: 12, button: 16, card: 22, hero: 28 } as const;

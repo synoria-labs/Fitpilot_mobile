@@ -1,39 +1,46 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  AppState,
   InteractionManager,
   RefreshControl,
   ScrollView,
   StyleSheet,
   View,
   useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuthStore } from '../../src/store/authStore';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import { LoadingSpinner, TabScreenWrapper } from '../../src/components/common';
 import {
   CalendarDatePickerModal,
-  HistoricalNavigator,
   type SharedWeeklyCalendarDay,
 } from '../../src/components/calendar';
 import {
-  ActivityChart,
   MetricsSummary,
-  MicrocycleStats,
   ScienceTips,
   SessionPickerModal,
-  SplitOverviewCta,
+  TodayInNumbers,
   TodayWorkoutCard,
-  UserHeader,
+  HomeHero,
+  type ReadinessNumbers,
+  type SessionsNumbers,
 } from '../../src/components/dashboard';
-import {
-  ConnectedHealthFeedbackSummaryCard,
-  ConnectedHealthSetupBanner,
-} from '../../src/components/connected-health';
+import { ActivityGridCard } from '../../src/components/activity';
+import { AuroraBackdrop, AuroraTopScrim } from '../../src/components/aurora';
+import { useDailyActivity } from '../../src/hooks/useDailyActivity';
+import { buildActivityGrid, getCurrentDailyStreak, meetsTwoGoals } from '../../src/utils/activityGrid';
+import { ConnectedHealthSetupBanner } from '../../src/components/connected-health';
+import { useConnectedHealthFeedback } from '../../src/hooks/useConnectedHealthFeedback';
+import { getConnectedHealthStateCopy } from '../../src/utils/connectedHealthFeedback';
+import { buildWeeklyAdherence, summarizeAdherence, summarizeSteps } from '../../src/utils/homeNumbers';
+import { getChatConversations } from '../../src/services/chat';
 import { CareTeamSection } from '../../src/components/care-team';
 import type { ScienceTip } from '../../src/constants/scienceTips';
 import { spacing } from '../../src/constants/colors';
@@ -54,7 +61,7 @@ import type {
   MicrocycleSessionProgress,
   MuscleVolumeResponse,
 } from '../../src/types';
-import { formatLocalDate, toLocalDateKey } from '../../src/utils/date';
+import { compareDateKeys, formatLocalDate, getTodayDateKey, toLocalDateKey } from '../../src/utils/date';
 import {
   getDashboardContentWidth,
   getPrimaryScreenHorizontalPadding,
@@ -134,16 +141,31 @@ const formatHomeCareTeamSummary = (
   };
 };
 
+const ACTIVITY_WEEKS = 16;
+// The volume behind the body map counts synergists at half, as the volume chart did by default.
+const COUNT_SECONDARY_MUSCLES = true;
+
+type UnreadMessages = { count: number; from: string | null };
+
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const isTablet = isTabletLayout(width, height);
   const contentWidth = getDashboardContentWidth(width);
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
-  const calendarContentWidth = Math.max(0, contentWidth - horizontalPadding * 2);
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
-  const tabBarScroll = useBottomTabBarScroll();
+  const { onScroll: onTabBarScroll, scrollEventThrottle } = useBottomTabBarScroll();
   const contentInsetBottom = useBottomTabBarContentInset();
+  const insets = useSafeAreaInsets();
+  const [isScrolled, setIsScrolled] = useState(false);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      onTabBarScroll(event);
+      const scrolled = event.nativeEvent.contentOffset.y > 4;
+      setIsScrolled((current) => (current === scrolled ? current : scrolled));
+    },
+    [onTabBarScroll],
+  );
   const isFocused = useIsFocused();
   const user = useAuthStore((state) => state.user);
   const {
@@ -155,6 +177,83 @@ export default function HomeScreen() {
   const dashboardBootstrap = useWorkoutStore((state) => state.dashboardBootstrap);
   const dashboardDataVersion = useWorkoutStore((state) => state.dashboardDataVersion);
   const workoutLogsVersion = useWorkoutStore((state) => state.workoutLogsVersion);
+  const dailyActivity = useDailyActivity({ weeks: ACTIVITY_WEEKS, enabled: false });
+  const reloadDailyActivity = dailyActivity.reload;
+  const homeStreakDays = useMemo(() => {
+    const model = buildActivityGrid({
+      todayKey: getTodayDateKey(),
+      weeks: ACTIVITY_WEEKS,
+      days: dailyActivity.days,
+      mode: 'todo',
+      startKey: dailyActivity.startKey,
+    });
+    return getCurrentDailyStreak(model.cells, model.todayIndex, meetsTwoGoals);
+  }, [dailyActivity.days, dailyActivity.startKey]);
+
+  // Salud conectada vive aquí y no en una tarjeta: alimenta el chip y la casilla de preparación,
+  // y conserva la sincronización al enfocar Inicio y al volver la app al frente.
+  const {
+    feedback: healthFeedback,
+    isSyncing: isHealthSyncing,
+    needsPermissionCta: healthNeedsPermission,
+    connectionState: healthConnectionState,
+    refreshOnFocus: refreshHealthOnFocus,
+  } = useConnectedHealthFeedback({
+    days: 7,
+    autoSync: true,
+    foregroundSyncMaxAgeMs: 20 * 60_000,
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshHealthOnFocus();
+    }, [refreshHealthOnFocus]),
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void refreshHealthOnFocus();
+      }
+    });
+    return () => subscription.remove();
+  }, [refreshHealthOnFocus]);
+
+  // Mensajes sin leer para el chip del saludo; solo lectura.
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id) {
+        return undefined;
+      }
+
+      let cancelled = false;
+      getChatConversations()
+        .then((conversations) => {
+          if (cancelled) {
+            return;
+          }
+          const unread = conversations.filter((conversation) => conversation.unread_count > 0);
+          const count = unread.reduce((total, conversation) => total + conversation.unread_count, 0);
+          setUnreadMessages(count > 0 ? { count, from: unread[0]?.participant?.name ?? null } : null);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setUnreadMessages(null);
+          }
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.id]),
+  );
+
+  // Se recarga al volver a Inicio y cuando se registra un entreno nuevo.
+  useEffect(() => {
+    if (isFocused && user?.id) {
+      void reloadDailyActivity();
+    }
+  }, [isFocused, reloadDailyActivity, user?.id, workoutLogsVersion]);
   const isLoading = useWorkoutStore((state) => state.isLoading);
   const isStartingWorkout = useWorkoutStore((state) => state.isStartingWorkout);
   const error = useWorkoutStore((state) => state.error);
@@ -166,7 +265,7 @@ export default function HomeScreen() {
   const [currentWeekDietCaloriesAverage, setCurrentWeekDietCaloriesAverage] = useState<number | null>(null);
   const [muscleVolume, setMuscleVolume] = useState<MuscleVolumeResponse | null>(null);
   const [isLoadingVolume, setIsLoadingVolume] = useState(false);
-  const [countSecondaryMuscles, setCountSecondaryMuscles] = useState(true);
+  const [unreadMessages, setUnreadMessages] = useState<UnreadMessages | null>(null);
   const [microcycleMode, setMicrocycleMode] = useState<MicrocycleMode>('planned');
   const [focusedDateKey, setFocusedDateKey] = useState<string | null>(null);
   const [isSessionPickerVisible, setIsSessionPickerVisible] = useState(false);
@@ -174,7 +273,6 @@ export default function HomeScreen() {
   const [hasPlayedEntryAnimation, setHasPlayedEntryAnimation] = useState(false);
   const [shouldLoadDeferredContent, setShouldLoadDeferredContent] = useState(false);
   const lastLoadedWorkoutLogsVersionRef = useRef<number | null>(null);
-  const program = dashboardBootstrap?.program ?? null;
   const microcycleProgress = dashboardBootstrap?.microcycle_progress ?? null;
   const timeline = dashboardBootstrap?.timeline ?? null;
 
@@ -348,7 +446,7 @@ export default function HomeScreen() {
       try {
         const data = await getMuscleVolume(
           programTimelineView.highlightedTrainingDay.id,
-          countSecondaryMuscles,
+          COUNT_SECONDARY_MUSCLES,
         );
         setMuscleVolume(data);
       } catch (err) {
@@ -361,7 +459,6 @@ export default function HomeScreen() {
 
     void loadMuscleVolume();
   }, [
-    countSecondaryMuscles,
     programTimelineView.highlightedTrainingDay?.id,
     programTimelineView.highlightedTrainingDay?.rest_day,
     shouldLoadDeferredContent,
@@ -383,6 +480,7 @@ export default function HomeScreen() {
       loadDashboardData(),
       refreshCareTeam(),
       loadCurrentWeekDietCaloriesAverage(),
+      reloadDailyActivity(),
     ]);
     lastLoadedWorkoutLogsVersionRef.current = workoutLogsVersion;
     setRefreshing(false);
@@ -390,6 +488,7 @@ export default function HomeScreen() {
     loadCurrentWeekDietCaloriesAverage,
     loadDashboardData,
     refreshCareTeam,
+    reloadDailyActivity,
     user?.id,
     workoutLogsVersion,
   ]);
@@ -577,6 +676,84 @@ export default function HomeScreen() {
   const handleOpenSplit = useCallback(() => {
     router.push('/workouts/split');
   }, []);
+  const handleOpenChat = useCallback(() => {
+    router.push('/(tabs)/chat');
+  }, []);
+  const handleGoToToday = useCallback(() => {
+    setFocusedDateKey(getTodayDateKey());
+    setIsSessionPickerVisible(false);
+  }, []);
+  // The timeline clamps the focus to the program's dates, so «Hoy» only helps while today is inside them.
+  const todayKey = getTodayDateKey();
+  const canReachToday = Boolean(
+    programTimelineModel.calendarStartDateKey &&
+      programTimelineModel.calendarEndDateKey &&
+      compareDateKeys(todayKey, programTimelineModel.calendarStartDateKey) >= 0 &&
+      compareDateKeys(todayKey, programTimelineModel.calendarEndDateKey) <= 0,
+  );
+  const handleViewPlan = useCallback((domains: AssignedProfessionalDomain[]) => {
+    router.push(domains.includes('training') ? '/(tabs)/workouts' : '/(tabs)/diet');
+  }, []);
+  const handleOpenHealth = useCallback(() => {
+    if (healthNeedsPermission || !healthFeedback.hasRealData) {
+      router.push('/profile/connected-health' as never);
+      return;
+    }
+    router.push({
+      pathname: '/(tabs)/measurements',
+      params: { initialTab: 'health' },
+    } as never);
+  }, [healthFeedback.hasRealData, healthNeedsPermission]);
+
+  const stepsSummary = useMemo(
+    () => summarizeSteps(dailyActivity.days, getTodayDateKey()),
+    [dailyActivity.days],
+  );
+  const adherenceSummary = useMemo(
+    () => summarizeAdherence(buildWeeklyAdherence(programTimelineModel.orderedPlannedSessions, getTodayDateKey())),
+    [programTimelineModel],
+  );
+  const sessionsNumbers = useMemo<SessionsNumbers | null>(() => {
+    const planned = microcycleProgress?.planned_metrics;
+    if (!planned?.total_planned_sessions) {
+      return null;
+    }
+
+    return {
+      done: planned.completed_planned_sessions,
+      total: planned.total_planned_sessions,
+      nextPosition: planned.next_session_position ?? null,
+      nextName: programTimelineView.actionableSession?.name ?? null,
+      label: microcycleProgress?.microcycle_name ?? null,
+    };
+  }, [microcycleProgress, programTimelineView.actionableSession]);
+  const readinessNumbers = useMemo<ReadinessNumbers>(() => {
+    const base = {
+      freshnessLabel: healthFeedback.freshnessLabel,
+      isStale: healthFeedback.isStale,
+      isSyncing: isHealthSyncing,
+    };
+
+    if (healthFeedback.hasRealData) {
+      return {
+        ...base,
+        score: healthFeedback.readiness.score,
+        status: healthFeedback.readiness.status,
+        title: healthFeedback.readiness.title,
+        message: healthFeedback.readiness.message,
+      };
+    }
+
+    const stateCopy = getConnectedHealthStateCopy(healthConnectionState, healthFeedback.sourceLabel);
+    return { ...base, score: null, status: 'unknown', title: stateCopy.title, message: stateCopy.compactMessage };
+  }, [healthConnectionState, healthFeedback, isHealthSyncing]);
+  const cardState = programTimelineView.cardState;
+  const cardProgressLabel =
+    cardState.kind === 'session'
+      ? [`Sesión ${cardState.position} de ${cardState.total}`, microcycleProgress?.microcycle_name]
+          .filter(Boolean)
+          .join(' · ')
+      : null;
 
   if (!user) {
     return null;
@@ -588,117 +765,107 @@ export default function HomeScreen() {
 
   return (
     <TabScreenWrapper>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      {/* The backdrop runs under the status bar; the scrim takes over once content scrolls there. */}
+      <View style={styles.container}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: contentInsetBottom },
+            { paddingTop: insets.top, paddingBottom: contentInsetBottom },
             isTablet ? styles.scrollContentTablet : null,
           ]}
-          onScroll={tabBarScroll.onScroll}
+          onScroll={handleScroll}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               tintColor={theme.colors.primary}
+              progressViewOffset={insets.top}
             />
           }
-          scrollEventThrottle={tabBarScroll.scrollEventThrottle}
+          scrollEventThrottle={scrollEventThrottle}
           showsVerticalScrollIndicator={false}
         >
+          <AuroraBackdrop width={width} height={520 + insets.top} palette="home" />
           <View style={[styles.contentColumn, { maxWidth: contentWidth }]}>
             <Animated.View entering={getEntryAnimation(0)}>
-              <UserHeader
+              <HomeHero
                 user={user}
-                program={program}
+                sessionName={
+                  programTimelineView.cardState.kind === 'session'
+                    ? programTimelineView.cardState.trainingDay.name
+                    : null
+                }
+                sessionIsToday={
+                  programTimelineView.cardState.kind === 'session' &&
+                  programTimelineView.cardState.dateKey === getTodayDateKey()
+                }
+                streakDays={homeStreakDays}
+                steps={stepsSummary.today}
+                readinessScore={healthFeedback.hasRealData ? healthFeedback.readiness.score : null}
+                messages={unreadMessages}
+                onMessagesPress={handleOpenChat}
                 onProfilePress={handleOpenProfile}
-                contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
               />
             </Animated.View>
 
             <Animated.View entering={getEntryAnimation(80)}>
-              <View style={{ paddingHorizontal: horizontalPadding }}>
-                <HistoricalNavigator
-                  eyebrow="Entrenamiento"
-                  title={microcycleProgress?.microcycle_name || program?.name || 'Programa activo'}
-                  weekLabel={currentWeekLabel}
-                  days={navigatorDays}
-                  contentWidth={calendarContentWidth}
-                  canGoToPreviousWeek={programTimelineView.canGoToPreviousWeek}
-                  canGoToNextWeek={programTimelineView.canGoToNextWeek}
-                  showWeekButtons={isTablet}
-                  datePickerLabel="Fecha"
-                  onShiftWeek={handleShiftWeek}
-                  onOpenDatePicker={canOpenDatePicker ? handleOpenDatePicker : undefined}
-                />
-              </View>
-            </Animated.View>
-
-            {microcycleProgress?.microcycle_id ? (
-              <Animated.View entering={getEntryAnimation(120)}>
-                <SplitOverviewCta onPress={handleOpenSplit} horizontalPadding={horizontalPadding} />
-              </Animated.View>
-            ) : null}
-
-            <Animated.View entering={getEntryAnimation(160)}>
               <TodayWorkoutCard
-                cardState={programTimelineView.cardState}
+                cardState={cardState}
                 onStartPress={handleStartHighlightedSession}
                 onGoToActionable={handleGoToActionable}
                 onOpenSessions={handleOpenSessions}
+                onOpenSplit={microcycleProgress?.microcycle_id ? handleOpenSplit : undefined}
                 isLoading={isStartingWorkout || (isLoading && !refreshing)}
                 muscleVolume={muscleVolume}
                 isMuscleVolumeLoading={!shouldLoadDeferredContent || isLoadingVolume}
-                contentWidth={contentWidth}
-                horizontalPadding={horizontalPadding}
-                compact={!isTablet}
-              />
-            </Animated.View>
-
-            <Animated.View entering={getEntryAnimation(220)}>
-              <MicrocycleStats
-                microcycleProgress={microcycleProgress}
-                actualAdherenceMetrics={programTimelineModel.actualAdherenceMetrics}
+                progressLabel={cardProgressLabel}
+                weekDays={navigatorDays}
+                weekLabel={currentWeekLabel}
+                canGoToPreviousWeek={programTimelineView.canGoToPreviousWeek}
+                canGoToNextWeek={programTimelineView.canGoToNextWeek}
+                showWeekButtons={isTablet}
+                onShiftWeek={handleShiftWeek}
+                onOpenDatePicker={canOpenDatePicker ? handleOpenDatePicker : undefined}
+                onGoToToday={canReachToday ? handleGoToToday : undefined}
                 mode={microcycleMode}
                 onModeChange={setMicrocycleMode}
-                isLoading={isLoading && !refreshing}
+                contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
-                variant="strip"
               />
             </Animated.View>
 
+            <TodayInNumbers
+              sessions={sessionsNumbers}
+              adherence={adherenceSummary}
+              steps={stepsSummary}
+              readiness={readinessNumbers}
+              onReadinessPress={handleOpenHealth}
+              contentWidth={contentWidth}
+              horizontalPadding={horizontalPadding}
+            />
+
             {user?.connectedHealthSetupStatus !== 'completed' ? (
-              <Animated.View entering={getEntryAnimation(280)}>
+              <Animated.View entering={getEntryAnimation(200)}>
                 <ConnectedHealthSetupBanner horizontalPadding={horizontalPadding} />
               </Animated.View>
             ) : null}
 
-            <Animated.View entering={getEntryAnimation(280)}>
-              <ConnectedHealthFeedbackSummaryCard
+            <Animated.View entering={getEntryAnimation(250)} style={styles.activitySection}>
+              <ActivityGridCard
+                days={dailyActivity.days}
+                startKey={dailyActivity.startKey}
+                hasLoaded={dailyActivity.hasLoaded}
                 contentWidth={contentWidth}
                 horizontalPadding={horizontalPadding}
-                variant="compact"
-              />
-            </Animated.View>
-
-            <Animated.View entering={getEntryAnimation(340)}>
-              <ActivityChart
-                muscleVolume={muscleVolume}
-                isLoading={!shouldLoadDeferredContent || isLoadingVolume || (isLoading && !refreshing)}
-                countSecondaryMuscles={countSecondaryMuscles}
-                onToggleSecondary={setCountSecondaryMuscles}
-                contentWidth={contentWidth}
-                horizontalPadding={horizontalPadding}
-                maxRows={2}
-                collapsible
-                compact
+                weeks={ACTIVITY_WEEKS}
               />
             </Animated.View>
 
             <Animated.View entering={getEntryAnimation(400)}>
               <CareTeamSection
+                title="Tu equipo"
                 summaries={homeCareTeamSummaries}
                 errors={careTeamErrors}
                 isLoading={isLoadingCareTeam}
@@ -709,6 +876,8 @@ export default function HomeScreen() {
                 actionLabel="Buscar"
                 actionAccessibilityLabel="Buscar profesionales"
                 onActionPress={handleOpenProfessionals}
+                onMessagePress={handleOpenChat}
+                onViewPlanPress={handleViewPlan}
               />
             </Animated.View>
 
@@ -732,6 +901,7 @@ export default function HomeScreen() {
             ) : null}
           </View>
         </ScrollView>
+        <AuroraTopScrim height={insets.top} visible={isScrolled} />
 
         <SessionPickerModal
           visible={isSessionPickerVisible}
@@ -761,7 +931,7 @@ export default function HomeScreen() {
           onClose={handleCloseDatePicker}
           onSelect={handleSelectDate}
         />
-      </SafeAreaView>
+      </View>
     </TabScreenWrapper>
   );
 }
@@ -785,5 +955,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     contentColumn: {
       width: '100%',
       alignSelf: 'center',
+    },
+    activitySection: {
+      marginVertical: spacing.sm,
     },
   });

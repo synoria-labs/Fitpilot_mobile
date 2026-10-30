@@ -1,5 +1,4 @@
-export { UserHeader } from './UserHeader';
-export { MicrocycleStats } from './MicrocycleStats';
+export { HomeHero } from './HomeHero';
 export { SessionPickerModal } from './SessionPickerModal';
 export { TodayWorkoutCard } from './TodayWorkoutCard';
 export { ActivityChart } from './ActivityChart';
@@ -7,4 +6,5 @@ export { ScienceTips } from './ScienceTips';
 export { MetricsSummary } from './MetricsSummary';
 export { MissedWorkoutsBanner } from './MissedWorkoutsBanner';
 export { HomePlanSetupCard } from './HomePlanSetupCard';
-export { SplitOverviewCta } from './SplitOverviewCta';
+export { TodayInNumbers, type ReadinessNumbers, type SessionsNumbers } from './TodayInNumbers';
+export { CardWeekStrip } from './CardWeekStrip';
