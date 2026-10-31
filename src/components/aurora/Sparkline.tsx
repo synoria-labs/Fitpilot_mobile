@@ -10,25 +10,37 @@ type SparklineProps = {
   width: number;
   height?: number;
   area?: boolean;
+  /** Marks the latest value with a dot. */
+  dot?: boolean;
+  /** A flat series draws a level line instead of leaving the space empty. */
+  showFlat?: boolean;
 };
 
 const INSET = 4;
 
 /** Smooth trend line with a soft area and a dot on the latest value. Decorative: no axis. */
-export const Sparkline = ({ values, color, width, height = 34, area = true }: SparklineProps) => {
+export const Sparkline = ({
+  values,
+  color,
+  width,
+  height = 34,
+  area = true,
+  dot = true,
+  showFlat = false,
+}: SparklineProps) => {
   const gradientId = toSvgId(useId());
   const min = Math.min(...values);
   const max = Math.max(...values);
 
-  // A flat or single-point line says nothing; leave the space empty instead.
-  if (values.length < 2 || width <= INSET * 2 || max === min) {
+  // A single point says nothing, and by default neither does a flat line: leave the space empty.
+  if (values.length < 2 || width <= INSET * 2 || (max === min && !showFlat)) {
     return <View style={{ height }} />;
   }
 
   const span = max - min;
   const points = values.map((value, index) => ({
     x: INSET + (index / (values.length - 1)) * (width - INSET * 2),
-    y: height - INSET - ((value - min) / span) * (height - INSET * 2 - 2),
+    y: span === 0 ? height / 2 : height - INSET - ((value - min) / span) * (height - INSET * 2 - 2),
   }));
   const line = buildMonotonePath(points);
   const first = points[0];
@@ -46,8 +58,8 @@ export const Sparkline = ({ values, color, width, height = 34, area = true }: Sp
         <Path d={`${line} L ${last.x} ${height} L ${first.x} ${height} Z`} fill={`url(#${gradientId})`} />
       ) : null}
       <Path d={line} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx={last.x} cy={last.y} r={5.5} fill={color} fillOpacity={0.18} />
-      <Circle cx={last.x} cy={last.y} r={3.5} fill={color} />
+      {dot ? <Circle cx={last.x} cy={last.y} r={5.5} fill={color} fillOpacity={0.18} /> : null}
+      {dot ? <Circle cx={last.x} cy={last.y} r={3.5} fill={color} /> : null}
     </Svg>
   );
 };

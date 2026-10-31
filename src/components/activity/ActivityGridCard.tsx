@@ -1,25 +1,17 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import Animated, {
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withSpring,
-  ZoomIn,
-} from 'react-native-reanimated';
+import React, { useCallback, useMemo, useState } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { AuroraCard, AuroraSegmented, IconBadge, type AuroraSegmentOption } from '../aurora';
 import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import {
   buildActivityGrid,
   describeActivityCell,
-  describeCellForAccessibility,
   summarizeActivity,
   type ActivityCell,
   type ActivityMode,
   type DailyActivity,
 } from '../../utils/activityGrid';
 import { getTodayDateKey } from '../../utils/date';
+import { ActivityHeatGrid } from './ActivityHeatGrid';
 
 const MODE_OPTIONS: readonly AuroraSegmentOption<ActivityMode>[] = [
   { key: 'todo', label: 'Todo' },
@@ -42,9 +34,7 @@ const WEEKDAY_LABELS = [
 const CARD_PADDING = 18;
 const LABEL_COLUMN = 26;
 const LABEL_GAP = 8;
-const MONTH_ROW = 18;
 const GAP = 4;
-const RING_SPRING = { damping: 20, stiffness: 260, mass: 0.6 };
 
 type ActivityGridCardProps = {
   days: Record<string, DailyActivity>;
@@ -64,7 +54,6 @@ export const ActivityGridCard = ({
   weeks = 16,
 }: ActivityGridCardProps) => {
   const aurora = useAurora();
-  const reduceMotion = useReducedMotion();
   const [mode, setMode] = useState<ActivityMode>('todo');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const todayKey = getTodayDateKey();
@@ -81,102 +70,11 @@ export const ActivityGridCard = ({
 
   const gridWidth = Math.max(0, contentWidth - horizontalPadding * 2 - CARD_PADDING * 2 - LABEL_COLUMN - LABEL_GAP);
   const cellSize = Math.max(9, Math.min(18, Math.floor((gridWidth - GAP * (weeks - 1)) / weeks)));
-  const step = cellSize + GAP;
-  const radius = Math.max(3, Math.round(cellSize * 0.28));
-  const gridHeight = step * 7 - GAP;
   const heat = aurora.heat[mode];
-
-  const ringX = useSharedValue(0);
-  const ringY = useSharedValue(0);
-  useEffect(() => {
-    if (!activeCell) {
-      return;
-    }
-    const x = activeCell.weekIndex * step;
-    const y = activeCell.dayIndex * step;
-    ringX.value = reduceMotion ? x : withSpring(x, RING_SPRING);
-    ringY.value = reduceMotion ? y : withSpring(y, RING_SPRING);
-  }, [activeCell, reduceMotion, ringX, ringY, step]);
-  const ringStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: ringX.value }, { translateY: ringY.value }],
-  }));
-
-  const lastPickedRef = useRef<number | null>(null);
-  const isScrubbingRef = useRef(false);
-  const pickAt = useCallback(
-    (x: number, y: number) => {
-      const week = Math.floor(x / step);
-      const row = Math.floor(y / step);
-      if (week < 0 || week >= weeks || row < 0 || row > 6) {
-        return;
-      }
-      const index = week * 7 + row;
-      if (lastPickedRef.current !== index) {
-        lastPickedRef.current = index;
-        void Haptics.selectionAsync().catch(() => undefined);
-      }
-      setSelectedIndex(index);
-    },
-    [step, weeks],
-  );
-
-  // Tocar elige un día al soltar; deslizar en horizontal recorre la cuadrícula. Un gesto vertical
-  // se lo queda el scroll de la pantalla sin mover la selección.
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_event, gesture) => Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderGrant: () => {
-          isScrubbingRef.current = false;
-        },
-        onPanResponderMove: (event, gesture) => {
-          if (!isScrubbingRef.current && Math.abs(gesture.dx) > 6 && Math.abs(gesture.dx) > Math.abs(gesture.dy)) {
-            isScrubbingRef.current = true;
-          }
-          if (isScrubbingRef.current) {
-            pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY);
-          }
-        },
-        onPanResponderRelease: (event, gesture) => {
-          if (!isScrubbingRef.current && Math.abs(gesture.dx) < 8 && Math.abs(gesture.dy) < 8) {
-            pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY);
-          }
-          isScrubbingRef.current = false;
-        },
-        onPanResponderTerminate: () => {
-          isScrubbingRef.current = false;
-        },
-        // Mientras se recorre en horizontal, el scroll vertical no se queda con el gesto.
-        onPanResponderTerminationRequest: () => !isScrubbingRef.current,
-      }),
-    [pickAt],
-  );
-
-  const shiftSelection = useCallback(
-    (delta: number) => {
-      const next = Math.min(model.cells.length - 1, Math.max(0, activeIndex + delta));
-      setSelectedIndex(next);
-    },
-    [activeIndex, model.cells.length],
-  );
 
   const changeMode = useCallback((next: ActivityMode) => {
     setMode(next);
   }, []);
-
-  const cellStyle = (cell: ActivityCell) => {
-    if (cell.isFuture) {
-      return { backgroundColor: 'transparent', borderWidth: 1, borderColor: aurora.borderStrong };
-    }
-    if (cell.isBeforeStart) {
-      return { backgroundColor: heat[0], opacity: 0.5 };
-    }
-    return { backgroundColor: heat[cell.level] };
-  };
-
-  const todayCell = model.todayIndex >= 0 ? model.cells[model.todayIndex] : null;
-  const showTodayRing = todayCell && activeIndex !== model.todayIndex;
 
   return (
     <View style={{ paddingHorizontal: horizontalPadding }}>
@@ -214,108 +112,22 @@ export const ActivityGridCard = ({
           ))}
         </View>
 
-        <View style={styles.gridRow}>
-          <View style={{ width: LABEL_COLUMN, marginRight: LABEL_GAP, paddingTop: MONTH_ROW }}>
-            <View style={{ height: gridHeight }}>
-              {WEEKDAY_LABELS.map((weekday) => (
-                <Text
-                  key={weekday.label}
-                  style={[
-                    styles.axisLabel,
-                    auroraFont('semibold'),
-                    { color: aurora.faint, top: weekday.row * step, height: cellSize, lineHeight: cellSize },
-                  ]}
-                >
-                  {weekday.label}
-                </Text>
-              ))}
-            </View>
-          </View>
-
-          <View>
-            <View style={{ height: MONTH_ROW }}>
-              {model.months.map((month) => (
-                <Text
-                  key={`${month.label}-${month.weekIndex}`}
-                  style={[styles.monthLabel, auroraFont('bold'), { color: aurora.faint, left: month.weekIndex * step }]}
-                >
-                  {month.label}
-                </Text>
-              ))}
-            </View>
-
-            <View
-              accessible
-              accessibilityRole="adjustable"
-              accessibilityLabel={`Actividad diaria de las últimas ${weeks} semanas`}
-              accessibilityValue={{ text: activeCell ? describeCellForAccessibility(activeCell, mode) : undefined }}
-              accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
-              onAccessibilityAction={(event) => {
-                shiftSelection(event.nativeEvent.actionName === 'increment' ? 1 : -1);
-              }}
-              style={{ width: step * weeks - GAP, height: gridHeight }}
-              {...panResponder.panHandlers}
-            >
-              {model.cells.map((cell) => (
-                <Animated.View
-                  key={`${mode}-${hasLoaded ? 'listo' : 'cargando'}-${cell.dateKey}`}
-                  pointerEvents="none"
-                  entering={
-                    reduceMotion
-                      ? undefined
-                      : ZoomIn.delay(Math.min(720, 100 + (cell.weekIndex + cell.dayIndex) * 24)).duration(360)
-                  }
-                  style={[
-                    styles.cell,
-                    {
-                      left: cell.weekIndex * step,
-                      top: cell.dayIndex * step,
-                      width: cellSize,
-                      height: cellSize,
-                      borderRadius: radius,
-                    },
-                    cellStyle(cell),
-                  ]}
-                />
-              ))}
-
-              {showTodayRing && todayCell ? (
-                <View
-                  pointerEvents="none"
-                  style={[
-                    styles.ring,
-                    {
-                      left: todayCell.weekIndex * step - 3,
-                      top: todayCell.dayIndex * step - 3,
-                      width: cellSize + 6,
-                      height: cellSize + 6,
-                      borderRadius: radius + 3,
-                      borderColor: aurora.tones.blue.tone,
-                    },
-                  ]}
-                />
-              ) : null}
-
-              {activeCell ? (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    styles.ring,
-                    {
-                      left: -3,
-                      top: -3,
-                      width: cellSize + 6,
-                      height: cellSize + 6,
-                      borderRadius: radius + 3,
-                      borderColor: aurora.text,
-                    },
-                    ringStyle,
-                  ]}
-                />
-              ) : null}
-            </View>
-          </View>
-        </View>
+        <ActivityHeatGrid
+          model={model}
+          mode={mode}
+          heat={heat}
+          cellSize={cellSize}
+          gap={GAP}
+          labelColumn={LABEL_COLUMN}
+          labelGap={LABEL_GAP}
+          weekdayLabels={WEEKDAY_LABELS}
+          showMonths
+          hasLoaded={hasLoaded}
+          activeIndex={activeIndex >= 0 ? activeIndex : null}
+          onSelect={setSelectedIndex}
+          accessibilityLabel={`Actividad diaria de las últimas ${weeks} semanas`}
+          style={styles.gridRow}
+        />
 
         <View style={styles.legend}>
           <Text style={[auroraType.caption, styles.legendCaption, { color: aurora.faint }]} numberOfLines={1}>
@@ -416,27 +228,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   gridRow: {
-    flexDirection: 'row',
     marginTop: 16,
-  },
-  axisLabel: {
-    position: 'absolute',
-    left: 0,
-    fontSize: 10,
-  },
-  monthLabel: {
-    position: 'absolute',
-    top: 0,
-    fontSize: 10,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  cell: {
-    position: 'absolute',
-  },
-  ring: {
-    position: 'absolute',
-    borderWidth: 2,
   },
   legend: {
     flexDirection: 'row',

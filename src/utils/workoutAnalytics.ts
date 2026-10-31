@@ -5,7 +5,7 @@ import type {
   WorkoutAnalyticsColorToken,
   WorkoutAnalyticsRange,
 } from '../types';
-import { WORKOUT_ANALYTICS_COLOR_MAP, WORKOUT_ANALYTICS_RANGE_OPTIONS } from '../constants/workoutAnalytics';
+import { WORKOUT_ANALYTICS_RANGE_OPTIONS } from '../constants/workoutAnalytics';
 
 export type TrendStatusMeta = {
   icon: string;
@@ -208,9 +208,6 @@ export const buildNextRepRangeDraft = (drafts: RepRangeDraft[]): RepRangeDraft[]
 
   return nextDrafts;
 };
-
-export const getRepRangeColor = (colorToken: WorkoutAnalyticsColorToken) =>
-  WORKOUT_ANALYTICS_COLOR_MAP[colorToken];
 
 export const buildLineCoordinates = (
   values: number[],
