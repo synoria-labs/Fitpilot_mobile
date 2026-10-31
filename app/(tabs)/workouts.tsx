@@ -4,31 +4,33 @@ import {
   Alert,
   FlatList,
   Platform,
+  Pressable,
   RefreshControl,
-  ScrollView,
   SectionList,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
   useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { ProfileShortcutButton, Skeleton, TabScreenWrapper } from '../../src/components/common';
 import {
-  Button,
-  Card,
-  ChartSkeleton,
-  ProfileShortcutButton,
-  Skeleton,
-  StatCardSkeleton,
-  TabScreenWrapper,
-  WorkoutCardSkeleton,
-} from '../../src/components/common';
-import { ExerciseHighlightCard } from '../../src/components/workout-analytics/ExerciseHighlightCard';
+  AuroraBackdrop,
+  AuroraCard,
+  AuroraSegmented,
+  AuroraTopScrim,
+  IconBadge,
+  type AuroraIconName,
+  type AuroraSegmentOption,
+} from '../../src/components/aurora';
+import { ActivityChart } from '../../src/components/dashboard/ActivityChart';
 import { RepRangeEditorModal } from '../../src/components/workout-analytics/RepRangeEditorModal';
 import { RepRangeVolumeChart } from '../../src/components/workout-analytics/RepRangeVolumeChart';
 import { WorkoutAnalyticsComparisonGroup } from '../../src/components/workout-analytics/WorkoutAnalyticsComparisonGroup';
@@ -36,20 +38,26 @@ import { WorkoutAnalyticsContextNavigator } from '../../src/components/workout-a
 import { DayTypeProgressSection } from '../../src/components/workout-analytics/DayTypeProgressSection';
 import { WorkoutAnalyticsContextPickerModal } from '../../src/components/workout-analytics/WorkoutAnalyticsContextPickerModal';
 import { WorkoutAnalyticsDailySessionComparisonChart } from '../../src/components/workout-analytics/WorkoutAnalyticsDailySessionComparisonChart';
-import { ProgressBackdrop } from '../../src/components/workout-analytics/ProgressBackdrop';
-import { ProgressFilters, ProgressTabs } from '../../src/components/workout-analytics/ProgressFilters';
-import { ProgressSummaryGrid } from '../../src/components/workout-analytics/ProgressSummaryGrid';
-import { ProgressExerciseRow, ProgressSessionRow } from '../../src/components/workout-analytics/ProgressRows';
-import { TrainingConsistencyCard } from '../../src/components/workout-analytics/TrainingConsistencyCard';
-import { WeeklyMuscleVolumeCard } from '../../src/components/workout-analytics/WeeklyMuscleVolumeCard';
-import { progressColors, progressRepColors, progressShadow } from '../../src/components/workout-analytics/progressTheme';
-import { useWorkoutStore } from '../../src/store/workoutStore';
-import { WorkoutAnalyticsLineTrendChart } from '../../src/components/workout-analytics/WorkoutAnalyticsLineTrendChart';
-import { WorkoutAnalyticsPillSelector } from '../../src/components/workout-analytics/WorkoutAnalyticsPillSelector';
-import { WorkoutAnalyticsSnapshotCard } from '../../src/components/workout-analytics/WorkoutAnalyticsSnapshotCard';
-import { borderRadius, fontSize, spacing } from '../../src/constants/colors';
-import { useAuthStore } from '../../src/store/authStore';
+import { ProgressChips, ProgressFilters } from '../../src/components/workout-analytics/ProgressFilters';
+import { ProgressSummaryGrid, ProgressSummarySkeleton } from '../../src/components/workout-analytics/ProgressSummaryGrid';
 import {
+  ProgressExerciseRow,
+  ProgressGroupItem,
+  ProgressListGroup,
+  ProgressSessionRow,
+  getGroupPosition,
+} from '../../src/components/workout-analytics/ProgressRows';
+import {
+  CONSISTENCY_WEEKS,
+  TrainingConsistencyCard,
+} from '../../src/components/workout-analytics/TrainingConsistencyCard';
+import { WorkoutAnalyticsLineTrendChart } from '../../src/components/workout-analytics/WorkoutAnalyticsLineTrendChart';
+import { WorkoutAnalyticsSnapshotCard } from '../../src/components/workout-analytics/WorkoutAnalyticsSnapshotCard';
+import { spacing } from '../../src/constants/colors';
+import { useAuthStore } from '../../src/store/authStore';
+import { useWorkoutStore } from '../../src/store/workoutStore';
+import {
+  getCachedWorkoutAnalyticsModules,
   getWorkoutMacrocycleDetail,
   getWorkoutAnalyticsHistory,
   getWorkoutAnalyticsModules,
@@ -57,7 +65,9 @@ import {
   updateWorkoutAnalyticsPreferences,
 } from '../../src/services/workoutAnalytics';
 import { useBottomTabBarContentInset, useBottomTabBarScroll } from '../../src/hooks/useBottomTabBarVisibility';
-import { useAppTheme, useThemedStyles, type AppTheme } from '../../src/theme';
+import { useDailyActivity } from '../../src/hooks/useDailyActivity';
+import { useWeeklyMuscleVolume } from '../../src/hooks/useWeeklyMuscleVolume';
+import { auroraFont, auroraType, useAurora } from '../../src/theme/aurora';
 import type {
   ApiError,
   ExerciseTrendSummary,
@@ -74,16 +84,16 @@ import type {
   WorkoutAnalyticsRange,
   WorkoutAnalyticsRecentSessionsSection,
   WorkoutAnalyticsScopeKind,
+  WorkoutAnalyticsSection,
   WorkoutAnalyticsTrendSeriesSection,
 } from '../../src/types';
 import { formatLocalDate } from '../../src/utils/date';
-import { formatDuration } from '../../src/utils/formatters';
 import {
   getDashboardContentWidth,
   getPrimaryScreenHorizontalPadding,
   isTabletLayout,
 } from '../../src/utils/layout';
-import { formatCalories, formatDistance, formatVolumeKg } from '../../src/utils/workoutAnalytics';
+import { countPlannedSessions } from '../../src/utils/trainingProgress';
 import {
   areSelectionsEqual,
   buildHistoricalProgramsCatalog,
@@ -107,6 +117,15 @@ type HistorySection = {
   data: RecentWorkoutHistoryItem[];
 };
 
+type ModulesRequest = {
+  scopeKind: WorkoutAnalyticsScopeKind;
+  range: WorkoutAnalyticsRange;
+  repBucketId: string | null;
+  macrocycleId: string | null;
+  mesocycleId: string | null;
+  microcycleId: string | null;
+};
+
 const TREND_STATUS_SORT_PRIORITY: Record<string, number> = {
   rising: 4,
   stable: 3,
@@ -115,71 +134,50 @@ const TREND_STATUS_SORT_PRIORITY: Record<string, number> = {
 };
 
 const HISTORY_PAGE_SIZE = 20;
+const BACKDROP_HEIGHT = 560;
+// Una semana con carga de sobra para llenar una barra de «Series por músculo».
+const WEEKLY_LANDMARK_SETS = 20;
 
-const EXERCISE_SORT_OPTIONS = [
-  { value: 'recent', label: 'Recientes' },
-  { value: 'progress', label: 'Mayor progreso' },
-  { value: 'frequency', label: 'Más frecuentes' },
-] as const;
+const TAB_OPTIONS: readonly AuroraSegmentOption<WorkoutAnalyticsTab>[] = [
+  { key: 'overview', label: 'Resumen' },
+  { key: 'exercises', label: 'Ejercicios' },
+  { key: 'history', label: 'Historial' },
+];
 
-const HISTORY_STATUS_OPTIONS = [
-  { value: 'all', label: 'Todos' },
-  { value: 'in_progress', label: 'En progreso' },
-  { value: 'completed', label: 'Completados' },
-  { value: 'abandoned', label: 'Abandonados' },
-] as const;
+const EXERCISE_SORT_OPTIONS: readonly AuroraSegmentOption<ExerciseSortOption>[] = [
+  { key: 'recent', label: 'Recientes' },
+  { key: 'progress', label: 'Mayor progreso' },
+  { key: 'frequency', label: 'Más frecuentes' },
+];
 
-const getHistoryStatusMeta = (
-  status: RecentWorkoutHistoryItem['status'],
-  theme: AppTheme,
-) => {
-  switch (status) {
-    case 'completed':
-      return { icon: 'checkmark-circle', color: theme.colors.success, label: 'Completado' };
-    case 'in_progress':
-      return { icon: 'play-circle', color: theme.colors.primary, label: 'En progreso' };
-    case 'abandoned':
-      return { icon: 'warning', color: theme.colors.warning, label: 'Abandonado' };
-    default:
-      return { icon: 'barbell', color: theme.colors.iconMuted, label: status };
-  }
-};
+const HISTORY_STATUS_OPTIONS: readonly { value: WorkoutAnalyticsHistoryStatusFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'completed', label: 'Completadas' },
+  { value: 'in_progress', label: 'En curso' },
+  { value: 'abandoned', label: 'Abandonadas' },
+];
 
-const getSessionKindMeta = (
-  sessionKind: RecentWorkoutHistoryItem['session_kind'],
-  theme: AppTheme,
-) => {
-  switch (sessionKind) {
-    case 'cardio':
-      return {
-        icon: 'heart-outline',
-        label: 'Cardio',
-        color: theme.colors.warning,
-        background: theme.isDark ? 'rgba(245, 158, 11, 0.16)' : '#fef3c7',
-      };
-    case 'mixed':
-      return {
-        icon: 'swap-horizontal-outline',
-        label: 'Mixta',
-        color: theme.colors.primary,
-        background: theme.isDark ? 'rgba(59, 130, 246, 0.16)' : '#dbeafe',
-      };
-    default:
-      return {
-        icon: 'barbell-outline',
-        label: 'Fuerza',
-        color: theme.colors.iconMuted,
-        background: theme.isDark ? 'rgba(148, 163, 184, 0.16)' : '#f1f5f9',
-      };
-  }
-};
+const buildModulesKey = (userId: string | number | null, request: ModulesRequest) =>
+  [
+    userId ?? 'anon',
+    request.scopeKind,
+    request.scopeKind === 'range' ? request.range : '-',
+    request.repBucketId ?? '-',
+    request.macrocycleId ?? '-',
+    request.mesocycleId ?? '-',
+    request.microcycleId ?? '-',
+  ].join('|');
+
+// Lo último que se vio con cada combinación de filtros mientras la app sigue abierta: al volver
+// a ella se pinta al instante y se refresca detrás, sin spinner.
+const modulesMemory = new Map<string, WorkoutAnalyticsModules>();
 
 const normalizeSearchValue = (value: string) =>
   value
     .trim()
     .toLocaleLowerCase('es-MX')
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+    .replace(/[̀-ͯ]/g, '');
 
 const compareExercisesBySort = (
   left: ExerciseTrendSummary,
@@ -299,10 +297,10 @@ const buildOverviewEmptyState = (
   if (scopeKind !== 'range') {
     return {
       icon: 'layers-outline' as const,
-      title: 'Sin contexto programatico disponible',
+      title: 'Sin contexto del plan',
       description:
         emptyMessage ??
-        'Aún no hay un programa activo o el cliente no tiene un contexto programático resoluble.',
+        'Todavía no hay un programa activo o un bloque del plan que mostrar.',
     };
   }
 
@@ -311,14 +309,8 @@ const buildOverviewEmptyState = (
     title: 'Sin datos suficientes',
     description:
       emptyMessage ??
-      'Todavía no hay suficientes sesiones en la ventana seleccionada para construir analytics útiles.',
+      'Todavía no hay suficientes sesiones en este periodo. Prueba con uno más amplio.',
   };
-};
-
-type HistoryMetricItem = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  text: string;
 };
 
 const SearchField = ({
@@ -332,23 +324,35 @@ const SearchField = ({
   onChangeText: (nextValue: string) => void;
   onClear: () => void;
 }) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
 
   return (
-    <View style={styles.searchField}>
-      <Ionicons name="search-outline" size={18} color={theme.colors.iconMuted} />
+    <View
+      style={[
+        styles.searchField,
+        { backgroundColor: aurora.surface, borderColor: aurora.borderStrong, boxShadow: aurora.shadow },
+      ]}
+    >
+      <Ionicons name="search-outline" size={17} color={aurora.faint} />
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={theme.colors.textMuted}
-        style={styles.searchInput}
+        placeholderTextColor={aurora.faint}
+        accessibilityLabel={placeholder}
+        returnKeyType="search"
+        style={[styles.searchInput, auroraFont('medium'), { color: aurora.text }]}
       />
       {value ? (
-        <TouchableOpacity activeOpacity={0.85} onPress={onClear} style={styles.clearButton}>
-          <Ionicons name="close" size={16} color={theme.colors.iconMuted} />
-        </TouchableOpacity>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Borrar búsqueda"
+          hitSlop={8}
+          onPress={onClear}
+          style={[styles.clearButton, { backgroundColor: aurora.surface2 }]}
+        >
+          <Ionicons name="close" size={15} color={aurora.muted} />
+        </Pressable>
       ) : null}
     </View>
   );
@@ -356,28 +360,26 @@ const SearchField = ({
 
 const SectionHeading = ({
   title,
-  subtitle,
   actionLabel,
   onActionPress,
 }: {
   title: string;
-  subtitle?: string;
   actionLabel?: string;
   onActionPress?: () => void;
 }) => {
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
 
   return (
     <View style={styles.sectionHeader}>
-      <View style={styles.sectionHeaderCopy}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        {subtitle ? <Text style={styles.sectionSubtitle}>{subtitle}</Text> : null}
-      </View>
-
+      <Text accessibilityRole="header" style={[styles.sectionTitle, auroraFont('extrabold'), { color: aurora.text }]}>
+        {title}
+      </Text>
       {actionLabel && onActionPress ? (
-        <TouchableOpacity style={styles.sectionAction} activeOpacity={0.86} onPress={onActionPress}>
-          <Text style={styles.sectionActionText}>{actionLabel}</Text>
-        </TouchableOpacity>
+        <Pressable accessibilityRole="button" hitSlop={6} onPress={onActionPress} style={styles.sectionAction}>
+          <Text style={[styles.sectionActionText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>
+            {actionLabel}
+          </Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -390,210 +392,100 @@ const EmptyStateCard = ({
   actionLabel,
   onActionPress,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: AuroraIconName;
   title: string;
   description: string;
   actionLabel?: string;
   onActionPress?: () => void;
 }) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
 
   return (
-    <Card style={styles.emptyCard}>
-      <View style={styles.emptyIconWrap}>
-        <Ionicons name={icon} size={26} color={theme.colors.primary} />
-      </View>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptyText}>{description}</Text>
+    <AuroraCard padding={22} radius={24} style={styles.emptyCard}>
+      <IconBadge icon={icon} tone="blue" size={48} />
+      <Text style={[auroraType.headline, styles.emptyTitle, { color: aurora.text }]}>{title}</Text>
+      <Text style={[styles.emptyText, auroraFont('medium'), { color: aurora.muted }]}>{description}</Text>
       {actionLabel && onActionPress ? (
-        <Button title={actionLabel} onPress={onActionPress} variant="secondary" />
-      ) : null}
-    </Card>
-  );
-};
-
-const ExerciseCard = ({
-  exercise,
-  selectedRepBucketLabel,
-  onOpenDetail,
-}: {
-  exercise: ExerciseTrendSummary;
-  selectedRepBucketLabel?: string | null;
-  onOpenDetail: (exerciseId: string) => void;
-}) => {
-  const handlePress = useCallback(() => {
-    onOpenDetail(exercise.exercise_id);
-  }, [exercise.exercise_id, onOpenDetail]);
-
-  return (
-    <ExerciseHighlightCard
-      exercise={exercise}
-      selectedRepBucketLabel={selectedRepBucketLabel}
-      onPress={handlePress}
-    />
-  );
-};
-
-const HistoryCard = ({
-  workout,
-  selectedRepBucketLabel,
-  onPress,
-}: {
-  workout: RecentWorkoutHistoryItem;
-  selectedRepBucketLabel?: string | null;
-  onPress: () => void;
-}) => {
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
-  const statusMeta = getHistoryStatusMeta(workout.status, theme);
-  const sessionKindMeta = getSessionKindMeta(workout.session_kind, theme);
-  const cardioStats: HistoryMetricItem[] = [];
-  if (workout.cardio_duration_minutes != null && workout.cardio_duration_minutes > 0) {
-    cardioStats.push({
-      id: 'cardio-duration',
-      icon: 'time-outline',
-      text: formatDuration(Math.max(1, Math.round(workout.cardio_duration_minutes))),
-    });
-  }
-  if (workout.cardio_calories_burned != null && workout.cardio_calories_burned > 0) {
-    cardioStats.push({
-      id: 'cardio-calories',
-      icon: 'flame-outline',
-      text: formatCalories(workout.cardio_calories_burned),
-    });
-  }
-  if (workout.cardio_distance_meters != null && workout.cardio_distance_meters > 0) {
-    cardioStats.push({
-      id: 'cardio-distance',
-      icon: 'walk-outline',
-      text: formatDistance(workout.cardio_distance_meters),
-    });
-  }
-  const standardStats: HistoryMetricItem[] = [
-    {
-      id: 'duration',
-      icon: 'time-outline' as const,
-      text:
-        workout.duration_minutes != null
-          ? formatDuration(Math.max(1, Math.round(workout.duration_minutes)))
-          : 'Sin duración',
-    },
-    {
-      id: 'exercises',
-      icon: 'fitness-outline' as const,
-      text: `${workout.exercises_count} ejercicios`,
-    },
-    ...(workout.session_kind === 'cardio'
-      ? []
-      : [
-          {
-            id: 'volume',
-            icon: 'trending-up-outline' as const,
-            text: formatVolumeKg(workout.volume_kg),
-          },
-        ]),
-  ];
-  const showCardioPrimary = workout.session_kind === 'cardio' && cardioStats.length > 0;
-  const showStandardStats = workout.session_kind !== 'cardio' || cardioStats.length === 0;
-
-  return (
-    <TouchableOpacity style={styles.historyCard} activeOpacity={0.88} onPress={onPress}>
-      <View style={styles.historyTopRow}>
-        <View style={styles.historyTitleRow}>
-          <View style={[styles.historyIcon, { backgroundColor: `${statusMeta.color}14` }]}>
-            <Ionicons name={statusMeta.icon as keyof typeof Ionicons.glyphMap} size={18} color={statusMeta.color} />
-          </View>
-
-        <View style={styles.historyCopy}>
-          <Text style={styles.historyName}>{workout.training_day_name}</Text>
-          <Text style={styles.historyDate}>
-            {selectedRepBucketLabel
-              ? `Match ${selectedRepBucketLabel} · ${formatLocalDate(
-                  workout.performed_on_date,
-                  { weekday: 'long', day: 'numeric', month: 'short' },
-                  'es-MX',
-                )}`
-              : formatLocalDate(
-                  workout.performed_on_date,
-                  { weekday: 'long', day: 'numeric', month: 'short' },
-                  'es-MX',
-                )}
-          </Text>
-          <View
-            style={[
-              styles.historyKindBadge,
-              { backgroundColor: sessionKindMeta.background },
-            ]}
-          >
-            <Ionicons
-              name={sessionKindMeta.icon as keyof typeof Ionicons.glyphMap}
-              size={12}
-              color={sessionKindMeta.color}
-            />
-            <Text style={[styles.historyKindBadgeText, { color: sessionKindMeta.color }]}>
-              {sessionKindMeta.label}
-            </Text>
-          </View>
-        </View>
-        </View>
-
-        <Text style={[styles.historyStatus, { color: statusMeta.color }]}>{statusMeta.label}</Text>
-      </View>
-
-      {showStandardStats ? (
-        <View style={styles.historyStatsRow}>
-          {standardStats.map((item) => (
-            <View key={item.id} style={styles.historyStat}>
-              <Ionicons name={item.icon} size={14} color={theme.colors.iconMuted} />
-              <Text style={styles.historyStatText}>{item.text}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      {cardioStats.length ? (
-        <View
-          style={[
-            styles.historyCardioBlock,
-            showCardioPrimary ? styles.historyCardioBlockPrimary : null,
-          ]}
+        <Pressable
+          accessibilityRole="button"
+          onPress={onActionPress}
+          style={[styles.emptyAction, { backgroundColor: aurora.tones.blue.soft, borderColor: aurora.tones.blue.line }]}
         >
-          <View style={styles.historyCardioHeader}>
-            <Ionicons name="heart-outline" size={14} color={theme.colors.warning} />
-            <Text style={styles.historyCardioTitle}>Cardio ejecutado</Text>
-          </View>
-
-          <View style={styles.historyCardioStatsRow}>
-            {cardioStats.map((item) => (
-              <View key={item.id} style={styles.historyStat}>
-                <Ionicons name={item.icon} size={14} color={theme.colors.iconMuted} />
-                <Text style={styles.historyStatText}>{item.text}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
+          <Text style={[styles.emptyActionText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>{actionLabel}</Text>
+        </Pressable>
       ) : null}
-    </TouchableOpacity>
+    </AuroraCard>
   );
 };
+
+const NoticeBanner = ({
+  tone,
+  icon,
+  message,
+  actionLabel,
+  onActionPress,
+}: {
+  tone: 'blue' | 'amber';
+  icon: AuroraIconName;
+  message: string;
+  actionLabel: string;
+  onActionPress: () => void;
+}) => {
+  const aurora = useAurora();
+  const colors = aurora.tones[tone];
+
+  return (
+    <View style={[styles.notice, { backgroundColor: colors.soft, borderColor: colors.line }]}>
+      <Ionicons name={icon} size={16} color={colors.ink} />
+      <Text style={[styles.noticeText, auroraFont('semibold'), { color: aurora.text }]}>{message}</Text>
+      <Pressable accessibilityRole="button" hitSlop={8} onPress={onActionPress}>
+        <Text style={[styles.noticeAction, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>{actionLabel}</Text>
+      </Pressable>
+    </View>
+  );
+};
+
+/** Filas de relleno con la forma de la lista mientras llega la primera página. */
+const ListSkeleton = ({ rows = 3 }: { rows?: number }) => (
+  <ProgressListGroup>
+    {Array.from({ length: rows }, (_, index) => (
+      <View key={index} style={styles.skeletonRow}>
+        <Skeleton width={46} height={46} borderRadius={14} />
+        <View style={styles.skeletonCopy}>
+          <Skeleton width="62%" height={13} borderRadius={6} />
+          <Skeleton width="40%" height={11} borderRadius={5} />
+        </View>
+      </View>
+    ))}
+  </ProgressListGroup>
+);
 
 export default function WorkoutsScreen() {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const aurora = useAurora();
   const contentWidth = getDashboardContentWidth(width);
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
-  const chartWidth = Math.max(contentWidth - horizontalPadding * 2, 280);
-  const { theme } = useAppTheme();
-  const styles = useThemedStyles(createStyles);
+  const cardWidth = Math.min(width, contentWidth) - horizontalPadding * 2;
+  const chartWidth = Math.max(cardWidth - 40, 280);
   const tabBarScroll = useBottomTabBarScroll();
+  const onTabBarScroll = tabBarScroll.onScroll;
   const contentInsetBottom = useBottomTabBarContentInset();
   const isFocused = useIsFocused();
   const isTablet = isTabletLayout(width, height);
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const programName = useWorkoutStore((state) => state.dashboardBootstrap?.program?.name);
+  const planTimeline = useWorkoutStore((state) => state.dashboardBootstrap?.timeline);
   const [range, setRange] = useState<WorkoutAnalyticsRange>('4w');
   const [analyticsScopeKind, setAnalyticsScopeKind] = useState<WorkoutAnalyticsScopeKind>('range');
   const [modules, setModules] = useState<WorkoutAnalyticsModules | null>(null);
+  // Filtros con los que se pidió lo que está en pantalla, y los de la petición en curso.
+  const [modulesView, setModulesView] = useState<{ key: string | null; repBucketId: string | null }>({
+    key: null,
+    repBucketId: null,
+  });
+  const [pendingModulesKey, setPendingModulesKey] = useState<string | null>(null);
+  const modulesRef = useRef<WorkoutAnalyticsModules | null>(null);
   const modulesRequestId = useRef(0);
   const historyRequestId = useRef(0);
   const [activeTab, setActiveTab] = useState<WorkoutAnalyticsTab>('overview');
@@ -622,7 +514,15 @@ export default function WorkoutsScreen() {
   const [contextCatalogError, setContextCatalogError] = useState<string | null>(null);
   const [macrocycleSummaries, setMacrocycleSummaries] = useState<MacrocycleListItem[]>([]);
   const [macrocycleDetailsById, setMacrocycleDetailsById] = useState<Record<string, Macrocycle>>({});
+  const [countSecondaryMuscles, setCountSecondaryMuscles] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const [hasPlayedEntryAnimation, setHasPlayedEntryAnimation] = useState(false);
+  const [hasPlayedDataEntry, setHasPlayedDataEntry] = useState(false);
   const deferredExerciseSearch = useDeferredValue(exerciseSearchQuery);
+  // La constancia y las series se refrescan al volver a la pestaña sin vaciar lo que ya se ve.
+  const dailyActivity = useDailyActivity({ weeks: CONSISTENCY_WEEKS, enabled: isFocused, includeHealth: false });
+  const weeklyMuscles = useWeeklyMuscleVolume({ countSecondary: countSecondaryMuscles, enabled: isFocused });
   const selectedContext = useMemo(
     () => ({
       macrocycleId: selectedMacrocycleId,
@@ -662,6 +562,22 @@ export default function WorkoutsScreen() {
     const matchingBucket = (modules?.preferences.rep_ranges ?? []).find((bucket) => bucket.id === selectedRepBucketId);
     return matchingBucket?.label ?? null;
   }, [modules?.preferences.rep_ranges, selectedRepBucketId]);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      onTabBarScroll(event);
+      const scrolled = event.nativeEvent.contentOffset.y > 4;
+      setIsScrolled((current) => (current === scrolled ? current : scrolled));
+    },
+    [onTabBarScroll],
+  );
+
+  const showModules = useCallback((next: WorkoutAnalyticsModules, key: string, repBucketId: string | null) => {
+    modulesRef.current = next;
+    setModules(next);
+    setModulesView({ key, repBucketId });
+  }, []);
+
   const loadModules = useCallback(
     async (options?: { refresh?: boolean; forceCurrentContext?: boolean }) => {
       const requestId = ++modulesRequestId.current;
@@ -672,6 +588,14 @@ export default function WorkoutsScreen() {
         analyticsScopeKind === 'range' || shouldResolveCurrentContext
           ? { macrocycleId: null, mesocycleId: null, microcycleId: null }
           : getRequestParamsForSelection(analyticsScopeKind, selectedContext);
+      const request: ModulesRequest = {
+        scopeKind: analyticsScopeKind,
+        range,
+        repBucketId: analyticsScopeKind === 'range' ? selectedRepBucketId : null,
+        ...requestScopeParams,
+      };
+      const requestKey = buildModulesKey(userId, request);
+      setPendingModulesKey(requestKey);
 
       if (isRefresh) {
         setIsRefreshing(true);
@@ -679,22 +603,34 @@ export default function WorkoutsScreen() {
         setIsLoading(true);
       }
 
+      // Lo ya visto con estos filtros se pinta al instante; en el primer arranque, lo guardado.
+      const remembered = modulesMemory.get(requestKey);
+      if (remembered) {
+        showModules(remembered, requestKey, request.repBucketId);
+      } else if (!modulesRef.current) {
+        const cached = await getCachedWorkoutAnalyticsModules({ ...request, cacheUserId: userId });
+        if (cached && requestId === modulesRequestId.current && !modulesRef.current) {
+          showModules(cached, requestKey, request.repBucketId);
+        }
+      }
+
       try {
-        const nextModules = await getWorkoutAnalyticsModules({
-          scopeKind: analyticsScopeKind,
-          range,
-          repBucketId: analyticsScopeKind === 'range' ? selectedRepBucketId : null,
-          macrocycleId: requestScopeParams.macrocycleId,
-          mesocycleId: requestScopeParams.mesocycleId,
-          microcycleId: requestScopeParams.microcycleId,
-          cacheUserId: userId,
-        });
+        const nextModules = await getWorkoutAnalyticsModules({ ...request, cacheUserId: userId });
         if (requestId !== modulesRequestId.current) return;
-        setModules(nextModules);
+        modulesMemory.set(requestKey, nextModules);
+        showModules(nextModules, requestKey, request.repBucketId);
         setError(null);
 
         if (analyticsScopeKind !== 'range' && nextModules.program_scope && shouldResolveCurrentContext) {
           const nextSelection = getSelectionFromProgramScope(nextModules.program_scope);
+          // La petición que sigue, ya con el contexto resuelto, trae lo mismo: que no atenúe la pantalla.
+          modulesMemory.set(
+            buildModulesKey(userId, {
+              ...request,
+              ...getRequestParamsForSelection(analyticsScopeKind, nextSelection),
+            }),
+            nextModules,
+          );
           setCurrentProgramScope(nextModules.program_scope);
           setSelectedMacrocycleId(nextSelection.macrocycleId);
           setSelectedMesocycleId(nextSelection.mesocycleId);
@@ -717,7 +653,7 @@ export default function WorkoutsScreen() {
         }
       }
     },
-    [analyticsScopeKind, isContextBootstrapped, range, selectedContext, selectedRepBucketId, userId],
+    [analyticsScopeKind, isContextBootstrapped, range, selectedContext, selectedRepBucketId, showModules, userId],
   );
 
   const loadHistoricalCatalog = useCallback(
@@ -828,7 +764,9 @@ export default function WorkoutsScreen() {
     }
 
     void loadModules();
-    return () => { modulesRequestId.current += 1; };
+    return () => {
+      modulesRequestId.current += 1;
+    };
   }, [isFocused, loadModules]);
 
   useEffect(() => {
@@ -845,7 +783,9 @@ export default function WorkoutsScreen() {
     }
 
     void loadHistoryPage({ reset: true });
-    return () => { historyRequestId.current += 1; };
+    return () => {
+      historyRequestId.current += 1;
+    };
   }, [activeTab, isFocused, loadHistoryPage]);
 
   useEffect(() => {
@@ -901,11 +841,38 @@ export default function WorkoutsScreen() {
     }
   }, [modules?.preferences.rep_ranges, selectedRepBucketId]);
 
+  // Las entradas escalonadas solo se ven una vez: el encabezado al abrir la pantalla y los datos
+  // cuando llegan por primera vez.
+  useEffect(() => {
+    if (hasPlayedEntryAnimation) {
+      return undefined;
+    }
+    const timeoutId = setTimeout(() => setHasPlayedEntryAnimation(true), 0);
+    return () => clearTimeout(timeoutId);
+  }, [hasPlayedEntryAnimation]);
+  useEffect(() => {
+    if (hasPlayedDataEntry || !modules) {
+      return undefined;
+    }
+    const timeoutId = setTimeout(() => setHasPlayedDataEntry(true), 0);
+    return () => clearTimeout(timeoutId);
+  }, [hasPlayedDataEntry, modules]);
+  const getEntryAnimation = useCallback(
+    (delay: number) => (hasPlayedEntryAnimation ? undefined : FadeInDown.delay(delay).duration(380)),
+    [hasPlayedEntryAnimation],
+  );
+  const getDataEntryAnimation = useCallback(
+    (delay: number) => (hasPlayedDataEntry ? undefined : FadeInDown.delay(delay).duration(380)),
+    [hasPlayedDataEntry],
+  );
+
   const handleRefresh = useCallback(async () => {
     const refreshContextCatalog =
       analyticsScopeKind !== 'range'
         ? loadHistoricalCatalog({ refresh: true })
         : Promise.resolve();
+    void dailyActivity.reload();
+    weeklyMuscles.retry();
 
     if (activeTab === 'history') {
       await Promise.all([
@@ -920,7 +887,7 @@ export default function WorkoutsScreen() {
       loadModules({ refresh: true }),
       refreshContextCatalog,
     ]);
-  }, [activeTab, analyticsScopeKind, loadHistoricalCatalog, loadHistoryPage, loadModules]);
+  }, [activeTab, analyticsScopeKind, dailyActivity, loadHistoricalCatalog, loadHistoryPage, loadModules, weeklyMuscles]);
 
   const handleSaveRepRanges = useCallback(
     async (nextRepRanges: RepRangeBucket[]) => {
@@ -928,6 +895,8 @@ export default function WorkoutsScreen() {
 
       try {
         await updateWorkoutAnalyticsPreferences({ rep_ranges: nextRepRanges });
+        // Los rangos cambian lo que se ve en cada combinación de filtros.
+        modulesMemory.clear();
         const removedActiveBucket =
           selectedRepBucketId != null && !nextRepRanges.some((bucket) => bucket.id === selectedRepBucketId);
         if (removedActiveBucket) {
@@ -956,6 +925,14 @@ export default function WorkoutsScreen() {
     [modules?.sections],
   );
   const exerciseItems = useMemo(() => exerciseSection?.items ?? [], [exerciseSection]);
+  const plannedSessions = useMemo(() => {
+    const scope = modules?.time_scope;
+    if (!scope?.start_date || !scope.end_date) {
+      return null;
+    }
+    const planned = countPlannedSessions(planTimeline, scope.start_date, scope.end_date);
+    return planned > 0 ? planned : null;
+  }, [modules?.time_scope, planTimeline]);
   const contextItems = useMemo(
     () =>
       historicalScopeKind
@@ -1027,7 +1004,21 @@ export default function WorkoutsScreen() {
   );
 
   const hasMoreHistory = (historyPage?.items.length ?? 0) < (historyPage?.total ?? 0);
-  const showFullHistorySpinner = activeTab === 'history' && isHistoryLoading && !historyPage?.items.length;
+  const showHistorySkeleton = activeTab === 'history' && isHistoryLoading && !historyPage?.items.length;
+
+  // Al cambiar un filtro sin nada guardado para él, lo anterior se atenúa (sin spinner) hasta que llega lo nuevo.
+  const isShowingStaleModules = isLoading && modules != null && modulesView.key !== pendingModulesKey;
+  const isShowingStaleHistory = isHistoryLoading && (historyPage?.items.length ?? 0) > 0;
+  const modulesDim = useSharedValue(1);
+  const historyDim = useSharedValue(1);
+  useEffect(() => {
+    modulesDim.value = withTiming(isShowingStaleModules ? 0.5 : 1, { duration: 180 });
+  }, [isShowingStaleModules, modulesDim]);
+  useEffect(() => {
+    historyDim.value = withTiming(isShowingStaleHistory ? 0.5 : 1, { duration: 180 });
+  }, [historyDim, isShowingStaleHistory]);
+  const modulesDimStyle = useAnimatedStyle(() => ({ opacity: modulesDim.value }));
+  const historyDimStyle = useAnimatedStyle(() => ({ opacity: historyDim.value }));
 
   const handleHistoryLoadMore = useCallback(() => {
     if (
@@ -1050,22 +1041,14 @@ export default function WorkoutsScreen() {
     loadHistoryPage,
   ]);
 
-  const handleTabChange = useCallback((nextValue: string) => {
+  const handleTabChange = useCallback((nextValue: WorkoutAnalyticsTab) => {
     startTransition(() => {
-      setActiveTab(nextValue as WorkoutAnalyticsTab);
+      setActiveTab(nextValue);
     });
   }, []);
 
-  const handleScopeChange = useCallback((nextValue: string) => {
-    setAnalyticsScopeKind(nextValue as WorkoutAnalyticsScopeKind);
-  }, []);
-
-  const handleExerciseSortChange = useCallback((nextValue: string) => {
-    setExerciseSort(nextValue as ExerciseSortOption);
-  }, []);
-
-  const handleHistoryStatusChange = useCallback((nextValue: string) => {
-    setHistoryStatus(nextValue as WorkoutAnalyticsHistoryStatusFilter);
+  const handleScopeChange = useCallback((nextValue: WorkoutAnalyticsScopeKind) => {
+    setAnalyticsScopeKind(nextValue);
   }, []);
 
   const applyHistoricalSelection = useCallback((nextSelection: {
@@ -1176,7 +1159,7 @@ export default function WorkoutsScreen() {
     ) : historicalScopeKind ? (
       <WorkoutAnalyticsContextNavigator
         scopeLabel={historicalScopeLabel}
-        title={modules?.context.title ?? 'Contexto programatico'}
+        title={modules?.context.title ?? 'Contexto del plan'}
         subtitle={modules?.context.scope_label ?? 'Sin contexto resuelto'}
         startDate={modules?.program_scope?.start_date ?? null}
         endDate={modules?.program_scope?.end_date ?? null}
@@ -1192,188 +1175,310 @@ export default function WorkoutsScreen() {
       />
     ) : null;
 
-  if (isLoading && !modules) {
-    return (
-      <TabScreenWrapper>
-        <SafeAreaView style={styles.container} edges={['top']}>
-        <ProgressBackdrop />
-          <ScrollView
-            style={styles.list}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: contentInsetBottom + spacing.lg },
-            ]}
-            showsVerticalScrollIndicator={false}
-          >
-            <View
-              style={[
-                styles.sectionShell,
-                { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-              ]}
-            >
-              <View style={styles.pageHeader}>
-                <View style={styles.screenIntroRow}>
-                  <View style={styles.screenIntro}>
-                    <Skeleton width={120} height={16} />
-                    <Skeleton width={160} height={32} />
-                    <Skeleton width="82%" height={18} />
-                  </View>
-                  <ProfileShortcutButton />
-                </View>
-              </View>
-            </View>
-            <View
-              style={[
-                styles.sectionShell,
-                { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-              ]}
-            >
-              <View style={styles.skeletonStatRow}>
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-                <StatCardSkeleton />
-              </View>
-            </View>
-            <View
-              style={[
-                styles.sectionShell,
-                { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-              ]}
-            >
-              <ChartSkeleton />
-            </View>
-            <View
-              style={[
-                styles.sectionShell,
-                { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-              ]}
-            >
-              <WorkoutCardSkeleton />
-            </View>
-            <View
-              style={[
-                styles.sectionShell,
-                { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-              ]}
-            >
-              <WorkoutCardSkeleton />
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      </TabScreenWrapper>
-    );
-  }
+  const shell = [styles.sectionShell, { maxWidth: contentWidth, paddingHorizontal: horizontalPadding }];
+  const backdropHeight = Math.min(BACKDROP_HEIGHT + insets.top, headerHeight || BACKDROP_HEIGHT + insets.top);
 
-  if (!modules) {
-    return (
-      <TabScreenWrapper>
-        <SafeAreaView style={styles.container} edges={['top']}>
-        <ProgressBackdrop />
-          <View style={[styles.fullStateShell, { paddingHorizontal: horizontalPadding }]}>
-            <EmptyStateCard
-              icon="cloud-offline-outline"
-              title="No fue posible cargar los datos"
-              description={error || 'Intenta de nuevo para recuperar tu resumen de entrenamientos.'}
+  const pageHeader = (
+    <View onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}>
+      <AuroraBackdrop width={width} height={backdropHeight} palette="training" />
+      <View style={{ height: insets.top }} />
+      <View style={[shell, isTablet ? styles.headerTablet : null]}>
+        <Animated.View entering={getEntryAnimation(0)} style={styles.header}>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, auroraFont('extrabold'), { color: aurora.tones.blue.ink }]}>Entrenamiento</Text>
+            <Text accessibilityRole="header" style={[styles.title, auroraFont('extrabold'), { color: aurora.text }]}>
+              Progreso
+            </Text>
+            <Text numberOfLines={1} style={[styles.subtitle, auroraFont('medium'), { color: aurora.muted }]}>
+              Tu rendimiento, constancia y récords.
+            </Text>
+          </View>
+          <ProfileShortcutButton />
+        </Animated.View>
+
+        <Animated.View entering={getEntryAnimation(60)} style={styles.tabs}>
+          <AuroraSegmented
+            variant="tone"
+            tone="blue"
+            options={TAB_OPTIONS}
+            value={activeTab}
+            onChange={handleTabChange}
+            accessibilityLabel="Secciones de progreso"
+          />
+        </Animated.View>
+
+        <Animated.View entering={getEntryAnimation(100)} style={styles.filters}>
+          <ProgressFilters
+            range={range}
+            scope={analyticsScopeKind}
+            scopeLabel={modules?.context.scope_label}
+            programName={modules?.program_scope?.macrocycle_name ?? programName}
+            onRangeChange={setRange}
+            onScopeChange={handleScopeChange}
+          />
+          {historicalContextNavigator}
+          {analyticsScopeKind === 'range' && selectedRepBucketId && selectedRepBucketLabel ? (
+            <NoticeBanner
+              tone="blue"
+              icon="funnel-outline"
+              message={`Filtrando por ${selectedRepBucketLabel} reps`}
+              actionLabel="Quitar"
+              onActionPress={() => setSelectedRepBucketId(null)}
+            />
+          ) : null}
+          {error && modules ? (
+            <NoticeBanner
+              tone="amber"
+              icon="alert-circle-outline"
+              message="No pudimos actualizar tu progreso."
               actionLabel="Reintentar"
               onActionPress={() => void loadModules()}
             />
-          </View>
-        </SafeAreaView>
-      </TabScreenWrapper>
-    );
-  }
+          ) : null}
+        </Animated.View>
 
-  const pageHeader = (
-    <View style={styles.pageHeaderShell}>
-      <View
-        style={[
-          styles.pageHeader,
-          { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-          isTablet ? styles.pageHeaderTablet : null,
-        ]}
-      >
-        <View style={styles.screenIntroRow}>
-          <View style={styles.screenIntro}>
-            <Text style={styles.screenEyebrow}>Entrenamiento</Text>
-            <Text style={styles.screenTitle}>Progreso</Text>
-            <Text style={styles.screenSubtitle}>Tu rendimiento, constancia y récords.</Text>
-          </View>
-          <ProfileShortcutButton />
-        </View>
-        <ProgressTabs value={activeTab} onChange={handleTabChange} />
-        <ProgressFilters
-          range={range}
-          scope={analyticsScopeKind}
-          scopeLabel={modules.context.scope_label}
-          programName={modules.program_scope?.macrocycle_name ?? programName}
-          onRangeChange={setRange}
-          onScopeChange={handleScopeChange}
-        />
-        {historicalContextNavigator}
-        {analyticsScopeKind === 'range' && selectedRepBucketId && selectedRepBucketLabel ? (
-          <View style={styles.filterBanner}>
-            <Ionicons name="funnel-outline" size={16} color={theme.colors.primary} />
-            <Text style={styles.filterBannerText}>Filtrando por {selectedRepBucketLabel} reps.</Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              style={styles.inlineBannerAction}
-              onPress={() => setSelectedRepBucketId(null)}
-            >
-              <Text style={styles.inlineBannerActionText}>Limpiar</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-        {isLoading ? (
-          <View style={styles.loadingBanner} accessibilityLiveRegion="polite">
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.inlineBannerText}>Actualizando progreso…</Text>
-          </View>
-        ) : null}
         {activeTab === 'overview' ? (
-          <>
-            <ProgressSummaryGrid modules={modules} repBucketId={selectedRepBucketId} />
-            <TrainingConsistencyCard refreshKey={modules} />
-          </>
+          <Animated.View style={modulesDimStyle}>
+            <View style={styles.block}>
+              {modules ? (
+                <Animated.View entering={getDataEntryAnimation(0)}>
+                  <ProgressSummaryGrid
+                    modules={modules}
+                    repBucketId={modulesView.repBucketId}
+                    plannedSessions={plannedSessions}
+                  />
+                </Animated.View>
+              ) : (
+                <Animated.View entering={getEntryAnimation(140)}>
+                  <ProgressSummarySkeleton />
+                </Animated.View>
+              )}
+            </View>
+            <Animated.View entering={getEntryAnimation(200)} style={styles.block}>
+              <TrainingConsistencyCard
+                days={dailyActivity.days}
+                hasLoaded={dailyActivity.hasLoaded}
+                hasFailed={dailyActivity.workoutsFailed}
+                onRetry={() => void dailyActivity.reload()}
+                width={cardWidth}
+              />
+            </Animated.View>
+          </Animated.View>
         ) : null}
+
         {activeTab === 'exercises' ? (
-          <View style={styles.utilityStack}>
+          <View style={styles.tabTools}>
             <SearchField
               value={exerciseSearchQuery}
               placeholder="Buscar ejercicio"
               onChangeText={setExerciseSearchQuery}
               onClear={() => setExerciseSearchQuery('')}
             />
-            <WorkoutAnalyticsPillSelector
-              items={EXERCISE_SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+            <AuroraSegmented
+              options={EXERCISE_SORT_OPTIONS}
               value={exerciseSort}
-              onChange={handleExerciseSortChange}
+              onChange={setExerciseSort}
+              accessibilityLabel="Ordenar ejercicios"
             />
+            <View style={styles.listMeta}>
+              <Text style={[styles.sectionTitle, auroraFont('extrabold'), { color: aurora.text }]}>Lista completa</Text>
+              <Text style={[auroraType.caption, { color: aurora.faint }]}>
+                {selectedRepBucketLabel
+                  ? `${filteredExercises.length} de ${exerciseItems.length} con series de ${selectedRepBucketLabel} reps`
+                  : `${filteredExercises.length} de ${exerciseItems.length} ejercicios`}
+              </Text>
+            </View>
           </View>
         ) : null}
+
         {activeTab === 'history' ? (
-          <WorkoutAnalyticsPillSelector
-            items={HISTORY_STATUS_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-            value={historyStatus}
-            onChange={handleHistoryStatusChange}
-          />
-        ) : null}
-        {error ? (
-          <View style={styles.inlineBanner}>
-            <Ionicons name="alert-circle-outline" size={16} color={theme.colors.warning} />
-            <Text style={styles.inlineBannerText}>{error}</Text>
-            <TouchableOpacity accessibilityRole="button" onPress={() => void loadModules()}>
-              <Text style={styles.inlineBannerActionText}>Reintentar</Text>
-            </TouchableOpacity>
+          <View style={styles.tabTools}>
+            <ProgressChips
+              options={HISTORY_STATUS_OPTIONS}
+              value={historyStatus}
+              onChange={setHistoryStatus}
+              accessibilityLabel="Estado de las sesiones"
+            />
+            <View style={styles.listMeta}>
+              <Text style={[styles.sectionTitle, auroraFont('extrabold'), { color: aurora.text }]}>Historial completo</Text>
+              <Text style={[auroraType.caption, { color: aurora.faint }]}>
+                {historyPage
+                  ? `${historyPage.total} ${historyPage.total === 1 ? 'sesión' : 'sesiones'}${selectedRepBucketLabel ? ` con series de ${selectedRepBucketLabel} reps` : ''}`
+                  : 'Cargando sesiones…'}
+              </Text>
+            </View>
           </View>
         ) : null}
       </View>
     </View>
   );
 
+  const refreshControl = (refreshing: boolean) => (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={handleRefresh}
+      tintColor={aurora.tones.blue.tone}
+      progressViewOffset={insets.top}
+    />
+  );
+
+  const renderOverviewSection = ({ item, index }: { item: WorkoutAnalyticsSection; index: number }) => {
+    const entering = getDataEntryAnimation(120 + index * 70);
+
+    if (item.kind === 'snapshot') {
+      return (
+        <Animated.View entering={entering} style={[shell, styles.block, modulesDimStyle]}>
+          <WorkoutAnalyticsSnapshotCard section={item} />
+        </Animated.View>
+      );
+    }
+
+    if (item.kind === 'trend_series') {
+      const trendSection = item as WorkoutAnalyticsTrendSeriesSection;
+      return (
+        <Animated.View entering={entering} style={[shell, styles.block, modulesDimStyle]}>
+          {trendSection.chart_variant === 'stacked_rep_ranges' ? (
+            <RepRangeVolumeChart
+              points={trendSection.rep_range_points}
+              repRanges={trendSection.rep_ranges}
+              selectedBucketId={selectedRepBucketId}
+              onSelectBucket={analyticsScopeKind === 'range' ? setSelectedRepBucketId : undefined}
+              onEditRanges={() => setIsRangeEditorVisible(true)}
+            />
+          ) : (
+            <AuroraCard padding={18} radius={24}>
+              <Text style={[auroraType.headline, { color: aurora.text }]}>{trendSection.title}</Text>
+              {trendSection.subtitle ? (
+                <Text style={[auroraType.caption, styles.cardSubtitle, { color: aurora.faint }]}>
+                  {trendSection.subtitle}
+                </Text>
+              ) : null}
+              <View style={styles.cardChart}>
+                {trendSection.semantic_kind === 'daily_session_comparison' ? (
+                  <WorkoutAnalyticsDailySessionComparisonChart section={trendSection} contentWidth={chartWidth} />
+                ) : (
+                  <WorkoutAnalyticsLineTrendChart section={trendSection} contentWidth={chartWidth} />
+                )}
+              </View>
+            </AuroraCard>
+          )}
+        </Animated.View>
+      );
+    }
+
+    if (item.kind === 'comparison_group') {
+      return (
+        <Animated.View entering={entering} style={[shell, styles.block, modulesDimStyle]}>
+          <WorkoutAnalyticsComparisonGroup section={item as WorkoutAnalyticsComparisonGroupSection} />
+        </Animated.View>
+      );
+    }
+
+    if (item.kind === 'exercise_highlights') {
+      const exerciseHighlights = item as WorkoutAnalyticsExerciseHighlightsSection;
+      return (
+        <Animated.View entering={entering} style={[shell, styles.blockLarge, modulesDimStyle]}>
+          <SectionHeading
+            title="Ejercicios clave"
+            actionLabel={exerciseHighlights.items.length ? 'Ver todos' : undefined}
+            onActionPress={exerciseHighlights.items.length ? () => handleTabChange('exercises') : undefined}
+          />
+          {exerciseHighlights.items.length ? (
+            <ProgressListGroup>
+              {exerciseHighlights.items.slice(0, 4).map((exercise) => (
+                <ProgressExerciseRow
+                  key={exercise.exercise_id}
+                  exercise={exercise}
+                  onPress={() => openExerciseDetail(exercise.exercise_id)}
+                />
+              ))}
+            </ProgressListGroup>
+          ) : (
+            <EmptyStateCard
+              icon="analytics-outline"
+              title="Sin ejercicios destacados"
+              description={
+                analyticsScopeKind === 'range'
+                  ? selectedRepBucketLabel
+                    ? `Todavía no hay ejercicios con series de ${selectedRepBucketLabel} reps en este periodo.`
+                    : 'Completa más sesiones o elige un periodo más amplio.'
+                  : modules?.context.empty_message ?? 'Todavía no hay suficientes datos en esta parte del plan.'
+              }
+            />
+          )}
+        </Animated.View>
+      );
+    }
+
+    const recentSection = item as WorkoutAnalyticsRecentSessionsSection;
+    return (
+      <Animated.View entering={entering} style={[shell, styles.blockLarge, modulesDimStyle]}>
+        <SectionHeading
+          title="Sesiones recientes"
+          actionLabel={analyticsScopeKind === 'range' && recentSection.items.length ? 'Historial' : undefined}
+          onActionPress={
+            analyticsScopeKind === 'range' && recentSection.items.length
+              ? () => handleTabChange('history')
+              : undefined
+          }
+        />
+        {recentSection.items.length ? (
+          <ProgressListGroup>
+            {recentSection.items.slice(0, 3).map((workout) => (
+              <ProgressSessionRow
+                key={workout.workout_log_id}
+                workout={workout}
+                onPress={() => router.push(`/workout/${workout.workout_log_id}`)}
+              />
+            ))}
+          </ProgressListGroup>
+        ) : (
+          <EmptyStateCard
+            icon="barbell-outline"
+            title="Sin sesiones recientes"
+            description={
+              selectedRepBucketLabel
+                ? `No hay sesiones con series de ${selectedRepBucketLabel} reps en este periodo.`
+                : 'Tus sesiones aparecerán aquí en cuanto registres entrenamientos.'
+            }
+          />
+        )}
+      </Animated.View>
+    );
+  };
+
+  const overviewEmpty = modules ? (
+    <View style={[shell, styles.block]}>
+      <EmptyStateCard
+        icon={overviewEmptyState.icon}
+        title={overviewEmptyState.title}
+        description={overviewEmptyState.description}
+      />
+    </View>
+  ) : error ? (
+    <View style={[shell, styles.block]}>
+      <EmptyStateCard
+        icon="cloud-offline-outline"
+        title="No pudimos cargar tu progreso"
+        description={error}
+        actionLabel="Reintentar"
+        onActionPress={() => void loadModules()}
+      />
+    </View>
+  ) : (
+    <View style={[shell, styles.block, styles.skeletonStack]}>
+      <Skeleton width="100%" height={330} borderRadius={24} />
+      <Skeleton width="45%" height={18} borderRadius={8} />
+      <ListSkeleton rows={4} />
+    </View>
+  );
+
+  const muscleSubtitle =
+    weeklyMuscles.plannedSets > 0 ? `Esta semana · ${weeklyMuscles.plannedSets} series del plan` : 'Esta semana';
+
   return (
     <TabScreenWrapper>
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <ProgressBackdrop />
+      <View style={[styles.container, { backgroundColor: aurora.ground }]}>
         {activeTab === 'overview' ? (
           <FlatList
             data={overviewSections}
@@ -1382,200 +1487,40 @@ export default function WorkoutsScreen() {
             initialNumToRender={10}
             removeClippedSubviews={Platform.OS === 'android'}
             style={styles.list}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: contentInsetBottom + spacing.lg },
-            ]}
+            contentContainerStyle={{ paddingBottom: contentInsetBottom + spacing.lg }}
             ListHeaderComponent={pageHeader}
             showsVerticalScrollIndicator={false}
-            onScroll={tabBarScroll.onScroll}
+            onScroll={handleScroll}
             scrollEventThrottle={tabBarScroll.scrollEventThrottle}
-            refreshControl={(
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                tintColor={theme.colors.primary}
-              />
-            )}
-            renderItem={({ item }) => {
-              const shellStyle = [
-                styles.sectionShell,
-                { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-              ];
-
-              if (item.kind === 'snapshot') {
-                return (
-                  <View style={shellStyle}>
-                    <WorkoutAnalyticsSnapshotCard section={item} />
-                  </View>
-                );
-              }
-
-              if (item.kind === 'trend_series') {
-                const trendSection = item as WorkoutAnalyticsTrendSeriesSection;
-                return (
-                  <View style={shellStyle}>
-                    <Card style={styles.featureCard} padding="lg">
-                      <View style={styles.featureCardHeader}>
-                        <View style={styles.sectionHeaderCopy}>
-                          <Text style={styles.sectionTitle}>
-                            {trendSection.chart_variant === 'stacked_rep_ranges' ? 'Volumen por rango de reps' : trendSection.title}
-                          </Text>
-                          {trendSection.chart_variant === 'stacked_rep_ranges' ? (
-                            <Text style={styles.sectionSubtitle}>Toneladas por semana · repeticiones × peso</Text>
-                          ) : trendSection.subtitle ? (
-                            <Text style={styles.sectionSubtitle}>{trendSection.subtitle}</Text>
-                          ) : null}
-                        </View>
-
-                        {trendSection.chart_variant === 'stacked_rep_ranges' ? (
-                          <TouchableOpacity
-                            style={styles.editButton}
-                            activeOpacity={0.86}
-                            onPress={() => setIsRangeEditorVisible(true)}
-                          >
-                            <Ionicons name="options-outline" size={16} color={theme.colors.primary} />
-                            <Text style={styles.editButtonText}>Rangos</Text>
-                          </TouchableOpacity>
-                        ) : null}
-                      </View>
-
-                      {trendSection.chart_variant === 'stacked_rep_ranges' ? (
-                        <RepRangeVolumeChart
-                          points={trendSection.rep_range_points}
-                          repRanges={trendSection.rep_ranges}
-                          contentWidth={chartWidth}
-                          selectedBucketId={selectedRepBucketId}
-                          onSelectBucket={analyticsScopeKind === 'range' ? setSelectedRepBucketId : undefined}
-                        />
-                      ) : trendSection.semantic_kind === 'daily_session_comparison' ? (
-                        <WorkoutAnalyticsDailySessionComparisonChart
-                          section={trendSection}
-                          contentWidth={chartWidth}
-                        />
-                      ) : (
-                        <WorkoutAnalyticsLineTrendChart section={trendSection} contentWidth={chartWidth} />
-                      )}
-                    </Card>
-                  </View>
-                );
-              }
-
-              if (item.kind === 'comparison_group') {
-                return (
-                  <View style={shellStyle}>
-                    <WorkoutAnalyticsComparisonGroup section={item as WorkoutAnalyticsComparisonGroupSection} />
-                  </View>
-                );
-              }
-
-              if (item.kind === 'exercise_highlights') {
-                const exerciseHighlights = item as WorkoutAnalyticsExerciseHighlightsSection;
-                return (
-                  <View style={[styles.sectionBlock, shellStyle]}>
-                    <SectionHeading
-                      title="Ejercicios clave"
-                      actionLabel={exerciseHighlights.items.length ? 'Ver todos' : undefined}
-                      onActionPress={exerciseHighlights.items.length ? () => handleTabChange('exercises') : undefined}
-                    />
-
-                    {exerciseHighlights.items.length ? (
-                      <View style={styles.compactList}>
-                        {exerciseHighlights.items.slice(0, 4).map((exercise) => (
-                          <ProgressExerciseRow
-                            key={exercise.exercise_id}
-                            exercise={exercise}
-                            onPress={() => openExerciseDetail(exercise.exercise_id)}
-                          />
-                        ))}
-                      </View>
-                    ) : (
-                      <EmptyStateCard
-                        icon="analytics-outline"
-                        title="Sin ejercicios destacados"
-                        description={
-                          analyticsScopeKind === 'range'
-                            ? selectedRepBucketLabel
-                              ? `Todavía no hay movimientos con sets en ${selectedRepBucketLabel} dentro de esta ventana.`
-                              : 'Completa más sesiones o cambia la ventana temporal para recuperar progreso.'
-                            : modules.context.empty_message ??
-                              'Todavía no hay suficiente señal dentro de este contexto programático.'
-                        }
-                      />
-                    )}
-                  </View>
-                );
-              }
-
-              const recentSection = item as WorkoutAnalyticsRecentSessionsSection;
-              return (
-                <View style={[styles.sectionBlock, shellStyle]}>
-                  <SectionHeading
-                    title="Sesiones recientes"
-                    actionLabel={
-                      analyticsScopeKind === 'range' && recentSection.items.length ? 'Historial' : undefined
+            refreshControl={refreshControl(isRefreshing)}
+            renderItem={renderOverviewSection}
+            ListEmptyComponent={overviewEmpty}
+            ListFooterComponent={
+              <View style={shell}>
+                <Animated.View style={[styles.block, modulesDimStyle]}>
+                  <ActivityChart
+                    muscleVolume={weeklyMuscles.volume}
+                    isLoading={!weeklyMuscles.hasLoaded && !weeklyMuscles.hasFailed}
+                    countSecondaryMuscles={countSecondaryMuscles}
+                    onToggleSecondary={setCountSecondaryMuscles}
+                    horizontalPadding={0}
+                    maxRows={5}
+                    collapsible
+                    subtitle={muscleSubtitle}
+                    landmarkSets={WEEKLY_LANDMARK_SETS}
+                    emptyMessage={
+                      weeklyMuscles.hasFailed
+                        ? 'No pudimos cargar las series de esta semana.'
+                        : 'Tu plan no tiene series de fuerza esta semana.'
                     }
-                    onActionPress={
-                      analyticsScopeKind === 'range' && recentSection.items.length
-                        ? () => handleTabChange('history')
-                        : undefined
-                    }
+                    onRetry={weeklyMuscles.hasFailed ? weeklyMuscles.retry : undefined}
                   />
-
-                  {recentSection.items.length ? (
-                    <View style={styles.compactList}>
-                      {recentSection.items.slice(0, 3).map((workout) => (
-                        <ProgressSessionRow
-                          key={workout.workout_log_id}
-                          workout={workout}
-                          onPress={() => router.push(`/workout/${workout.workout_log_id}`)}
-                        />
-                      ))}
-                    </View>
-                  ) : (
-                    <EmptyStateCard
-                      icon="barbell-outline"
-                      title="Sin sesiones recientes"
-                      description={
-                        selectedRepBucketLabel
-                          ? `No hay sesiones con sets en ${selectedRepBucketLabel} dentro de esta ventana.`
-                          : 'Tu historial aparecerá aquí en cuanto registres entrenamientos.'
-                      }
-                    />
-                  )}
+                </Animated.View>
+                <View style={styles.block}>
+                  <DayTypeProgressSection />
                 </View>
-              );
-            }}
-            ListEmptyComponent={(
-              <View
-                style={[
-                  styles.sectionShell,
-                  styles.emptyListWrap,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                <EmptyStateCard
-                  icon={overviewEmptyState.icon}
-                  title={overviewEmptyState.title}
-                  description={overviewEmptyState.description}
-                />
               </View>
-            )}
-            ListFooterComponent={(
-              overviewSections.length ? (
-                <View
-                  style={[
-                    styles.sectionShell,
-                    { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                  ]}
-                >
-                  <View style={styles.cardsStack}>
-                    <WeeklyMuscleVolumeCard refreshKey={modules} />
-                    <DayTypeProgressSection />
-                  </View>
-                </View>
-              ) : null
-            )}
+            }
           />
         ) : null}
 
@@ -1587,87 +1532,49 @@ export default function WorkoutsScreen() {
             initialNumToRender={10}
             removeClippedSubviews={Platform.OS === 'android'}
             style={styles.list}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: contentInsetBottom + spacing.lg },
-            ]}
-            ListHeaderComponent={(
-              <>
-                {pageHeader}
-                <View
-                  style={[
-                    styles.listMetaRow,
-                    styles.sectionShell,
-                    { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                  ]}
-                >
-                  <Text style={styles.listMetaTitle}>Lista completa</Text>
-                  <Text style={styles.listMetaText}>
-                    {selectedRepBucketLabel
-                      ? `${filteredExercises.length} de ${exerciseItems.length} ejercicios con sets en ${selectedRepBucketLabel}`
-                      : `${filteredExercises.length} de ${exerciseItems.length} ejercicios visibles`}
-                  </Text>
-                </View>
-              </>
-            )}
+            contentContainerStyle={{ paddingBottom: contentInsetBottom + spacing.lg }}
+            ListHeaderComponent={pageHeader}
             showsVerticalScrollIndicator={false}
-            onScroll={tabBarScroll.onScroll}
+            onScroll={handleScroll}
             scrollEventThrottle={tabBarScroll.scrollEventThrottle}
-            refreshControl={(
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                tintColor={theme.colors.primary}
-              />
+            refreshControl={refreshControl(isRefreshing)}
+            renderItem={({ item, index }) => (
+              <Animated.View style={[shell, index === 0 ? styles.listStart : null, modulesDimStyle]}>
+                <ProgressGroupItem position={getGroupPosition(index, filteredExercises.length)}>
+                  <ProgressExerciseRow exercise={item} showDetails onPress={() => openExerciseDetail(item.exercise_id)} />
+                </ProgressGroupItem>
+              </Animated.View>
             )}
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.sectionShell,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                <ExerciseCard
-                  exercise={item}
-                  selectedRepBucketLabel={selectedRepBucketLabel}
-                  onOpenDetail={openExerciseDetail}
-                />
-              </View>
-            )}
-            ListEmptyComponent={(
-              <View
-                style={[
-                  styles.emptyListWrap,
-                  styles.sectionShell,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                {!exerciseItems.length ? (
+            ListEmptyComponent={
+              <View style={[shell, styles.listStart]}>
+                {!modules && isLoading ? (
+                  <ListSkeleton rows={5} />
+                ) : !exerciseItems.length ? (
                   <EmptyStateCard
                     icon={analyticsScopeKind === 'range' ? 'filter-outline' : 'layers-outline'}
-                    title={analyticsScopeKind === 'range' ? 'Sin datos en este rango' : 'Sin ejercicios en este contexto'}
+                    title={analyticsScopeKind === 'range' ? 'Sin ejercicios en este periodo' : 'Sin ejercicios en esta parte del plan'}
                     description={
                       analyticsScopeKind === 'range'
                         ? selectedRepBucketLabel
-                          ? `No hay ejercicios con sets en ${selectedRepBucketLabel}. Limpia el filtro o amplía la ventana.`
-                          : 'Prueba con una ventana más amplia para recuperar progreso.'
-                        : modules.context.empty_message ??
-                          'Todavía no hay suficiente actividad para construir esta lista en el contexto actual.'
+                          ? `No hay ejercicios con series de ${selectedRepBucketLabel} reps. Quita el filtro o elige un periodo más amplio.`
+                          : 'Elige un periodo más amplio para ver tu progreso.'
+                        : modules?.context.empty_message ??
+                          'Todavía no hay suficiente actividad para armar esta lista.'
                     }
-                    actionLabel={analyticsScopeKind === 'range' ? 'Ver todo' : undefined}
+                    actionLabel={analyticsScopeKind === 'range' ? 'Ver todo el historial' : undefined}
                     onActionPress={analyticsScopeKind === 'range' ? () => setRange('all') : undefined}
                   />
                 ) : (
                   <EmptyStateCard
                     icon="search-outline"
                     title="Sin coincidencias"
-                    description="Ajusta tu búsqueda o cambia el criterio de orden."
-                    actionLabel="Limpiar"
+                    description="Prueba con otro nombre o cambia el orden."
+                    actionLabel="Borrar búsqueda"
                     onActionPress={() => setExerciseSearchQuery('')}
                   />
                 )}
               </View>
-            )}
+            }
           />
         ) : null}
 
@@ -1679,84 +1586,39 @@ export default function WorkoutsScreen() {
             initialNumToRender={10}
             removeClippedSubviews={Platform.OS === 'android'}
             style={styles.list}
-            contentContainerStyle={[
-              styles.listContent,
-              { paddingBottom: contentInsetBottom + spacing.lg },
-            ]}
-            ListHeaderComponent={(
-              <>
-                {pageHeader}
-                <View
-                  style={[
-                    styles.listMetaRow,
-                    styles.sectionShell,
-                    { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                  ]}
-                >
-                  <Text style={styles.listMetaTitle}>Historial completo</Text>
-                  <Text style={styles.listMetaText}>
-                    {selectedRepBucketLabel
-                      ? `${historyPage?.total ?? 0} sesiones con sets en ${selectedRepBucketLabel}`
-                      : `${historyPage?.total ?? 0} sesiones en la consulta actual`}
-                  </Text>
-                </View>
-              </>
-            )}
+            contentContainerStyle={{ paddingBottom: contentInsetBottom + spacing.lg }}
+            ListHeaderComponent={pageHeader}
             showsVerticalScrollIndicator={false}
-            onScroll={tabBarScroll.onScroll}
+            onScroll={handleScroll}
             scrollEventThrottle={tabBarScroll.scrollEventThrottle}
             stickySectionHeadersEnabled={false}
-            refreshControl={(
-              <RefreshControl
-                refreshing={isRefreshing || isHistoryRefreshing}
-                onRefresh={handleRefresh}
-                tintColor={theme.colors.primary}
-              />
-            )}
+            refreshControl={refreshControl(isRefreshing || isHistoryRefreshing)}
             onEndReached={handleHistoryLoadMore}
             onEndReachedThreshold={0.35}
             renderSectionHeader={({ section }) => (
-              <View
-                style={[
-                  styles.monthHeader,
-                  styles.sectionShell,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                <Text style={styles.monthHeaderText}>{section.title}</Text>
+              <View style={[shell, styles.monthHeader]}>
+                <Text style={[auroraType.label, { color: aurora.faint }]}>{section.title}</Text>
               </View>
             )}
-            renderItem={({ item }) => (
-              <View
-                style={[
-                  styles.sectionShell,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                <HistoryCard
-                  workout={item}
-                  selectedRepBucketLabel={selectedRepBucketLabel}
-                  onPress={() => router.push(`/workout/${item.workout_log_id}`)}
-                />
-              </View>
+            renderItem={({ item, index, section }) => (
+              <Animated.View style={[shell, historyDimStyle]}>
+                <ProgressGroupItem position={getGroupPosition(index, section.data.length)}>
+                  <ProgressSessionRow
+                    workout={item}
+                    showDetails
+                    onPress={() => router.push(`/workout/${item.workout_log_id}`)}
+                  />
+                </ProgressGroupItem>
+              </Animated.View>
             )}
-            ListEmptyComponent={(
-              <View
-                style={[
-                  styles.emptyListWrap,
-                  styles.sectionShell,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                {showFullHistorySpinner ? (
-                  <View style={styles.loadingHistoryWrap}>
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
-                    <Text style={styles.loadingHistoryText}>Cargando historial...</Text>
-                  </View>
+            ListEmptyComponent={
+              <View style={[shell, styles.listStart]}>
+                {showHistorySkeleton ? (
+                  <ListSkeleton rows={4} />
                 ) : historyError ? (
                   <EmptyStateCard
                     icon="cloud-offline-outline"
-                    title="No fue posible cargar el historial"
+                    title="No pudimos cargar el historial"
                     description={historyError}
                     actionLabel="Reintentar"
                     onActionPress={() => void loadHistoryPage({ reset: true })}
@@ -1764,53 +1626,50 @@ export default function WorkoutsScreen() {
                 ) : (
                   <EmptyStateCard
                     icon="calendar-clear-outline"
-                    title="Sin sesiones para este filtro"
+                    title="Sin sesiones con este filtro"
                     description={
                       analyticsScopeKind === 'range'
                         ? selectedRepBucketLabel
-                          ? `No hay sesiones con sets en ${selectedRepBucketLabel}. Limpia el filtro o amplía la ventana temporal.`
-                          : 'Prueba otro estado o amplía la ventana temporal.'
-                        : 'Prueba otro estado o cambia el contexto histórico.'
+                          ? `No hay sesiones con series de ${selectedRepBucketLabel} reps. Quita el filtro o elige un periodo más amplio.`
+                          : 'Prueba otro estado o un periodo más amplio.'
+                        : 'Prueba otro estado u otra parte del plan.'
                     }
-                    actionLabel="Ver todos"
-                    onActionPress={() => setHistoryStatus('all')}
+                    actionLabel={historyStatus !== 'all' ? 'Ver todas' : undefined}
+                    onActionPress={historyStatus !== 'all' ? () => setHistoryStatus('all') : undefined}
                   />
                 )}
               </View>
-            )}
-            ListFooterComponent={(
-              <View
-                style={[
-                  styles.historyFooter,
-                  styles.sectionShell,
-                  { maxWidth: contentWidth, paddingHorizontal: horizontalPadding },
-                ]}
-              >
-                {isHistoryLoadingMore ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : null}
+            }
+            ListFooterComponent={
+              <View style={[shell, styles.historyFooter]}>
+                {isHistoryLoadingMore ? <ActivityIndicator size="small" color={aurora.tones.blue.tone} /> : null}
                 {historyError && (historyPage?.items.length ?? 0) > 0 ? (
-                  <TouchableOpacity
-                    style={styles.retryFooterButton}
-                    activeOpacity={0.86}
+                  <Pressable
+                    accessibilityRole="button"
                     onPress={() => void loadHistoryPage({ skip: historyPage?.items.length ?? 0 })}
+                    style={[styles.retryFooterButton, { backgroundColor: aurora.surface, borderColor: aurora.border }]}
                   >
-                    <Text style={styles.retryFooterText}>Reintentar carga</Text>
-                  </TouchableOpacity>
+                    <Text style={[styles.retryFooterText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>
+                      Reintentar carga
+                    </Text>
+                  </Pressable>
                 ) : null}
               </View>
-            )}
+            }
           />
         ) : null}
 
-        <RepRangeEditorModal
-          colorsByToken={progressRepColors}
-          visible={isRangeEditorVisible}
-          repRanges={modules.preferences.rep_ranges}
-          isSaving={isSavingRanges}
-          onClose={() => setIsRangeEditorVisible(false)}
-          onSave={handleSaveRepRanges}
-        />
+        <AuroraTopScrim height={insets.top} visible={isScrolled} />
+
+        {modules ? (
+          <RepRangeEditorModal
+            visible={isRangeEditorVisible}
+            repRanges={modules.preferences.rep_ranges}
+            isSaving={isSavingRanges}
+            onClose={() => setIsRangeEditorVisible(false)}
+            onSave={handleSaveRepRanges}
+          />
+        ) : null}
         {historicalScopeKind ? (
           <WorkoutAnalyticsContextPickerModal
             visible={isContextPickerVisible}
@@ -1824,418 +1683,196 @@ export default function WorkoutsScreen() {
             onSelect={handleContextItemSelect}
           />
         ) : null}
-      </SafeAreaView>
+      </View>
     </TabScreenWrapper>
   );
 }
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: progressColors(theme).background,
-    },
-    pageHeaderShell: {
-      width: '100%',
-      alignItems: 'center',
-    },
-    pageHeader: {
-      width: '100%',
-      paddingTop: spacing.md,
-      paddingBottom: 0,
-      gap: 16,
-    },
-    pageHeaderTablet: {
-      paddingTop: spacing.lg,
-    },
-    screenIntro: {
-      flex: 1,
-      minWidth: 0,
-      gap: spacing.xs,
-    },
-    screenIntroRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'space-between',
-      gap: spacing.md,
-    },
-    screenEyebrow: {
-      fontSize: 11,
-      fontWeight: '800',
-      color: progressColors(theme).accent,
-      textTransform: 'uppercase',
-      letterSpacing: 1.3,
-    },
-    screenTitle: {
-      fontSize: 32,
-      letterSpacing: -1,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    screenSubtitle: {
-      fontSize: fontSize.sm,
-      lineHeight: 20,
-      color: theme.colors.textMuted,
-    },
-    utilityStack: {
-      gap: spacing.md,
-    },
-    loadingBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      padding: 12,
-      borderRadius: 12,
-      backgroundColor: progressColors(theme).soft,
-    },
-    searchField: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      paddingHorizontal: spacing.md,
-    },
-    searchInput: {
-      flex: 1,
-      paddingVertical: spacing.md,
-      fontSize: fontSize.base,
-      color: theme.colors.textPrimary,
-    },
-    clearButton: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surface,
-    },
-    inlineBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.isDark ? 'rgba(251, 191, 36, 0.12)' : '#fef3c7',
-      borderWidth: 1,
-      borderColor: theme.isDark ? 'rgba(251, 191, 36, 0.24)' : '#fde68a',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    inlineBannerText: {
-      flex: 1,
-      fontSize: fontSize.sm,
-      color: theme.colors.textSecondary,
-    },
-    filterBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      borderRadius: borderRadius.lg,
-      backgroundColor: theme.isDark ? 'rgba(59, 130, 246, 0.14)' : '#eff6ff',
-      borderWidth: 1,
-      borderColor: theme.isDark ? 'rgba(59, 130, 246, 0.24)' : '#bfdbfe',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    filterBannerText: {
-      flex: 1,
-      fontSize: fontSize.sm,
-      color: theme.colors.textSecondary,
-    },
-    inlineBannerAction: {
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.isDark ? 'rgba(59, 130, 246, 0.16)' : '#dbeafe',
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 6,
-    },
-    inlineBannerActionText: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.primary,
-    },
-    list: {
-      flex: 1,
-    },
-    listContent: {
-      gap: spacing.lg,
-      paddingTop: spacing.xs,
-    },
-    sectionShell: {
-      width: '100%',
-      alignSelf: 'center',
-    },
-    skeletonStatRow: {
-      flexDirection: 'row',
-      gap: spacing.md,
-    },
-    sectionBlock: {
-      gap: spacing.md,
-    },
-    sectionHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: spacing.md,
-    },
-    sectionHeaderCopy: {
-      flex: 1,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: progressColors(theme).text,
-    },
-    sectionSubtitle: {
-      marginTop: spacing.xs,
-      fontSize: 11,
-      color: progressColors(theme).muted,
-      lineHeight: 17,
-    },
-    sectionAction: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      borderRadius: borderRadius.full,
-      backgroundColor: 'transparent',
-      paddingHorizontal: 0,
-      paddingVertical: 10,
-    },
-    sectionActionText: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: progressColors(theme).accent,
-    },
-    cardsStack: {
-      gap: spacing.md,
-    },
-    compactList: {
-      borderRadius: 22,
-      overflow: 'hidden',
-      backgroundColor: progressColors(theme).surface,
-      borderWidth: 1,
-      borderColor: progressColors(theme).border,
-      ...progressShadow,
-    },
-    featureCard: {
-      borderRadius: 24,
-      backgroundColor: progressColors(theme).surface,
-      borderColor: progressColors(theme).border,
-      gap: spacing.md,
-      shadowColor: 'transparent',
-      shadowOpacity: 0,
-      shadowRadius: 0,
-      shadowOffset: { width: 0, height: 0 },
-      elevation: 0,
-    },
-    featureCardHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: 10,
-    },
-    editButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      borderRadius: 10,
-      backgroundColor: progressColors(theme).accentSoft,
-      paddingHorizontal: 10,
-      paddingVertical: 10,
-    },
-    editButtonText: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: progressColors(theme).accent,
-    },
-    historyCard: {
-      borderRadius: borderRadius.xl,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      padding: spacing.md,
-      gap: spacing.md,
-    },
-    historyTopRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: spacing.md,
-    },
-    historyTitleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.md,
-      flex: 1,
-    },
-    historyIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: borderRadius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    historyCopy: {
-      flex: 1,
-      minWidth: 0,
-    },
-    historyName: {
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    historyDate: {
-      marginTop: 2,
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      textTransform: 'capitalize',
-    },
-    historyKindBadge: {
-      marginTop: spacing.xs,
-      alignSelf: 'flex-start',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      borderRadius: borderRadius.full,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 4,
-    },
-    historyKindBadgeText: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    historyStatus: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-    },
-    historyStatsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.md,
-      paddingTop: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-    },
-    historyStat: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    historyStatText: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-    },
-    historyCardioBlock: {
-      gap: spacing.sm,
-      paddingTop: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-    },
-    historyCardioBlockPrimary: {
-      paddingTop: 0,
-      borderTopWidth: 0,
-    },
-    historyCardioHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-    historyCardioTitle: {
-      fontSize: fontSize.xs,
-      fontWeight: '800',
-      color: theme.colors.textSecondary,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    historyCardioStatsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: spacing.md,
-    },
-    emptyCard: {
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.xl,
-      paddingHorizontal: spacing.lg,
-    },
-    emptyIconWrap: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
-      backgroundColor: theme.colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    emptyTitle: {
-      fontSize: fontSize.base,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-      textAlign: 'center',
-    },
-    emptyText: {
-      fontSize: fontSize.sm,
-      lineHeight: 20,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-    },
-    listMetaRow: {
-      paddingTop: spacing.xs,
-      gap: 2,
-    },
-    listMetaTitle: {
-      fontSize: fontSize.lg,
-      fontWeight: '800',
-      color: theme.colors.textPrimary,
-    },
-    listMetaText: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    emptyListWrap: {
-      paddingTop: spacing.sm,
-    },
-    loadingHistoryWrap: {
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingVertical: spacing.xl,
-    },
-    loadingHistoryText: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    monthHeader: {
-      paddingTop: spacing.sm,
-      paddingBottom: spacing.xs,
-    },
-    monthHeaderText: {
-      fontSize: fontSize.sm,
-      fontWeight: '800',
-      color: theme.colors.textSecondary,
-      textTransform: 'capitalize',
-    },
-    historyFooter: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: spacing.md,
-      gap: spacing.sm,
-    },
-    retryFooterButton: {
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    retryFooterText: {
-      fontSize: fontSize.sm,
-      fontWeight: '700',
-      color: theme.colors.primary,
-    },
-    fullStateShell: {
-      flex: 1,
-      justifyContent: 'center',
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
+  sectionShell: {
+    width: '100%',
+    alignSelf: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    paddingTop: 26,
+    paddingHorizontal: 4,
+  },
+  headerTablet: {
+    paddingTop: spacing.md,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eyebrow: {
+    fontSize: 11,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  title: {
+    marginTop: 6,
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -1,
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14.5,
+    lineHeight: 20,
+  },
+  tabs: {
+    marginTop: 18,
+  },
+  filters: {
+    marginTop: 12,
+    gap: 12,
+  },
+  block: {
+    marginTop: 16,
+  },
+  blockLarge: {
+    marginTop: 28,
+  },
+  tabTools: {
+    marginTop: 16,
+    gap: 14,
+  },
+  listMeta: {
+    marginTop: 12,
+    paddingHorizontal: 4,
+    gap: 2,
+  },
+  listStart: {
+    marginTop: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: 6,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    lineHeight: 23,
+    letterSpacing: -0.2,
+  },
+  sectionAction: {
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  sectionActionText: {
+    fontSize: 13,
+  },
+  cardSubtitle: {
+    marginTop: 3,
+  },
+  cardChart: {
+    marginTop: 14,
+  },
+  searchField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 46,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 0,
+    fontSize: 14.5,
+  },
+  clearButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 13,
+  },
+  noticeAction: {
+    fontSize: 13,
+  },
+  emptyCard: {
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  emptyText: {
+    marginTop: 4,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+  emptyAction: {
+    marginTop: 14,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  emptyActionText: {
+    fontSize: 13.5,
+  },
+  skeletonStack: {
+    gap: 16,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 10,
+  },
+  skeletonCopy: {
+    flex: 1,
+    gap: 8,
+  },
+  monthHeader: {
+    paddingTop: 18,
+    paddingBottom: 8,
+    paddingHorizontal: 4,
+  },
+  historyFooter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  retryFooterButton: {
+    height: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  retryFooterText: {
+    fontSize: 13,
+  },
+});

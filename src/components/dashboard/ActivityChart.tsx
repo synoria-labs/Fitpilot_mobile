@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -8,111 +8,94 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withDelay,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { spacing } from '../../constants/colors';
 import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import type { MuscleVolumeResponse } from '../../types';
-import { AuroraCard, AuroraPill, IconBadge } from '../aurora';
-import { ChartSkeleton } from '../common/Skeleton';
+import { AuroraCard } from '../aurora';
+import { Skeleton } from '../common/Skeleton';
 
 const MAX_MUSCLES_SHOWN = 6;
-const SESSION_LANDMARK_MAX = 12;
+const SESSION_LANDMARK_SETS = 12;
+const KNOB_SPRING = { damping: 18, stiffness: 260, mass: 0.6 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
-const getSessionVolumeFillRatio = (effectiveSets: number) =>
-  clamp(effectiveSets / SESSION_LANDMARK_MAX, 0, 1);
-
 interface ActivityChartProps {
-  muscleVolume: MuscleVolumeResponse | null;
+  muscleVolume: Pick<MuscleVolumeResponse, 'muscles' | 'total_effective_sets'> | null;
   isLoading?: boolean;
   countSecondaryMuscles: boolean;
   onToggleSecondary: (value: boolean) => void;
-  contentWidth?: number;
   horizontalPadding?: number;
   maxRows?: number;
   collapsible?: boolean;
-  compact?: boolean;
+  title?: string;
+  /** Defaults to the effective sets of what is shown. */
+  subtitle?: string;
+  /** Effective sets that fill a bar: a session tops out lower than a whole week. */
+  landmarkSets?: number;
+  emptyMessage?: string;
+  onRetry?: () => void;
 }
 
+/** Series efectivas por músculo, con el interruptor que cuenta a los sinergistas a la mitad. */
 export const ActivityChart: React.FC<ActivityChartProps> = ({
   muscleVolume,
   isLoading = false,
   countSecondaryMuscles,
   onToggleSecondary,
-  contentWidth = 390,
   horizontalPadding = spacing.md,
   maxRows = MAX_MUSCLES_SHOWN,
   collapsible = false,
-  compact = false,
+  title = 'Series por músculo',
+  subtitle,
+  landmarkSets = SESSION_LANDMARK_SETS,
+  emptyMessage = 'Sin series para mostrar.',
+  onRetry,
 }) => {
   const aurora = useAurora();
   const [isExpanded, setIsExpanded] = useState(false);
-  // Card padding and border come off the row; a third of it leaves room for names like
-  // "Deltoides anterior" while the bars keep most of the width.
-  const rowWidth = contentWidth - horizontalPadding * 2 - 34;
-  const labelWidth = clamp(Math.round(rowWidth * 0.36), 96, 150);
 
   const allMuscles = useMemo(() => muscleVolume?.muscles ?? [], [muscleVolume]);
   const hasHiddenMuscles = collapsible && allMuscles.length > maxRows;
-  const hiddenRowsCount = Math.max(0, Math.min(MAX_MUSCLES_SHOWN, allMuscles.length) - maxRows);
-  const muscles = useMemo(() => {
-    const rows = Math.max(1, maxRows);
-    const limit = hasHiddenMuscles && isExpanded ? MAX_MUSCLES_SHOWN : rows;
-
-    return allMuscles.slice(0, limit);
-  }, [allMuscles, hasHiddenMuscles, isExpanded, maxRows]);
-
-  const outerStyle = [compact ? styles.outerCompact : styles.outer, { paddingHorizontal: horizontalPadding }];
-
-  if (isLoading) {
-    return (
-      <View style={outerStyle}>
-        <ChartSkeleton />
-      </View>
-    );
-  }
-
-  const totalSets = Math.round(muscleVolume?.total_effective_sets || 0);
-  const hasData = Boolean(muscleVolume) && muscles.length > 0;
+  const hiddenRowsCount = Math.max(0, allMuscles.length - maxRows);
+  const muscles = hasHiddenMuscles && !isExpanded ? allMuscles.slice(0, Math.max(1, maxRows)) : allMuscles;
+  // No bar overflows: a muscle above the landmark sets the scale instead.
+  const scale = Math.max(landmarkSets, ...allMuscles.map((muscle) => muscle.effective_sets));
+  const hasData = muscles.length > 0;
+  const totalSets = Math.round(muscleVolume?.total_effective_sets ?? 0);
 
   return (
-    <View style={outerStyle}>
-      <AuroraCard padding={16}>
+    <View style={{ paddingHorizontal: horizontalPadding }}>
+      <AuroraCard padding={18} radius={24}>
         <View style={styles.header}>
-          <IconBadge icon="barbell-outline" tone="blue" variant="solid" size={36} />
           <View style={styles.titleCopy}>
             <Text style={[auroraType.headline, { color: aurora.text }]} numberOfLines={1}>
-              Volumen del entrenamiento
+              {title}
             </Text>
-            <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
-              Series efectivas por músculo
+            <Text style={[auroraType.caption, styles.subtitle, { color: aurora.faint }]} numberOfLines={1}>
+              {subtitle ?? `${totalSets} series efectivas`}
             </Text>
           </View>
-          {hasData ? <AuroraPill label={`${totalSets} series`} tone="blue" /> : null}
+          <SynergistSwitch value={countSecondaryMuscles} onChange={onToggleSecondary} />
         </View>
 
-        {hasData ? (
+        {isLoading && !hasData ? (
+          <View style={styles.bars}>
+            {[0.75, 0.6, 0.5, 0.4, 0.3].map((ratio) => (
+              <View key={ratio} style={styles.skeletonRow}>
+                <Skeleton width={`${Math.round(ratio * 100)}%`} height={12} borderRadius={6} />
+                <Skeleton width="100%" height={8} borderRadius={4} />
+              </View>
+            ))}
+          </View>
+        ) : hasData ? (
           <>
-            <View style={[styles.toggleRow, { borderColor: aurora.border }]}>
-              <Text style={[styles.toggleLabel, auroraFont('semibold'), { color: aurora.muted }]} numberOfLines={1}>
-                Contar sinergistas (×0.5)
-              </Text>
-              <Switch
-                accessibilityLabel="Contar el volumen de los músculos sinergistas a la mitad"
-                value={countSecondaryMuscles}
-                onValueChange={onToggleSecondary}
-                trackColor={{ false: aurora.surface3, true: aurora.tones.blue.tone }}
-                thumbColor="#ffffff"
-                ios_backgroundColor={aurora.surface3}
-                style={styles.switch}
-              />
-            </View>
-
             <View style={styles.bars}>
               {muscles.map((muscle, index) => (
-                <MuscleBar key={muscle.muscle_name} muscle={muscle} index={index} labelWidth={labelWidth} />
+                <MuscleBar key={muscle.muscle_name} muscle={muscle} index={index} scale={scale} />
               ))}
             </View>
 
@@ -127,20 +110,19 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
                 <Text style={[styles.expandText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>
                   {isExpanded ? 'Ver menos' : `Ver ${hiddenRowsCount} más`}
                 </Text>
-                <Ionicons
-                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={15}
-                  color={aurora.tones.blue.ink}
-                />
+                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={15} color={aurora.tones.blue.ink} />
               </Pressable>
             ) : null}
           </>
         ) : (
           <View style={[styles.emptyState, { backgroundColor: aurora.surface2 }]}>
             <Ionicons name="bar-chart-outline" size={18} color={aurora.faint} />
-            <Text style={[auroraType.caption, { color: aurora.faint }]}>
-              Sin datos de volumen para esta sesión
-            </Text>
+            <Text style={[auroraType.caption, styles.emptyText, { color: aurora.faint }]}>{emptyMessage}</Text>
+            {onRetry ? (
+              <Pressable accessibilityRole="button" hitSlop={8} onPress={onRetry}>
+                <Text style={[styles.expandText, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>Reintentar</Text>
+              </Pressable>
+            ) : null}
           </View>
         )}
       </AuroraCard>
@@ -148,16 +130,52 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
   );
 };
 
+const SynergistSwitch = ({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) => {
+  const aurora = useAurora();
+  const reduceMotion = useReducedMotion();
+  const knob = useSharedValue(value ? 1 : 0);
+
+  useEffect(() => {
+    knob.value = reduceMotion ? (value ? 1 : 0) : withSpring(value ? 1 : 0, KNOB_SPRING);
+  }, [knob, reduceMotion, value]);
+
+  const knobStyle = useAnimatedStyle(() => ({ transform: [{ translateX: knob.value * 14 }] }));
+  const onStyle = useAnimatedStyle(() => ({ opacity: knob.value }));
+
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel="Contar a los sinergistas a la mitad"
+      accessibilityState={{ checked: value }}
+      onPress={() => onChange(!value)}
+      style={[styles.switchButton, { backgroundColor: aurora.surface2, borderColor: aurora.border }]}
+    >
+      <Text style={[styles.switchLabel, auroraFont('bold'), { color: aurora.muted }]}>Sinergistas ×0.5</Text>
+      <View style={[styles.switchTrack, { backgroundColor: aurora.surface3 }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, onStyle]}>
+          <LinearGradient
+            colors={aurora.tones.blue.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, styles.switchFill]}
+          />
+        </Animated.View>
+        <Animated.View style={[styles.switchKnob, knobStyle]} />
+      </View>
+    </Pressable>
+  );
+};
+
 interface MuscleBarProps {
   muscle: { muscle_name: string; display_name: string; effective_sets: number };
   index: number;
-  labelWidth: number;
+  scale: number;
 }
 
-const MuscleBar: React.FC<MuscleBarProps> = ({ muscle, index, labelWidth }) => {
+const MuscleBar: React.FC<MuscleBarProps> = ({ muscle, index, scale }) => {
   const aurora = useAurora();
   const reduceMotion = useReducedMotion();
-  const ratio = getSessionVolumeFillRatio(muscle.effective_sets);
+  const ratio = clamp(muscle.effective_sets / scale, 0, 1);
   const fill = useSharedValue(reduceMotion ? ratio : 0);
   const hasAnimatedRef = useRef(false);
 
@@ -175,20 +193,16 @@ const MuscleBar: React.FC<MuscleBarProps> = ({ muscle, index, labelWidth }) => {
   }, [fill, index, ratio, reduceMotion]);
 
   const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
-  const value = muscle.effective_sets.toFixed(1);
+  const value = muscle.effective_sets.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   return (
-    <View
-      accessible
-      accessibilityLabel={`${muscle.display_name}: ${value} series efectivas`}
-      style={styles.barRow}
-    >
-      <Text
-        style={[styles.muscleLabel, auroraFont('semibold'), { width: labelWidth, color: aurora.text }]}
-        numberOfLines={1}
-      >
-        {muscle.display_name}
-      </Text>
+    <View accessible accessibilityLabel={`${muscle.display_name}: ${value} series efectivas`}>
+      <View style={styles.barLabels}>
+        <Text style={[styles.muscleLabel, auroraFont('semibold'), { color: aurora.text }]} numberOfLines={1}>
+          {muscle.display_name}
+        </Text>
+        <Text style={[styles.valueLabel, auroraFont('extrabold'), { color: aurora.text }]}>{value}</Text>
+      </View>
       <View style={[styles.track, { backgroundColor: aurora.surface3 }]}>
         <Animated.View style={[styles.fill, fillStyle]}>
           <LinearGradient
@@ -199,18 +213,11 @@ const MuscleBar: React.FC<MuscleBarProps> = ({ muscle, index, labelWidth }) => {
           />
         </Animated.View>
       </View>
-      <Text style={[styles.valueLabel, auroraFont('extrabold'), { color: aurora.text }]}>{value}</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  outer: {
-    marginVertical: spacing.md,
-  },
-  outerCompact: {
-    marginVertical: spacing.sm,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -220,51 +227,71 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  toggleRow: {
+  subtitle: {
+    marginTop: 3,
+  },
+  switchButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 12,
-    paddingTop: 8,
-    borderTopWidth: 1,
+    gap: 8,
+    height: 36,
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  toggleLabel: {
-    flex: 1,
-    fontSize: 12.5,
+  switchLabel: {
+    fontSize: 12,
   },
-  switch: {
-    transform: [{ scale: 0.86 }],
-    marginRight: -4,
+  switchTrack: {
+    width: 34,
+    height: 20,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  switchFill: {
+    borderRadius: 10,
+  },
+  switchKnob: {
+    position: 'absolute',
+    top: 2,
+    left: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    boxShadow: '0px 1px 3px 0px rgba(15, 23, 42, 0.3)',
   },
   bars: {
-    gap: 10,
-    marginTop: 6,
+    gap: 12,
+    marginTop: 16,
   },
-  barRow: {
+  skeletonRow: {
+    gap: 6,
+  },
+  barLabels: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    gap: 12,
   },
   muscleLabel: {
+    flexShrink: 1,
     fontSize: 13,
   },
+  valueLabel: {
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+  },
   track: {
-    flex: 1,
-    height: 10,
-    borderRadius: 5,
+    height: 8,
+    marginTop: 6,
+    borderRadius: 4,
     overflow: 'hidden',
   },
   fill: {
     height: '100%',
-    borderRadius: 5,
+    borderRadius: 4,
     overflow: 'hidden',
-  },
-  valueLabel: {
-    minWidth: 30,
-    fontSize: 13,
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
   },
   expandButton: {
     flexDirection: 'row',
@@ -272,7 +299,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: 4,
     minHeight: 36,
-    marginTop: 6,
+    marginTop: 8,
   },
   expandText: {
     fontSize: 13,
@@ -284,6 +311,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 14,
     borderRadius: 16,
+  },
+  emptyText: {
+    flex: 1,
   },
 });
 

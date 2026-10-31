@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Polyline, Rect } from 'react-native-svg';
 import { borderRadius, fontSize, spacing } from '../../constants/colors';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
+import { getAuroraTokens, getRepRangeColor } from '../../theme/aurora';
 import type { ExerciseDetailMetric, ExerciseTrendPoint, DisplayHints, RepRangeBucket } from '../../types';
 import { formatLocalDate } from '../../utils/date';
 import { formatDurationSeconds } from '../../utils/formatters';
@@ -14,7 +15,6 @@ import {
   buildPolylinePoints,
   formatVolumeKg,
   formatWeightKg,
-  getRepRangeColor,
 } from '../../utils/workoutAnalytics';
 
 interface ExerciseTrendChartProps {
@@ -162,6 +162,7 @@ export const ExerciseTrendChart: React.FC<ExerciseTrendChartProps> = ({
   displayHints,
 }) => {
   const { theme } = useAppTheme();
+  const aurora = getAuroraTokens(theme.isDark);
   const styles = useThemedStyles(createStyles);
   const config = METRIC_CONFIG[metric] ?? METRIC_CONFIG.best_weight;
   // Sessions of a plank logged in reps, before holds could be timed, have no seconds: leave them
@@ -262,7 +263,7 @@ export const ExerciseTrendChart: React.FC<ExerciseTrendChartProps> = ({
                         width={20}
                         height={segmentHeight}
                         rx={6}
-                        fill={getRepRangeColor(bucket.color_token)}
+                        fill={getRepRangeColor(aurora, bucketIndex)}
                         fillOpacity={theme.isDark ? 0.34 : 0.28}
                       />
                     );

@@ -13,14 +13,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../common';
 import { borderRadius, fontSize, spacing } from '../../constants/colors';
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
-import type { RepRangeBucket, WorkoutAnalyticsColorToken } from '../../types';
+import { getAuroraTokens, getRepRangeColor } from '../../theme/aurora';
+import type { RepRangeBucket } from '../../types';
 import {
   RepRangeDraft,
   buildNextRepRangeDraft,
   buildRepRangeDraftLabel,
   cloneRepRangeDrafts,
   draftsToRepRanges,
-  getRepRangeColor,
   validateRepRangeDrafts,
 } from '../../utils/workoutAnalytics';
 
@@ -30,7 +30,6 @@ interface RepRangeEditorModalProps {
   isSaving: boolean;
   onClose: () => void;
   onSave: (repRanges: RepRangeBucket[]) => Promise<void>;
-  colorsByToken?: Record<WorkoutAnalyticsColorToken, string>;
 }
 
 export const RepRangeEditorModal: React.FC<RepRangeEditorModalProps> = ({
@@ -39,9 +38,9 @@ export const RepRangeEditorModal: React.FC<RepRangeEditorModalProps> = ({
   isSaving,
   onClose,
   onSave,
-  colorsByToken,
 }) => {
   const { theme } = useAppTheme();
+  const aurora = getAuroraTokens(theme.isDark);
   const styles = useThemedStyles(createStyles);
   const [drafts, setDrafts] = useState<RepRangeDraft[]>(() => cloneRepRangeDrafts(repRanges));
 
@@ -110,7 +109,7 @@ export const RepRangeEditorModal: React.FC<RepRangeEditorModalProps> = ({
                     <View
                       style={[
                         styles.colorDot,
-                        { backgroundColor: colorsByToken?.[draft.colorToken] ?? getRepRangeColor(draft.colorToken) },
+                        { backgroundColor: getRepRangeColor(aurora, index) },
                       ]}
                     />
                     <Text style={styles.rangeLabel}>{buildRepRangeDraftLabel(draft)}</Text>
