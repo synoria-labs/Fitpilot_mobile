@@ -245,16 +245,20 @@ export const getBestDailyStreak = (cells: ActivityCell[], qualifies: (cell: Acti
   return best;
 };
 
+/** Sesiones completadas en cada semana (columna) de la cuadrícula, de la más antigua a la actual. */
+export const getWeeklySessionCounts = (model: ActivityGridModel) =>
+  Array.from({ length: model.weeks }, (_, week) =>
+    model.cells
+      .slice(week * 7, week * 7 + 7)
+      .reduce((total, cell) => total + (isTracked(cell) ? cell.activity?.sessions ?? 0 : 0), 0),
+  );
+
 /**
  * Racha de entreno por semanas: los días de descanso no la rompen. La semana en curso solo suma
  * cuando ya llegó al mínimo; mientras tanto no corta la racha.
  */
 export const getCurrentWeeklyStreak = (model: ActivityGridModel, minSessions = 3) => {
-  const counts = Array.from({ length: model.weeks }, (_, week) =>
-    model.cells
-      .slice(week * 7, week * 7 + 7)
-      .reduce((total, cell) => total + (isTracked(cell) ? cell.activity?.sessions ?? 0 : 0), 0),
-  );
+  const counts = getWeeklySessionCounts(model);
   let week = model.weeks - 1;
   if (week >= 0 && counts[week] < minSessions) {
     week -= 1;
@@ -377,6 +381,30 @@ export const describeActivityCell = (cell: ActivityCell): ActivityDayDetail => {
       },
       { key: 'goals', label: 'Metas', value: blank ? '—' : `${goals} de 4` },
     ],
+  };
+};
+
+/** El día elegido en la cuadrícula de Entreno: la fecha y la sesión, o descanso. */
+export const describeTrainingCell = (cell: ActivityCell) => {
+  const title = formatActivityDate(cell.dateKey);
+  const activity = cell.activity;
+  if (cell.isFuture) {
+    return { title, detail: 'Aún no llega' };
+  }
+  if (!activity || activity.sessions <= 0) {
+    return { title, detail: cell.isToday ? 'Sin sesión todavía' : 'Descanso' };
+  }
+  const name = activity.trainingNames[0] ?? 'Sesión';
+  const others = activity.sessions - 1;
+  return {
+    title,
+    detail: [
+      others > 0 ? `${name} y ${others} ${others === 1 ? 'sesión más' : 'sesiones más'}` : name,
+      activity.minutes > 0 ? `${Math.round(activity.minutes)} min` : null,
+      activity.volumeKg > 0 ? formatTons(activity.volumeKg) : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
   };
 };
 

@@ -1,5 +1,6 @@
 export { AuroraBackdrop, type AuroraPalette } from './AuroraBackdrop';
 export { AuroraCard } from './AuroraCard';
+export { AuroraGlass, AuroraGlassLayer } from './AuroraGlass';
 export { AuroraPill } from './AuroraPill';
 export { AuroraSegmented, type AuroraSegmentOption } from './AuroraSegmented';
 export { AuroraTopScrim } from './AuroraTopScrim';

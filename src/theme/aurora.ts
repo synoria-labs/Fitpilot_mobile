@@ -75,6 +75,8 @@ export type AuroraTokens = {
   auroraOpacity: number;
   tones: Record<AuroraTone, AuroraToneSet>;
   heat: Record<AuroraHeatMode, AuroraHeatRamp>;
+  /** Rep-range colours by position, lowest reps first; validated for colour blindness. */
+  reps: readonly string[];
 };
 
 /** Lean of the selected day's capsule in the week strips. The today card's chamfer keeps its own, steeper cut. */
@@ -117,6 +119,7 @@ const LIGHT: AuroraTokens = {
     entreno: ['#e9eef5', '#c9dcff', '#93b9ff', '#5089f6', '#1e4fd8'],
     pasos: ['#e9eef5', '#c6f0dc', '#86dcb4', '#34b984', '#0b7a55'],
   },
+  reps: ['#2563eb', '#0d9488', '#d97706', '#db2777', '#7c3aed', '#64748b'],
 };
 
 const DARK: AuroraTokens = {
@@ -151,9 +154,14 @@ const DARK: AuroraTokens = {
     entreno: ['#16233a', '#1b3866', '#22529f', '#3b7bea', '#93c5fd'],
     pasos: ['#16233a', '#0f3b33', '#13624f', '#1fa37a', '#6ee7b7'],
   },
+  reps: ['#3b82f6', '#0d9488', '#d97706', '#db2777', '#a78bfa', '#94a3b8'],
 };
 
 export const getAuroraTokens = (isDark: boolean): AuroraTokens => (isDark ? DARK : LIGHT);
+
+/** Colour of the rep range at `index` in the person's list; the stored colour token is not used. */
+export const getRepRangeColor = (aurora: AuroraTokens, index: number) =>
+  aurora.reps[((index % aurora.reps.length) + aurora.reps.length) % aurora.reps.length];
 
 export const useAurora = (): AuroraTokens => {
   const { theme } = useAppTheme();
