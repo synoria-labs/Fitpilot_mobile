@@ -385,6 +385,41 @@ const buildSessionCardState = ({
   };
 };
 
+/** Every session the plan schedules, in timeline order, rest markers included. */
+export const getPlannedSessions = (timeline: DashboardTimeline | null | undefined): ProgramTimelineSession[] =>
+  (timeline?.planned_days ?? []).flatMap((day) => day.sessions ?? []);
+
+/** A session the plan schedules for training, not a rest marker. */
+export const isPlannedTrainingSession = (session: ProgramTimelineSession) => session.planned_status !== 'rest';
+
+/** Training sessions the plan schedules between two dates, both included. */
+export const countPlannedSessions = (sessions: ProgramTimelineSession[], startKey: string, endKey: string) =>
+  sessions.filter(
+    (session) =>
+      isPlannedTrainingSession(session) &&
+      session.scheduled_date_key >= startKey &&
+      session.scheduled_date_key <= endKey,
+  ).length;
+
+export type PlannedTrainingDay = { id: string; name: string; totalSets: number };
+
+/** Training days the plan puts on these dates, once each. */
+export const getPlannedTrainingDays = (
+  sessions: ProgramTimelineSession[],
+  dateKeys: readonly string[],
+): PlannedTrainingDay[] => {
+  const keys = new Set(dateKeys);
+  const days = new Map<string, PlannedTrainingDay>();
+  sessions
+    .filter((session) => isPlannedTrainingSession(session) && keys.has(session.scheduled_date_key))
+    .forEach(({ training_day: day }) => {
+      if (!days.has(day.id)) {
+        days.set(day.id, { id: day.id, name: day.name, totalSets: day.total_sets });
+      }
+    });
+  return Array.from(days.values());
+};
+
 export const buildProgramTimelineModel = (
   timeline: DashboardTimeline | null | undefined,
 ): ProgramTimelineModel => {
@@ -402,7 +437,7 @@ export const buildProgramTimelineModel = (
   return {
     plannedDaysByDateKey,
     actualDaysByDateKey,
-    orderedPlannedSessions: (timeline.planned_days ?? []).flatMap((day) => day.sessions ?? []),
+    orderedPlannedSessions: getPlannedSessions(timeline),
     actualAdherenceMetrics: {
       onSchedule: timeline.actual_adherence_metrics?.on_schedule ?? 0,
       rescheduled: timeline.actual_adherence_metrics?.rescheduled ?? 0,

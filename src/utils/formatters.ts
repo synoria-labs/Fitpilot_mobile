@@ -8,6 +8,27 @@ export function formatInteger(value: number): string {
 }
 
 /**
+ * One decimal, always shown, the Mexican way: 9 → "9.0", 12.45 → "12.5" (tonnes, effective sets)
+ */
+export function formatDecimal(value: number): string {
+  return value.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+/**
+ * A count with its noun in singular or plural: 1 → "1 sesión", 3 → "3 sesiones"
+ */
+export function formatCount(count: number, singular: string, plural: string): string {
+  return `${formatInteger(count)} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * A change with its sign in front, using a true minus: (3, "3 pts") → "+3 pts", (-2, "2 kg") → "−2 kg"
+ */
+export function formatSigned(value: number, text: string): string {
+  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${text}`;
+}
+
+/**
  * Lowercase text without accents, to compare names people write by hand
  */
 export function normalizeText(value: string | null | undefined): string {

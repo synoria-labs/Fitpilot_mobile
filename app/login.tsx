@@ -18,10 +18,10 @@ import { useAuthStore } from '../src/store/authStore';
 import { AuthBackdrop } from '../src/components/auth/AuthBackdrop';
 import { AuthBrand } from '../src/components/auth/AuthBrand';
 import { AuthPrimaryButton, AuthSecondaryButton } from '../src/components/auth/AuthButtons';
-import { AuthGlassCard } from '../src/components/auth/AuthGlassCard';
 import { AuthErrorBanner, AuthInfoNote } from '../src/components/auth/AuthNotice';
 import { AuthTextField } from '../src/components/auth/AuthTextField';
 import { TurnstileChallengeModal } from '../src/components/auth/TurnstileChallengeModal';
+import { AuroraGlass } from '../src/components/aurora';
 import { clientForgotPasswordUrl } from '../src/constants/support';
 import { auroraFont, useAurora } from '../src/theme/aurora';
 import { isSmallScreen, isVerySmallScreen } from '../src/utils/responsive';
@@ -170,7 +170,7 @@ export default function LoginScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(560).delay(80)} style={styles.cardSlot}>
-            <AuthGlassCard>
+            <AuroraGlass radius={28} padding={20} elevated>
               <Text accessibilityRole="header" style={[styles.title, { color: aurora.text }]}>
                 Bienvenido
               </Text>
@@ -232,7 +232,7 @@ export default function LoginScreen() {
                 onPress={() => router.push('/register')}
                 style={styles.createAccount}
               />
-            </AuthGlassCard>
+            </AuroraGlass>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(560).delay(160)} style={styles.noteSlot}>

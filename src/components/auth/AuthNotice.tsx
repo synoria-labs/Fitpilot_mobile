@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { auroraFont, useAurora } from '../../theme/aurora';
-import { AuthGlassCard } from './AuthGlassCard';
+import { AuroraGlass } from '../aurora';
 
 type AuthErrorBannerProps = {
   title: string;
@@ -43,7 +43,7 @@ export const AuthInfoNote = ({ title, paragraphs, style }: AuthInfoNoteProps) =>
   const blue = aurora.tones.blue;
 
   return (
-    <AuthGlassCard radius={22} padding={14} blur={false} elevated={false} style={style}>
+    <AuroraGlass radius={22} padding={14} blur={false} style={style}>
       <View style={styles.note}>
         <View style={[styles.badge, { backgroundColor: blue.soft }]}>
           <Ionicons name="sparkles" size={18} color={blue.tone} />
@@ -64,7 +64,7 @@ export const AuthInfoNote = ({ title, paragraphs, style }: AuthInfoNoteProps) =>
           ))}
         </View>
       </View>
-    </AuthGlassCard>
+    </AuroraGlass>
   );
 };
 

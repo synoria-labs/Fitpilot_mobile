@@ -4,6 +4,7 @@ import { SlantedCapsule, getSlantedCapsuleBox } from '../aurora';
 import { brandColors, fontSize } from '../../constants/colors';
 import { useThemedStyles, type AppTheme } from '../../theme';
 import { AURORA_SIGNATURE_ANGLE, auroraFont } from '../../theme/aurora';
+import { clamp } from '../../utils/math';
 
 const HERO_GEOMETRY = Object.freeze({
   canvasWidth: 100,
@@ -118,8 +119,6 @@ const HeroCapsule: React.FC<{ slotWidth: number; capsule: HeroCapsuleMetrics; of
     </View>
   );
 };
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 const getShowSpecialShape = (
   day: SharedWeeklyCalendarDay,

@@ -1,7 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { borderRadius, fontSize, spacing } from '../../constants/colors';
-import { useThemedStyles, type AppTheme } from '../../theme';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { auroraFont, useAurora } from '../../theme/aurora';
 
 type PillSelectorItem = {
   value: string;
@@ -9,67 +8,76 @@ type PillSelectorItem = {
 };
 
 interface WorkoutAnalyticsPillSelectorProps {
-  items: PillSelectorItem[];
+  items: readonly PillSelectorItem[];
   value: string;
   onChange: (nextValue: string) => void;
+  accessibilityLabel?: string;
 }
 
+/** Fila deslizable de opciones excluyentes, con el estilo Aurora. */
 export const WorkoutAnalyticsPillSelector: React.FC<WorkoutAnalyticsPillSelectorProps> = ({
   items,
   value,
   onChange,
+  accessibilityLabel,
 }) => {
-  const styles = useThemedStyles(createStyles);
+  const aurora = useAurora();
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      accessibilityRole="radiogroup"
+      accessibilityLabel={accessibilityLabel}
       contentContainerStyle={styles.content}
     >
       {items.map((item) => {
         const isActive = item.value === value;
 
         return (
-          <TouchableOpacity
+          <Pressable
             key={item.value}
-            activeOpacity={0.86}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isActive }}
             onPress={() => onChange(item.value)}
-            style={[styles.pill, isActive ? styles.pillActive : null]}
+            style={[
+              styles.pill,
+              {
+                backgroundColor: isActive ? aurora.tones.blue.soft : aurora.surface,
+                borderColor: isActive ? aurora.tones.blue.line : aurora.border,
+              },
+            ]}
           >
-            <Text style={[styles.pillText, isActive ? styles.pillTextActive : null]}>{item.label}</Text>
-          </TouchableOpacity>
+            <Text
+              style={[
+                styles.pillText,
+                auroraFont(isActive ? 'extrabold' : 'bold'),
+                { color: isActive ? aurora.tones.blue.ink : aurora.muted },
+              ]}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
         );
       })}
     </ScrollView>
   );
 };
 
-const createStyles = (theme: AppTheme) =>
-  StyleSheet.create({
-    content: {
-      gap: spacing.sm,
-    },
-    pill: {
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-    },
-    pillActive: {
-      backgroundColor: theme.isDark ? theme.colors.primarySoft : theme.colors.primary,
-      borderColor: theme.isDark ? theme.colors.primaryBorder : theme.colors.primary,
-    },
-    pillText: {
-      fontSize: fontSize.sm,
-      fontWeight: '700',
-      color: theme.colors.textSecondary,
-    },
-    pillTextActive: {
-      color: theme.isDark ? theme.colors.primary : theme.colors.surface,
-    },
-  });
+const styles = StyleSheet.create({
+  content: {
+    gap: 8,
+  },
+  pill: {
+    height: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  pillText: {
+    fontSize: 13,
+  },
+});
 
 export default WorkoutAnalyticsPillSelector;

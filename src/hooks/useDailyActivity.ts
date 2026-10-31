@@ -13,6 +13,8 @@ type DailyActivityState = {
   startKey: string | null;
   isLoading: boolean;
   hasLoaded: boolean;
+  /** El historial de entreno no respondió en la última carga. */
+  workoutsFailed: boolean;
 };
 
 const ensureDay = (days: Record<string, DailyActivity>, key: string) => {
@@ -77,13 +79,23 @@ const loadHealth = async (spanDays: number, days: Record<string, DailyActivity>)
 /**
  * Actividad por día local para la cuadrícula: sesiones completadas del historial de entreno y
  * pasos, sueño y kcal activas del resumen de salud conectada. Una fuente que falla no tumba a la otra.
+ * Con includeHealth en false solo se pide el historial (Entreno no usa los datos de salud).
  */
-export const useDailyActivity = ({ weeks, enabled = true }: { weeks: number; enabled?: boolean }) => {
+export const useDailyActivity = ({
+  weeks,
+  enabled = true,
+  includeHealth = true,
+}: {
+  weeks: number;
+  enabled?: boolean;
+  includeHealth?: boolean;
+}) => {
   const [state, setState] = useState<DailyActivityState>({
     days: {},
     startKey: null,
     isLoading: false,
     hasLoaded: false,
+    workoutsFailed: false,
   });
   const requestRef = useRef(0);
 
@@ -97,14 +109,24 @@ export const useDailyActivity = ({ weeks, enabled = true }: { weeks: number; ena
     const sinceKey = addDaysToDateKey(todayKey, -spanDays) ?? todayKey;
     const days: Record<string, DailyActivity> = {};
 
-    await Promise.allSettled([loadWorkouts(sinceKey, days), loadHealth(spanDays, days)]);
+    const [workouts] = await Promise.allSettled([
+      loadWorkouts(sinceKey, days),
+      includeHealth ? loadHealth(spanDays, days) : Promise.resolve(),
+    ]);
 
     if (request !== requestRef.current) {
       return;
     }
-    const keys = Object.keys(days).sort();
-    setState({ days, startKey: keys[0] ?? null, isLoading: false, hasLoaded: true });
-  }, [weeks]);
+    const workoutsFailed = workouts.status === 'rejected';
+    setState((current) => {
+      // Un refresco fallido no borra la cuadrícula que ya se veía.
+      if (workoutsFailed && current.hasLoaded) {
+        return { ...current, isLoading: false, workoutsFailed };
+      }
+      const keys = Object.keys(days).sort();
+      return { days, startKey: keys[0] ?? null, isLoading: false, hasLoaded: true, workoutsFailed };
+    });
+  }, [includeHealth, weeks]);
 
   useEffect(() => {
     if (enabled) {
