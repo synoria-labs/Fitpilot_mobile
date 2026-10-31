@@ -6,6 +6,7 @@ import type {
   WorkoutAnalyticsRange,
 } from '../types';
 import { WORKOUT_ANALYTICS_RANGE_OPTIONS } from '../constants/workoutAnalytics';
+import { formatDecimal, formatInteger } from './formatters';
 
 export type TrendStatusMeta = {
   icon: string;
@@ -50,10 +51,6 @@ export type ChartCoordinate = {
   value: number;
 };
 
-const integerFormatter = new Intl.NumberFormat('es-MX', {
-  maximumFractionDigits: 0,
-});
-
 const decimalFormatter = new Intl.NumberFormat('es-MX', {
   minimumFractionDigits: 0,
   maximumFractionDigits: 1,
@@ -67,14 +64,20 @@ export const normalizeWorkoutAnalyticsRange = (
   fallback: WorkoutAnalyticsRange = '2w',
 ): WorkoutAnalyticsRange => (isWorkoutAnalyticsRange(value) ? value : fallback);
 
-export const formatVolumeKg = (value: number) => `${integerFormatter.format(Math.round(value))} kg`;
+export const getWorkoutAnalyticsRangeOption = (range: WorkoutAnalyticsRange) =>
+  WORKOUT_ANALYTICS_RANGE_OPTIONS.find((option) => option.value === range) ?? WORKOUT_ANALYTICS_RANGE_OPTIONS[0];
+
+export const formatVolumeKg = (value: number) => `${formatInteger(value)} kg`;
+
+/** Volumen en toneladas con un decimal: 6300 kg → «6.3 t». */
+export const formatTons = (kilograms: number) => `${formatDecimal(kilograms / 1000)} t`;
 
 export const formatCalories = (value: number | null | undefined) => {
   if (value == null || Number.isNaN(value)) {
     return '-- cal';
   }
 
-  return `${integerFormatter.format(Math.round(value))} cal`;
+  return `${formatInteger(value)} cal`;
 };
 
 export const formatWeightKg = (value: number | null | undefined) => {
@@ -95,15 +98,6 @@ export const formatDistance = (value: number | null | undefined) => {
   }
 
   return `${decimalFormatter.format(value)} m`;
-};
-
-export const formatDeltaKg = (value: number | null | undefined) => {
-  if (value == null || Number.isNaN(value) || value === 0) {
-    return 'Sin cambio';
-  }
-
-  const prefix = value > 0 ? '+' : '';
-  return `${prefix}${decimalFormatter.format(value)} kg`;
 };
 
 export const buildRepRangeLabel = (minReps: number, maxReps: number | null) =>

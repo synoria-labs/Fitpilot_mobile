@@ -12,6 +12,8 @@ import {
   type DailyActivity,
 } from '../../utils/activityGrid';
 import { getTodayDateKey } from '../../utils/date';
+import { formatCount } from '../../utils/formatters';
+import { getWeekdayLetter } from '../../utils/weekdayLetter';
 
 export const CONSISTENCY_WEEKS = 12;
 const MIN_WEEK_SESSIONS = 3;
@@ -20,12 +22,8 @@ const LABEL_COLUMN = 24;
 const LABEL_GAP = 6;
 const GAP = 4;
 const BAR_WIDTH = 12;
-const WEEKDAY_LABELS: readonly ActivityWeekdayLabel[] = [
-  { row: 0, label: 'L' },
-  { row: 2, label: 'X' },
-  { row: 4, label: 'V' },
-  { row: 6, label: 'D' },
-];
+// Como en el tablero: lunes, miércoles, viernes y domingo.
+const LABELED_ROWS = [0, 2, 4, 6];
 
 type TrainingConsistencyCardProps = {
   days: Record<string, DailyActivity>;
@@ -46,6 +44,14 @@ export function TrainingConsistencyCard({ days, hasLoaded, hasFailed, onRetry, w
     [days, todayKey],
   );
   const weekCounts = useMemo(() => getWeeklySessionCounts(model), [model]);
+  const weekdayLabels = useMemo(
+    () =>
+      LABELED_ROWS.flatMap((row): ActivityWeekdayLabel[] => {
+        const letter = model.cells[row] ? getWeekdayLetter(model.cells[row].dateKey) : null;
+        return letter ? [{ row, label: letter }] : [];
+      }),
+    [model],
+  );
   const streak = hasLoaded ? getCurrentWeeklyStreak(model, MIN_WEEK_SESSIONS) : 0;
   const gridWidth = Math.max(0, width - CARD_PADDING * 2 - 2 - LABEL_COLUMN - LABEL_GAP);
   const cellSize = Math.max(12, Math.min(24, Math.floor((gridWidth - GAP * (CONSISTENCY_WEEKS - 1)) / CONSISTENCY_WEEKS)));
@@ -58,7 +64,7 @@ export function TrainingConsistencyCard({ days, hasLoaded, hasFailed, onRetry, w
   const title = !hasLoaded
     ? 'Tu constancia'
     : streak > 0
-      ? `${streak} ${streak === 1 ? 'semana seguida' : 'semanas seguidas'}`
+      ? formatCount(streak, 'semana seguida', 'semanas seguidas')
       : 'Tu constancia';
   const subtitle =
     hasLoaded && streak === 0
@@ -98,7 +104,7 @@ export function TrainingConsistencyCard({ days, hasLoaded, hasFailed, onRetry, w
             gap={GAP}
             labelColumn={LABEL_COLUMN}
             labelGap={LABEL_GAP}
-            weekdayLabels={WEEKDAY_LABELS}
+            weekdayLabels={weekdayLabels}
             hasLoaded={hasLoaded}
             activeIndex={selectedIndex}
             onSelect={setSelectedIndex}

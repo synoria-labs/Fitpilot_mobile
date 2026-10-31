@@ -27,6 +27,8 @@ type WorkoutAnalyticsModulesParams = {
   mesocycleId?: string | null;
   microcycleId?: string | null;
   cacheUserId?: string | number | null;
+  /** Guardar la respuesta en el teléfono para verla sin conexión; un periodo ya cerrado no lo necesita. */
+  persist?: boolean;
 };
 
 const WORKOUT_MODULES_CACHE_VERSION = 1;
@@ -60,6 +62,20 @@ const buildWorkoutModulesCacheKey = ({
 const hasCacheUserId = (cacheUserId: WorkoutAnalyticsModulesParams['cacheUserId']) =>
   cacheUserId !== null && cacheUserId !== undefined && String(cacheUserId).trim().length > 0;
 
+// Lo último recibido con cada combinación de filtros mientras la app sigue abierta.
+const modulesMemory = new Map<string, WorkoutAnalyticsModules>();
+
+/** La clave de una combinación de filtros: la misma para la memoria y para lo guardado. */
+export const getWorkoutModulesCacheKey = (params: WorkoutAnalyticsModulesParams) =>
+  buildWorkoutModulesCacheKey(params);
+
+/** Lo recibido en esta sesión de la app con estos filtros, sin esperar a la red. */
+export const peekWorkoutAnalyticsModules = (params: WorkoutAnalyticsModulesParams) =>
+  modulesMemory.get(buildWorkoutModulesCacheKey(params)) ?? null;
+
+/** Olvida lo recibido en esta sesión; por ejemplo, tras cambiar los rangos de repeticiones. */
+export const clearWorkoutModulesMemory = () => modulesMemory.clear();
+
 export const getWorkoutAnalyticsDashboard = (
   range: WorkoutAnalyticsRange,
   anchorDate?: string,
@@ -80,19 +96,19 @@ export const getWorkoutAnalyticsModules = async ({
   mesocycleId,
   microcycleId,
   cacheUserId,
+  persist = true,
 }: WorkoutAnalyticsModulesParams): Promise<WorkoutAnalyticsModules> => {
-  const cacheKey = hasCacheUserId(cacheUserId)
-    ? buildWorkoutModulesCacheKey({
-        scopeKind,
-        range,
-        repBucketId,
-        anchorDate,
-        macrocycleId,
-        mesocycleId,
-        microcycleId,
-        cacheUserId,
-      })
-    : null;
+  const memoryKey = buildWorkoutModulesCacheKey({
+    scopeKind,
+    range,
+    repBucketId,
+    anchorDate,
+    macrocycleId,
+    mesocycleId,
+    microcycleId,
+    cacheUserId,
+  });
+  const cacheKey = hasCacheUserId(cacheUserId) ? memoryKey : null;
 
   try {
     const modules = await trainingClient.get<WorkoutAnalyticsModules>('/workout-analytics/me/modules', {
@@ -107,7 +123,8 @@ export const getWorkoutAnalyticsModules = async ({
       },
     });
 
-    if (cacheKey && useAuthStore.getState().isAuthenticated) {
+    modulesMemory.set(memoryKey, modules);
+    if (persist && cacheKey && useAuthStore.getState().isAuthenticated) {
       await writePersistentCache(cacheKey, WORKOUT_MODULES_CACHE_VERSION, modules);
     }
 
@@ -128,7 +145,7 @@ export const getWorkoutAnalyticsModules = async ({
   }
 };
 
-/** Lo último guardado para estos filtros: se pinta al instante mientras llega la respuesta nueva. */
+/** Lo último guardado en el teléfono con estos filtros, para el primer arranque sin memoria. */
 export const getCachedWorkoutAnalyticsModules = (
   params: WorkoutAnalyticsModulesParams,
 ): Promise<WorkoutAnalyticsModules | null> =>

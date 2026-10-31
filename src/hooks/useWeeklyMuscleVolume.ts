@@ -3,7 +3,8 @@ import { getMuscleVolume } from '../services/api';
 import { useWorkoutStore } from '../store/workoutStore';
 import type { MuscleVolumeResponse } from '../types';
 import { getLocalWeekDateKeys } from '../utils/date';
-import { aggregateMuscleVolume, getPlannedTrainingDays } from '../utils/trainingProgress';
+import { getPlannedSessions, getPlannedTrainingDays } from '../utils/programTimeline';
+import { aggregateMuscleVolume } from '../utils/trainingProgress';
 
 export type WeekMuscleVolume = Pick<MuscleVolumeResponse, 'muscles' | 'total_effective_sets'>;
 
@@ -28,7 +29,10 @@ export const useWeeklyMuscleVolume = ({
   const hasBootstrap = useWorkoutStore((state) => state.dashboardBootstrap != null);
   const loadDashboardData = useWorkoutStore((state) => state.loadDashboardData);
   const weekKey = getLocalWeekDateKeys().join(',');
-  const trainingDays = useMemo(() => getPlannedTrainingDays(timeline, weekKey.split(',')), [timeline, weekKey]);
+  const trainingDays = useMemo(
+    () => getPlannedTrainingDays(getPlannedSessions(timeline), weekKey.split(',')),
+    [timeline, weekKey],
+  );
   const plannedSets = trainingDays.reduce((total, day) => total + day.totalSets, 0);
 
   const readCache = useCallback((): WeekMuscleVolume | null => {

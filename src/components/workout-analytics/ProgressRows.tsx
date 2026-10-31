@@ -4,8 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ExerciseTrendSummary, RecentWorkoutHistoryItem } from '../../types';
 import { auroraFont, auroraRadius, useAurora, type AuroraTone } from '../../theme/aurora';
 import { AuroraCard, AuroraPill, Sparkline, type AuroraIconName } from '../aurora';
-import { formatLocalDate } from '../../utils/date';
-import { formatCalories, formatDistance } from '../../utils/workoutAnalytics';
+import { formatLocalDate, formatLocalShortDate, formatLocalShortWeekday, getLocalDayNumber } from '../../utils/date';
+import { formatCount, formatDuration, formatSigned } from '../../utils/formatters';
+import { formatCalories, formatDistance, formatTons, getTrendStatusMeta } from '../../utils/workoutAnalytics';
 import { formatMetricValue, getProfileConfig, getSummaryMetricContext } from '../../utils/analyticsProfiles';
 
 const GROUP_RADIUS = 24;
@@ -13,9 +14,6 @@ const GROUP_PADDING = 6;
 
 const getTrendTone = (status: ExerciseTrendSummary['trend_status']): AuroraTone =>
   status === 'rising' ? 'emerald' : status === 'declining' ? 'amber' : 'slate';
-
-const formatTons = (kilograms: number) =>
-  `${(kilograms / 1000).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} t`;
 
 /** Lo que la fila dice del ejercicio: la mejor marca y su cambio en el periodo. */
 const describeExercise = (exercise: ExerciseTrendSummary) => {
@@ -37,10 +35,8 @@ const describeExercise = (exercise: ExerciseTrendSummary) => {
         : `${formatMetricValue(metric, unit)}${isWeight && !isEstimate && reps ? ` × ${reps}` : ''}`,
     change:
       delta != null && delta !== 0
-        ? `${delta > 0 ? '+' : '−'}${formatMetricValue(Math.abs(delta), unit)}`
-        : exercise.trend_status === 'insufficient' || delta == null
-          ? 'Sin comparar'
-          : 'Estable',
+        ? formatSigned(delta, formatMetricValue(Math.abs(delta), unit))
+        : getTrendStatusMeta(exercise.trend_status).label,
     isCardio: profile.id === 'cardio_progression',
   };
 };
@@ -60,10 +56,8 @@ export function ProgressExerciseRow({
   const tone = getTrendTone(exercise.trend_status);
   const details = showDetails
     ? [
-        `${exercise.sessions_count} ${exercise.sessions_count === 1 ? 'sesión' : 'sesiones'}`,
-        exercise.last_performed_on
-          ? `última ${formatLocalDate(exercise.last_performed_on, { day: 'numeric', month: 'short' }).replace('.', '')}`
-          : null,
+        formatCount(exercise.sessions_count, 'sesión', 'sesiones'),
+        exercise.last_performed_on ? `última ${formatLocalShortDate(exercise.last_performed_on)}` : null,
       ]
         .filter(Boolean)
         .join(' · ')
@@ -127,7 +121,7 @@ const SESSION_STATUS: Record<
 /** Duración y carga de la sesión; sin carga (peso corporal) no se muestra «0 t». */
 export const getSessionMetrics = (workout: RecentWorkoutHistoryItem, showDetails = false) => {
   const minutes = workout.duration_minutes ?? workout.cardio_duration_minutes;
-  const parts = [minutes != null && minutes > 0 ? `${Math.max(1, Math.round(minutes))} min` : null];
+  const parts = [minutes != null && minutes > 0 ? formatDuration(Math.max(1, Math.round(minutes))) : null];
   if (workout.session_kind === 'cardio') {
     parts.push(
       workout.cardio_distance_meters != null && workout.cardio_distance_meters > 0
@@ -142,7 +136,7 @@ export const getSessionMetrics = (workout: RecentWorkoutHistoryItem, showDetails
       parts.push(formatCalories(workout.cardio_calories_burned));
     }
     if (workout.exercises_count > 0) {
-      parts.push(`${workout.exercises_count} ${workout.exercises_count === 1 ? 'ejercicio' : 'ejercicios'}`);
+      parts.push(formatCount(workout.exercises_count, 'ejercicio', 'ejercicios'));
     }
   }
   return parts.filter((part): part is string => part != null);
@@ -173,10 +167,10 @@ export function ProgressSessionRow({
     >
       <View style={[styles.dateTile, { backgroundColor: aurora.surface2, borderColor: aurora.border }]}>
         <Text style={[styles.weekday, auroraFont('extrabold'), { color: aurora.tones.blue.ink }]}>
-          {formatLocalDate(workout.performed_on_date, { weekday: 'short' }).replace('.', '')}
+          {formatLocalShortWeekday(workout.performed_on_date)}
         </Text>
         <Text style={[styles.dayNumber, auroraFont('extrabold'), { color: aurora.text }]}>
-          {formatLocalDate(workout.performed_on_date, { day: 'numeric' })}
+          {getLocalDayNumber(workout.performed_on_date)}
         </Text>
       </View>
       <View style={styles.copy}>

@@ -1,4 +1,6 @@
 import { addDaysToDateKey, compareDateKeys, parseLocalDate } from './date';
+import { formatCount, formatInteger } from './formatters';
+import { formatTons } from './workoutAnalytics';
 
 /**
  * Modelo de la cuadrícula de actividad estilo GitHub: una columna por semana (lunes a domingo)
@@ -273,10 +275,7 @@ export const getCurrentWeeklyStreak = (model: ActivityGridModel, minSessions = 3
 
 export type ActivityStat = { label: string; value: string; caption: string };
 
-const formatInteger = (value: number) => Math.round(value).toLocaleString('es-MX');
-const formatTons = (kilograms: number) =>
-  `${(kilograms / 1000).toLocaleString('es-MX', { maximumFractionDigits: 1 })} t`;
-const formatDays = (count: number) => `${count} ${count === 1 ? 'día' : 'días'}`;
+const formatDays = (count: number) => formatCount(count, 'día', 'días');
 
 export const summarizeActivity = (model: ActivityGridModel, mode: ActivityMode): ActivityStat[] => {
   const tracked = model.cells.filter(isTracked);
@@ -399,7 +398,7 @@ export const describeTrainingCell = (cell: ActivityCell) => {
   return {
     title,
     detail: [
-      others > 0 ? `${name} y ${others} ${others === 1 ? 'sesión más' : 'sesiones más'}` : name,
+      others > 0 ? `${name} y ${formatCount(others, 'sesión más', 'sesiones más')}` : name,
       activity.minutes > 0 ? `${Math.round(activity.minutes)} min` : null,
       activity.volumeKg > 0 ? formatTons(activity.volumeKg) : null,
     ]

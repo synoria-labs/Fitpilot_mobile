@@ -20,6 +20,7 @@ import {
 import { useAppTheme, useThemedStyles, type AppTheme } from '../../theme';
 import { pickProfileImageFromLibrary } from '../../utils/profileImagePicker';
 import { Button } from './Button';
+import { clamp } from '../../utils/math';
 
 interface ProfileImagePreviewModalProps {
   visible: boolean;
@@ -29,9 +30,6 @@ interface ProfileImagePreviewModalProps {
   onChangeImage?: (uri: string) => Promise<void> | void;
   isUploading?: boolean;
 }
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
 
 export const ProfileImagePreviewModal: React.FC<ProfileImagePreviewModalProps> = ({
   visible,

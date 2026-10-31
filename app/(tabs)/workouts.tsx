@@ -38,7 +38,7 @@ import { WorkoutAnalyticsContextNavigator } from '../../src/components/workout-a
 import { DayTypeProgressSection } from '../../src/components/workout-analytics/DayTypeProgressSection';
 import { WorkoutAnalyticsContextPickerModal } from '../../src/components/workout-analytics/WorkoutAnalyticsContextPickerModal';
 import { WorkoutAnalyticsDailySessionComparisonChart } from '../../src/components/workout-analytics/WorkoutAnalyticsDailySessionComparisonChart';
-import { ProgressChips, ProgressFilters } from '../../src/components/workout-analytics/ProgressFilters';
+import { ProgressFilters } from '../../src/components/workout-analytics/ProgressFilters';
 import { ProgressSummaryGrid, ProgressSummarySkeleton } from '../../src/components/workout-analytics/ProgressSummaryGrid';
 import {
   ProgressExerciseRow,
@@ -52,16 +52,20 @@ import {
   TrainingConsistencyCard,
 } from '../../src/components/workout-analytics/TrainingConsistencyCard';
 import { WorkoutAnalyticsLineTrendChart } from '../../src/components/workout-analytics/WorkoutAnalyticsLineTrendChart';
+import { WorkoutAnalyticsPillSelector } from '../../src/components/workout-analytics/WorkoutAnalyticsPillSelector';
 import { WorkoutAnalyticsSnapshotCard } from '../../src/components/workout-analytics/WorkoutAnalyticsSnapshotCard';
 import { spacing } from '../../src/constants/colors';
 import { useAuthStore } from '../../src/store/authStore';
 import { useWorkoutStore } from '../../src/store/workoutStore';
 import {
+  clearWorkoutModulesMemory,
   getCachedWorkoutAnalyticsModules,
   getWorkoutMacrocycleDetail,
   getWorkoutAnalyticsHistory,
   getWorkoutAnalyticsModules,
+  getWorkoutModulesCacheKey,
   listWorkoutMacrocycles,
+  peekWorkoutAnalyticsModules,
   updateWorkoutAnalyticsPreferences,
 } from '../../src/services/workoutAnalytics';
 import { useBottomTabBarContentInset, useBottomTabBarScroll } from '../../src/hooks/useBottomTabBarVisibility';
@@ -88,12 +92,13 @@ import type {
   WorkoutAnalyticsTrendSeriesSection,
 } from '../../src/types';
 import { formatLocalDate } from '../../src/utils/date';
+import { formatCount, normalizeText } from '../../src/utils/formatters';
 import {
   getDashboardContentWidth,
   getPrimaryScreenHorizontalPadding,
   isTabletLayout,
 } from '../../src/utils/layout';
-import { countPlannedSessions } from '../../src/utils/trainingProgress';
+import { countPlannedSessions, getPlannedSessions } from '../../src/utils/programTimeline';
 import {
   areSelectionsEqual,
   buildHistoricalProgramsCatalog,
@@ -156,28 +161,6 @@ const HISTORY_STATUS_OPTIONS: readonly { value: WorkoutAnalyticsHistoryStatusFil
   { value: 'in_progress', label: 'En curso' },
   { value: 'abandoned', label: 'Abandonadas' },
 ];
-
-const buildModulesKey = (userId: string | number | null, request: ModulesRequest) =>
-  [
-    userId ?? 'anon',
-    request.scopeKind,
-    request.scopeKind === 'range' ? request.range : '-',
-    request.repBucketId ?? '-',
-    request.macrocycleId ?? '-',
-    request.mesocycleId ?? '-',
-    request.microcycleId ?? '-',
-  ].join('|');
-
-// Lo último que se vio con cada combinación de filtros mientras la app sigue abierta: al volver
-// a ella se pinta al instante y se refresca detrás, sin spinner.
-const modulesMemory = new Map<string, WorkoutAnalyticsModules>();
-
-const normalizeSearchValue = (value: string) =>
-  value
-    .trim()
-    .toLocaleLowerCase('es-MX')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
 
 const compareExercisesBySort = (
   left: ExerciseTrendSummary,
@@ -371,7 +354,7 @@ const SectionHeading = ({
 
   return (
     <View style={styles.sectionHeader}>
-      <Text accessibilityRole="header" style={[styles.sectionTitle, auroraFont('extrabold'), { color: aurora.text }]}>
+      <Text accessibilityRole="header" style={[auroraType.title, { color: aurora.text }]}>
         {title}
       </Text>
       {actionLabel && onActionPress ? (
@@ -594,7 +577,7 @@ export default function WorkoutsScreen() {
         repBucketId: analyticsScopeKind === 'range' ? selectedRepBucketId : null,
         ...requestScopeParams,
       };
-      const requestKey = buildModulesKey(userId, request);
+      const requestKey = getWorkoutModulesCacheKey({ ...request, cacheUserId: userId });
       setPendingModulesKey(requestKey);
 
       if (isRefresh) {
@@ -603,8 +586,9 @@ export default function WorkoutsScreen() {
         setIsLoading(true);
       }
 
-      // Lo ya visto con estos filtros se pinta al instante; en el primer arranque, lo guardado.
-      const remembered = modulesMemory.get(requestKey);
+      // Lo ya visto con estos filtros se pinta al instante y se refresca detrás, sin spinner; en el
+      // primer arranque, lo guardado en el teléfono.
+      const remembered = peekWorkoutAnalyticsModules({ ...request, cacheUserId: userId });
       if (remembered) {
         showModules(remembered, requestKey, request.repBucketId);
       } else if (!modulesRef.current) {
@@ -617,20 +601,11 @@ export default function WorkoutsScreen() {
       try {
         const nextModules = await getWorkoutAnalyticsModules({ ...request, cacheUserId: userId });
         if (requestId !== modulesRequestId.current) return;
-        modulesMemory.set(requestKey, nextModules);
         showModules(nextModules, requestKey, request.repBucketId);
         setError(null);
 
         if (analyticsScopeKind !== 'range' && nextModules.program_scope && shouldResolveCurrentContext) {
           const nextSelection = getSelectionFromProgramScope(nextModules.program_scope);
-          // La petición que sigue, ya con el contexto resuelto, trae lo mismo: que no atenúe la pantalla.
-          modulesMemory.set(
-            buildModulesKey(userId, {
-              ...request,
-              ...getRequestParamsForSelection(analyticsScopeKind, nextSelection),
-            }),
-            nextModules,
-          );
           setCurrentProgramScope(nextModules.program_scope);
           setSelectedMacrocycleId(nextSelection.macrocycleId);
           setSelectedMesocycleId(nextSelection.mesocycleId);
@@ -896,7 +871,7 @@ export default function WorkoutsScreen() {
       try {
         await updateWorkoutAnalyticsPreferences({ rep_ranges: nextRepRanges });
         // Los rangos cambian lo que se ve en cada combinación de filtros.
-        modulesMemory.clear();
+        clearWorkoutModulesMemory();
         const removedActiveBucket =
           selectedRepBucketId != null && !nextRepRanges.some((bucket) => bucket.id === selectedRepBucketId);
         if (removedActiveBucket) {
@@ -930,7 +905,7 @@ export default function WorkoutsScreen() {
     if (!scope?.start_date || !scope.end_date) {
       return null;
     }
-    const planned = countPlannedSessions(planTimeline, scope.start_date, scope.end_date);
+    const planned = countPlannedSessions(getPlannedSessions(planTimeline), scope.start_date, scope.end_date);
     return planned > 0 ? planned : null;
   }, [modules?.time_scope, planTimeline]);
   const contextItems = useMemo(
@@ -985,7 +960,7 @@ export default function WorkoutsScreen() {
   );
 
   const filteredExercises = useMemo(() => {
-    const searchValue = normalizeSearchValue(deferredExerciseSearch);
+    const searchValue = normalizeText(deferredExerciseSearch);
 
     return exerciseItems
       .filter((exercise) => {
@@ -993,7 +968,7 @@ export default function WorkoutsScreen() {
           return true;
         }
 
-        return normalizeSearchValue(exercise.exercise_name).includes(searchValue);
+        return normalizeText(exercise.exercise_name).includes(searchValue);
       })
       .sort((left, right) => compareExercisesBySort(left, right, exerciseSort));
   }, [deferredExerciseSearch, exerciseItems, exerciseSort]);
@@ -1246,6 +1221,7 @@ export default function WorkoutsScreen() {
                     modules={modules}
                     repBucketId={modulesView.repBucketId}
                     plannedSessions={plannedSessions}
+                    cacheUserId={userId}
                   />
                 </Animated.View>
               ) : (
@@ -1281,7 +1257,7 @@ export default function WorkoutsScreen() {
               accessibilityLabel="Ordenar ejercicios"
             />
             <View style={styles.listMeta}>
-              <Text style={[styles.sectionTitle, auroraFont('extrabold'), { color: aurora.text }]}>Lista completa</Text>
+              <Text style={[auroraType.title, { color: aurora.text }]}>Lista completa</Text>
               <Text style={[auroraType.caption, { color: aurora.faint }]}>
                 {selectedRepBucketLabel
                   ? `${filteredExercises.length} de ${exerciseItems.length} con series de ${selectedRepBucketLabel} reps`
@@ -1293,17 +1269,17 @@ export default function WorkoutsScreen() {
 
         {activeTab === 'history' ? (
           <View style={styles.tabTools}>
-            <ProgressChips
-              options={HISTORY_STATUS_OPTIONS}
+            <WorkoutAnalyticsPillSelector
+              items={HISTORY_STATUS_OPTIONS}
               value={historyStatus}
-              onChange={setHistoryStatus}
+              onChange={(nextValue) => setHistoryStatus(nextValue as WorkoutAnalyticsHistoryStatusFilter)}
               accessibilityLabel="Estado de las sesiones"
             />
             <View style={styles.listMeta}>
-              <Text style={[styles.sectionTitle, auroraFont('extrabold'), { color: aurora.text }]}>Historial completo</Text>
+              <Text style={[auroraType.title, { color: aurora.text }]}>Historial completo</Text>
               <Text style={[auroraType.caption, { color: aurora.faint }]}>
                 {historyPage
-                  ? `${historyPage.total} ${historyPage.total === 1 ? 'sesión' : 'sesiones'}${selectedRepBucketLabel ? ` con series de ${selectedRepBucketLabel} reps` : ''}`
+                  ? `${formatCount(historyPage.total, 'sesión', 'sesiones')}${selectedRepBucketLabel ? ` con series de ${selectedRepBucketLabel} reps` : ''}`
                   : 'Cargando sesiones…'}
               </Text>
             </View>
@@ -1761,11 +1737,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 4,
     marginBottom: 6,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    lineHeight: 23,
-    letterSpacing: -0.2,
   },
   sectionAction: {
     minHeight: 44,

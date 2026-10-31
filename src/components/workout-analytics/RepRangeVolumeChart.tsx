@@ -12,7 +12,9 @@ import Animated, {
 import type { RepRangeBucket, RepRangeChartPoint } from '../../types';
 import { auroraFont, auroraType, getRepRangeColor, useAurora } from '../../theme/aurora';
 import { AuroraCard } from '../aurora';
-import { formatLocalDate, getStartOfLocalWeekDateKey } from '../../utils/date';
+import { formatLocalDate, formatLocalShortDate, getStartOfLocalWeekDateKey } from '../../utils/date';
+import { formatDecimal } from '../../utils/formatters';
+import { formatTons } from '../../utils/workoutAnalytics';
 
 interface RepRangeVolumeChartProps {
   points: RepRangeChartPoint[];
@@ -29,9 +31,6 @@ const COLUMN = 54;
 const STACK = 40;
 const SCROLL_GAP = 12;
 const GROW_EASING = Easing.bezier(0.22, 1, 0.36, 1);
-
-const formatTons = (kilograms: number) =>
-  (kilograms / 1000).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** The stack rises from the baseline once, when its column first shows these numbers. */
 const GrowingStack = ({
@@ -103,7 +102,7 @@ export function RepRangeVolumeChart({
       <View
         key={`${point.week_start}-${Math.round(totals[index])}`}
         accessible
-        accessibilityLabel={`Semana del ${weekLabel}: ${formatTons(totals[index])} toneladas${isCurrent ? ', en curso' : ''}`}
+        accessibilityLabel={`Semana del ${weekLabel}: ${formatDecimal(totals[index] / 1000)} toneladas${isCurrent ? ', en curso' : ''}`}
         style={styles.column}
       >
         <Text
@@ -113,7 +112,7 @@ export function RepRangeVolumeChart({
             { color: isCurrent ? aurora.faint : aurora.text },
           ]}
         >
-          {formatTons(totals[index])} t
+          {formatTons(totals[index])}
         </Text>
         <GrowingStack delay={200 + index * 90} style={[styles.stack, isCurrent ? styles.currentStack : null]}>
           {segments.map((segment, segmentIndex) => (
@@ -142,7 +141,7 @@ export function RepRangeVolumeChart({
     >
       {point.week_start === currentWeek
         ? 'Esta sem.'
-        : formatLocalDate(point.week_start, { day: 'numeric', month: 'short' }).replace('.', '')}
+        : formatLocalShortDate(point.week_start)}
     </Text>
   ));
 

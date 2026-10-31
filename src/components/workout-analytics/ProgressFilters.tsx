@@ -3,16 +3,10 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInDown, useReducedMotion } from 'react-native-reanimated';
+import { WORKOUT_ANALYTICS_RANGE_OPTIONS } from '../../constants/workoutAnalytics';
 import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import type { WorkoutAnalyticsRange, WorkoutAnalyticsScopeKind } from '../../types';
-
-export const progressRangeLabels: Record<WorkoutAnalyticsRange, string> = {
-  '2w': 'Últimas 2 semanas',
-  '4w': 'Últimas 4 semanas',
-  '8w': 'Últimas 8 semanas',
-  '12w': 'Últimas 12 semanas',
-  all: 'Todo el historial',
-};
+import { getWorkoutAnalyticsRangeOption } from '../../utils/workoutAnalytics';
 
 const PLAN_SCOPES: { id: Exclude<WorkoutAnalyticsScopeKind, 'range'>; label: string; hint: string }[] = [
   { id: 'microcycle', label: 'Microciclo', hint: 'Una semana del plan' },
@@ -59,60 +53,6 @@ const SheetOptionRow = ({ option, last }: { option: SheetOption; last: boolean }
   );
 };
 
-/** Fila deslizable de opciones excluyentes, como el estado de las sesiones del historial. */
-export function ProgressChips<T extends string>({
-  options,
-  value,
-  onChange,
-  accessibilityLabel,
-}: {
-  options: readonly { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  accessibilityLabel: string;
-}) {
-  const aurora = useAurora();
-
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      accessibilityRole="radiogroup"
-      accessibilityLabel={accessibilityLabel}
-      contentContainerStyle={styles.chips}
-    >
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <Pressable
-            key={option.value}
-            accessibilityRole="radio"
-            accessibilityState={{ checked: selected }}
-            onPress={() => onChange(option.value)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: selected ? aurora.tones.blue.soft : aurora.surface,
-                borderColor: selected ? aurora.tones.blue.line : aurora.border,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.chipLabel,
-                auroraFont(selected ? 'extrabold' : 'bold'),
-                { color: selected ? aurora.tones.blue.ink : aurora.muted },
-              ]}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
 /**
  * El botón del periodo y la píldora del programa. Las opciones de experto (microciclo, bloque,
  * programa) viven en la hoja que abren, no en la pantalla.
@@ -136,21 +76,19 @@ export function ProgressFilters({
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(false);
-  const periodLabel = scope === 'range' ? progressRangeLabels[range] : scopeLabel || 'Tu plan';
+  const periodLabel = scope === 'range' ? getWorkoutAnalyticsRangeOption(range).longLabel : scopeLabel || 'Tu plan';
   const close = () => setOpen(false);
 
-  const rangeOptions: SheetOption[] = (Object.entries(progressRangeLabels) as [WorkoutAnalyticsRange, string][]).map(
-    ([id, label]) => ({
-      key: id,
-      label,
-      selected: scope === 'range' && range === id,
-      onPress: () => {
-        onRangeChange(id);
-        onScopeChange('range');
-        close();
-      },
-    }),
-  );
+  const rangeOptions: SheetOption[] = WORKOUT_ANALYTICS_RANGE_OPTIONS.map((option) => ({
+    key: option.value,
+    label: option.longLabel,
+    selected: scope === 'range' && range === option.value,
+    onPress: () => {
+      onRangeChange(option.value);
+      onScopeChange('range');
+      close();
+    },
+  }));
   const planOptions: SheetOption[] = PLAN_SCOPES.map((item) => ({
     key: item.id,
     label: item.label,
@@ -324,18 +262,5 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  chips: {
-    gap: 8,
-  },
-  chip: {
-    height: 36,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  chipLabel: {
-    fontSize: 13,
   },
 });

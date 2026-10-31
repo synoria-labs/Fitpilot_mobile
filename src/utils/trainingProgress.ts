@@ -1,9 +1,5 @@
-import type {
-  DashboardTimeline,
-  MuscleVolumeItem,
-  MuscleVolumeResponse,
-  WorkoutAnalyticsMetricCard,
-} from '../types';
+import type { MuscleVolumeItem, MuscleVolumeResponse, WorkoutAnalyticsMetricCard } from '../types';
+import { formatSigned } from './formatters';
 
 /**
  * Cambio de un indicador frente al periodo anterior: en minutos para la duración y en porcentaje
@@ -20,46 +16,9 @@ export const getMetricChange = (
       ? Math.round(difference)
       : Math.round((difference / previous.value) * 100);
   return {
-    label: `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value)}${card.id === 'avg_duration' ? ' min' : '%'}`,
+    label: formatSigned(value, `${Math.abs(value)}${card.id === 'avg_duration' ? ' min' : '%'}`),
     value,
   };
-};
-
-const isInRange = (dateKey: string, startKey: string, endKey: string) =>
-  dateKey >= startKey && dateKey <= endKey;
-
-/** Sesiones de entreno (sin descansos) que el plan tenía entre dos fechas, ambas incluidas. */
-export const countPlannedSessions = (
-  timeline: DashboardTimeline | null | undefined,
-  startKey: string,
-  endKey: string,
-) =>
-  (timeline?.planned_days ?? [])
-    .filter((day) => isInRange(day.date_key, startKey, endKey))
-    .reduce(
-      (total, day) => total + day.sessions.filter((session) => !session.training_day.rest_day).length,
-      0,
-    );
-
-export type WeekTrainingDay = { id: string; name: string; totalSets: number };
-
-/** Días de entreno que el plan pone en estas fechas, una vez cada uno y sin descansos. */
-export const getPlannedTrainingDays = (
-  timeline: DashboardTimeline | null | undefined,
-  dateKeys: readonly string[],
-): WeekTrainingDay[] => {
-  const keys = new Set(dateKeys);
-  const days = new Map<string, WeekTrainingDay>();
-  (timeline?.planned_days ?? [])
-    .filter((day) => keys.has(day.date_key))
-    .flatMap((day) => day.sessions)
-    .filter((session) => !session.training_day.rest_day)
-    .forEach(({ training_day: day }) => {
-      if (!days.has(day.id)) {
-        days.set(day.id, { id: day.id, name: day.name, totalSets: day.total_sets });
-      }
-    });
-  return Array.from(days.values());
 };
 
 /** Suma las series por músculo de varios días y deja primero los músculos con más series. */

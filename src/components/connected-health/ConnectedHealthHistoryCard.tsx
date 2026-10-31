@@ -24,7 +24,7 @@ import {
   formatConnectedHealthHistoryValue,
 } from '../../utils/connectedHealthFeedback';
 import { buildMonotonePath, getLineChartDomain } from '../../utils/chartScale';
-import { formatLocalDate } from '../../utils/date';
+import { formatLocalDate, formatLocalShortDate } from '../../utils/date';
 
 type ConnectedHealthHistoryCardProps = {
   history: ConnectedHealthHistoryModel;
@@ -83,9 +83,6 @@ const buildLinePaths = (coordinates: (ChartCoordinate | null)[]) => {
 
   return segments.map((segment) => buildMonotonePath(segment).trim());
 };
-
-const formatChartDate = (date: string) =>
-  formatLocalDate(date, { day: 'numeric', month: 'short' }).replace('.', '');
 
 export const ConnectedHealthHistoryCard: React.FC<ConnectedHealthHistoryCardProps> = ({
   history,
@@ -377,10 +374,10 @@ export const ConnectedHealthHistoryCard: React.FC<ConnectedHealthHistoryCardProp
           </View>
 
           <View style={styles.axisRow}>
-            <Text style={styles.axisLabel}>{firstPoint ? formatChartDate(firstPoint.date) : ''}</Text>
-            <Text style={styles.axisLabel}>{middlePoint ? formatChartDate(middlePoint.date) : ''}</Text>
+            <Text style={styles.axisLabel}>{firstPoint ? formatLocalShortDate(firstPoint.date) : ''}</Text>
+            <Text style={styles.axisLabel}>{middlePoint ? formatLocalShortDate(middlePoint.date) : ''}</Text>
             <Text style={[styles.axisLabel, styles.axisLabelRight]}>
-              {lastPoint ? formatChartDate(lastPoint.date) : ''}
+              {lastPoint ? formatLocalShortDate(lastPoint.date) : ''}
             </Text>
           </View>
 

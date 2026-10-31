@@ -1,6 +1,7 @@
 import type { DashboardTimelineSession } from '../types';
 import type { DailyActivity } from './activityGrid';
 import { addDaysToDateKey, getStartOfLocalWeekDateKey } from './date';
+import { isPlannedTrainingSession } from './programTimeline';
 
 export type WeeklyAdherence = {
   weekStartKey: string;
@@ -60,7 +61,7 @@ export const buildWeeklyAdherence = (
   const byWeek = new Map<string, { planned: number; done: number }>();
   sessions.forEach((session) => {
     const key = session.scheduled_date_key;
-    if (session.planned_status === 'rest' || key < firstWeekStart || key > todayKey) {
+    if (!isPlannedTrainingSession(session) || key < firstWeekStart || key > todayKey) {
       return;
     }
 

@@ -14,14 +14,14 @@ import Animated, {
 import { spacing } from '../../constants/colors';
 import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import type { MuscleVolumeResponse } from '../../types';
+import { formatDecimal } from '../../utils/formatters';
 import { AuroraCard } from '../aurora';
 import { Skeleton } from '../common/Skeleton';
+import { clamp } from '../../utils/math';
 
 const MAX_MUSCLES_SHOWN = 6;
 const SESSION_LANDMARK_SETS = 12;
 const KNOB_SPRING = { damping: 18, stiffness: 260, mass: 0.6 };
-
-const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 
 interface ActivityChartProps {
   muscleVolume: Pick<MuscleVolumeResponse, 'muscles' | 'total_effective_sets'> | null;
@@ -193,7 +193,7 @@ const MuscleBar: React.FC<MuscleBarProps> = ({ muscle, index, scale }) => {
   }, [fill, index, ratio, reduceMotion]);
 
   const fillStyle = useAnimatedStyle(() => ({ width: `${fill.value * 100}%` }));
-  const value = muscle.effective_sets.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const value = formatDecimal(muscle.effective_sets);
 
   return (
     <View accessible accessibilityLabel={`${muscle.display_name}: ${value} series efectivas`}>

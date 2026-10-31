@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import type { WorkoutAnalyticsMetricCard, WorkoutAnalyticsModules, WorkoutAnalyticsRange } from '../../types';
+import type { WorkoutAnalyticsMetricCard, WorkoutAnalyticsModules } from '../../types';
 import { auroraFont, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import { AuroraGlass, AuroraPill } from '../aurora';
 import { Skeleton } from '../common/Skeleton';
 import { useCountUp } from '../../hooks/useCountUp';
-import { getWorkoutAnalyticsModules } from '../../services/workoutAnalytics';
+import { getWorkoutAnalyticsModules, peekWorkoutAnalyticsModules } from '../../services/workoutAnalytics';
 import { addDaysToDateKey, getCalendarDayDiff } from '../../utils/date';
+import { formatCount, formatDecimal, formatInteger } from '../../utils/formatters';
 import { getMetricChange } from '../../utils/trainingProgress';
+import { formatTons, getWorkoutAnalyticsRangeOption } from '../../utils/workoutAnalytics';
 
-const RANGE_WEEKS: Partial<Record<WorkoutAnalyticsRange, number>> = { '2w': 2, '4w': 4, '8w': 8, '12w': 12 };
 const COUNTED_CARDS = new Set(['sessions', 'volume', 'active_days', 'avg_duration']);
 const LABELS: Record<string, string> = {
   sessions: 'Sesiones',
@@ -18,47 +19,52 @@ const LABELS: Record<string, string> = {
   avg_duration: 'Duración',
 };
 
-// El periodo anterior ya pasó: lo pedido una vez sirve para toda la sesión de la app.
-const previousCache = new Map<string, WorkoutAnalyticsMetricCard[]>();
-
-const formatTons = (kilograms: number) =>
-  (kilograms / 1000).toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-
 const getSummaryCards = (modules: WorkoutAnalyticsModules | null | undefined) =>
   modules?.sections.find((section) => section.kind === 'summary_cards')?.cards ?? [];
 
-/** Los mismos indicadores en la ventana de igual largo que termina justo antes de la actual. */
-const usePreviousPeriod = (modules: WorkoutAnalyticsModules, repBucketId: string | null) => {
+/**
+ * Los mismos indicadores en la ventana de igual largo que termina justo antes de la actual. Ese
+ * periodo ya pasó: lo que guarda la memoria del servicio basta y no se escribe en el teléfono.
+ */
+const usePreviousPeriod = (
+  modules: WorkoutAnalyticsModules,
+  repBucketId: string | null,
+  cacheUserId: string | number | null,
+) => {
   const scope = modules.time_scope;
   const range = scope?.range_key;
-  const canCompare =
-    modules.context.scope_kind === 'range' && range != null && range !== 'all' && Boolean(scope?.start_date);
-  const key = canCompare ? `${range}:${scope?.start_date}:${repBucketId ?? 'todos'}` : null;
-  const [state, setState] = useState(() => ({ key, cards: key ? previousCache.get(key) ?? null : null }));
+  const anchorDate =
+    modules.context.scope_kind === 'range' && range && range !== 'all' && scope?.start_date
+      ? addDaysToDateKey(scope.start_date, -1)
+      : null;
+  const params = useMemo(
+    () =>
+      range && anchorDate
+        ? { scopeKind: 'range' as const, range, repBucketId, anchorDate, cacheUserId, persist: false }
+        : null,
+    [anchorDate, cacheUserId, range, repBucketId],
+  );
+  const [state, setState] = useState(() => ({
+    params,
+    cards: params ? getSummaryCards(peekWorkoutAnalyticsModules(params)) : null,
+  }));
 
   useEffect(() => {
-    if (!key || !range || !scope?.start_date) {
-      setState({ key, cards: null });
+    if (!params) {
+      setState({ params, cards: null });
       return undefined;
     }
-    const cached = previousCache.get(key);
-    if (cached) {
-      setState({ key, cards: cached });
+    const remembered = peekWorkoutAnalyticsModules(params);
+    if (remembered) {
+      setState({ params, cards: getSummaryCards(remembered) });
       return undefined;
     }
     let active = true;
-    setState({ key, cards: null });
-    getWorkoutAnalyticsModules({
-      scopeKind: 'range',
-      range,
-      repBucketId,
-      anchorDate: addDaysToDateKey(scope.start_date, -1) ?? undefined,
-    })
+    setState({ params, cards: null });
+    getWorkoutAnalyticsModules(params)
       .then((result) => {
-        const cards = getSummaryCards(result);
-        previousCache.set(key, cards);
         if (active) {
-          setState({ key, cards });
+          setState({ params, cards: getSummaryCards(result) });
         }
       })
       .catch(() => {
@@ -67,9 +73,9 @@ const usePreviousPeriod = (modules: WorkoutAnalyticsModules, repBucketId: string
     return () => {
       active = false;
     };
-  }, [key, range, repBucketId, scope?.start_date]);
+  }, [params]);
 
-  return state.key === key ? state.cards : null;
+  return state.params === params && state.cards?.length ? state.cards : null;
 };
 
 type SummaryCellProps = {
@@ -89,8 +95,8 @@ const SummaryCell = ({ card, previous, weeks, periodDays, plannedSessions, sessi
   const value =
     counts && shown != null
       ? isVolume
-        ? shown.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-        : Math.round(shown).toLocaleString('es-MX')
+        ? formatDecimal(shown)
+        : formatInteger(shown)
       : card.display_value;
   const unit =
     card.id === 'volume'
@@ -121,17 +127,17 @@ const SummaryCell = ({ card, previous, weeks, periodDays, plannedSessions, sessi
   const caption =
     card.id === 'sessions'
       ? previous?.value != null && weeks
-        ? `vs. ${Math.round(previous.value)} las ${weeks} previas`
+        ? `vs. ${formatInteger(previous.value)} las ${weeks} previas`
         : 'en el periodo'
       : card.id === 'volume'
         ? previous?.value != null
-          ? `vs. ${formatTons(previous.value)} t`
+          ? `vs. ${formatTons(previous.value)}`
           : 'levantado en el periodo'
         : card.id === 'active_days'
           ? plannedSessions
-            ? `del plan: ${plannedSessions} ${plannedSessions === 1 ? 'sesión' : 'sesiones'}`
+            ? `del plan: ${formatCount(plannedSessions, 'sesión', 'sesiones')}`
             : previous?.value != null
-              ? `vs. ${Math.round(previous.value)} antes`
+              ? `vs. ${formatInteger(previous.value)} antes`
               : 'con al menos una sesión'
           : card.id === 'avg_duration'
             ? 'media por sesión'
@@ -167,19 +173,21 @@ export function ProgressSummaryGrid({
   modules,
   repBucketId,
   plannedSessions,
+  cacheUserId,
 }: {
   modules: WorkoutAnalyticsModules;
   /** El rango de repeticiones con el que se pidió `modules`, para comparar igual. */
   repBucketId: string | null;
   /** Sesiones que el plan tenía en el periodo, si se conocen. */
   plannedSessions: number | null;
+  cacheUserId: string | number | null;
 }) {
   const cards = getSummaryCards(modules);
-  const previous = usePreviousPeriod(modules, repBucketId);
+  const previous = usePreviousPeriod(modules, repBucketId, cacheUserId);
   const scope = modules.time_scope;
   const periodDays =
     scope?.start_date && scope.end_date ? getCalendarDayDiff(scope.start_date, scope.end_date) + 1 : null;
-  const weeks = scope?.range_key ? RANGE_WEEKS[scope.range_key] : undefined;
+  const weeks = scope?.range_key ? getWorkoutAnalyticsRangeOption(scope.range_key).weeks ?? undefined : undefined;
   const sessions = cards.find((card) => card.id === 'sessions')?.value ?? null;
 
   if (!cards.length) {
