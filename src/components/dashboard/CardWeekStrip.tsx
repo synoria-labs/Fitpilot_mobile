@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated from 'react-native-reanimated';
 import { useSlidingCapsuleStyle, useWeekSwipe } from '../../hooks/useWeekStripMotion';
-import { AURORA_SIGNATURE_ANGLE, auroraFont } from '../../theme/aurora';
-import { SlantedCapsule, getSlantedCapsuleBox } from '../aurora';
+import { auroraFont } from '../../theme/aurora';
+import { SlantedCapsule, getSlantedCapsuleBox, slantShift } from '../aurora';
 import type { SharedWeeklyCalendarDay } from '../calendar/SharedWeeklyCalendar';
 import { getWeekdayLetter } from '../../utils/weekdayLetter';
 
@@ -12,15 +12,13 @@ const SLOT_WIDTH = 40;
 const CIRCLE_SIZE = 36;
 const CAPSULE_WIDTH = 42;
 const CAPSULE_HEIGHT = 82;
-const SLANT = Math.tan((AURORA_SIGNATURE_ANGLE * Math.PI) / 180);
 const CAPSULE_BOX = getSlantedCapsuleBox(CAPSULE_WIDTH, CAPSULE_HEIGHT);
 const ROW_TOP_PADDING = 7;
 
 // Offsets of the letter, number and dot from the capsule's centre, so they follow its slant.
-const shiftFor = (dy: number) => ({ transform: [{ translateX: dy * SLANT }] });
-const LETTER_SHIFT = shiftFor(-26.5);
-const NUMBER_SHIFT = shiftFor(5);
-const DOT_SHIFT = shiftFor(31.5);
+const LETTER_SHIFT = slantShift(-26.5);
+const NUMBER_SHIFT = slantShift(5);
+const DOT_SHIFT = slantShift(31.5);
 
 type DayLook = {
   circle: object;

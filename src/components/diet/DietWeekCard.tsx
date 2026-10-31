@@ -2,22 +2,20 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated from 'react-native-reanimated';
-import { SlantedCapsule, getSlantedCapsuleBox, type AuroraIconName } from '../aurora';
+import { SlantedCapsule, getSlantedCapsuleBox, slantShift, type AuroraIconName } from '../aurora';
 import type { SharedWeeklyCalendarDay } from '../calendar/SharedWeeklyCalendar';
 import { useSlidingCapsuleStyle, useWeekSwipe } from '../../hooks/useWeekStripMotion';
-import { AURORA_SIGNATURE_ANGLE, auroraFont, useAurora } from '../../theme/aurora';
+import { auroraFont, useAurora } from '../../theme/aurora';
 import { getWeekdayLetter } from '../../utils/weekdayLetter';
 
 const STRIP_HEIGHT = 70;
 const CAPSULE_WIDTH = 44;
 const CAPSULE_BOX = getSlantedCapsuleBox(CAPSULE_WIDTH, STRIP_HEIGHT);
-const SLANT = Math.tan((AURORA_SIGNATURE_ANGLE * Math.PI) / 180);
 
 // Letter, number and dot follow the capsule's slant on the selected day.
-const shiftFor = (dy: number) => ({ transform: [{ translateX: dy * SLANT }] });
-const LETTER_SHIFT = shiftFor(-15.5);
-const NUMBER_SHIFT = shiftFor(4.5);
-const DOT_SHIFT = shiftFor(20);
+const LETTER_SHIFT = slantShift(-15.5);
+const NUMBER_SHIFT = slantShift(4.5);
+const DOT_SHIFT = slantShift(20);
 
 type DietWeekCardProps = {
   days: SharedWeeklyCalendarDay[];

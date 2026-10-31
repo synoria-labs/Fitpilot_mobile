@@ -1,6 +1,24 @@
 import type { DayExercise, EffortType } from '../types';
 
 /**
+ * Round a number and group its thousands the Mexican way: 2150 → "2,150"
+ */
+export function formatInteger(value: number): string {
+  return Math.round(value).toLocaleString('es-MX');
+}
+
+/**
+ * Lowercase text without accents, to compare names people write by hand
+ */
+export function normalizeText(value: string | null | undefined): string {
+  return (value || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+/**
  * Format seconds to MM:SS string
  */
 export function formatTime(seconds: number): string {

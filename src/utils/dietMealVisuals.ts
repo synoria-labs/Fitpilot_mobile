@@ -1,14 +1,9 @@
+import { normalizeText } from './formatters';
+
 export type DietMealKind = 'desayuno' | 'colacion' | 'comida' | 'cena' | 'otra';
 
-const normalize = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
-
 export const getDietMealKind = (mealName: string): DietMealKind => {
-  const name = normalize(mealName);
+  const name = normalizeText(mealName);
 
   if (/desayun|breakfast|almuerzo temprano/.test(name)) {
     return 'desayuno';
@@ -26,7 +21,7 @@ export const getDietMealKind = (mealName: string): DietMealKind => {
 };
 
 const isAlmuerzo = (mealName: string) => {
-  const name = normalize(mealName);
+  const name = normalizeText(mealName);
   return name.includes('almuerzo') && !name.includes('comida') && getDietMealKind(mealName) === 'comida';
 };
 

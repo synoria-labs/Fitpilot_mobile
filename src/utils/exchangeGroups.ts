@@ -1,3 +1,5 @@
+import { normalizeText } from './formatters';
+
 export type ExchangeGroupKey =
   | 'verduras'
   | 'frutas'
@@ -58,12 +60,7 @@ const EXCHANGE_GROUP_ALIASES: Record<Exclude<ExchangeGroupKey, 'unknown'>, reado
 
 const MATCH_ORDER = Object.keys(EXCHANGE_GROUP_ALIASES) as Exclude<ExchangeGroupKey, 'unknown'>[];
 
-export const normalizeExchangeGroupName = (value: string | null | undefined) =>
-  (value || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
+export const normalizeExchangeGroupName = (value: string | null | undefined) => normalizeText(value);
 
 export const getExchangeGroupKey = (groupName: string | null | undefined): ExchangeGroupKey => {
   const normalizedGroupName = normalizeExchangeGroupName(groupName);

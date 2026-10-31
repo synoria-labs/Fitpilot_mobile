@@ -25,6 +25,8 @@ import {
 import { buildDietRecipeDetailRoute } from '../../utils/dietRecipeRoute';
 import { getExchangeGroupKey, type ExchangeGroupKey } from '../../utils/exchangeGroups';
 import { getRecipeCutoutUri } from '../../utils/recipeImage';
+import { hasCompleteMacros } from '../../utils/dietNutrients';
+import { formatInteger } from '../../utils/formatters';
 
 type MealLook = {
   colors: readonly [string, string];
@@ -110,7 +112,6 @@ const getShortAmount = (ingredient: ClientDietIngredientRow) => {
 const canSwap = (ingredient: ClientDietIngredientRow, onPress?: () => void) =>
   Boolean(onPress && ingredient.exchangeGroupId && ingredient.menuItemId);
 
-const formatKcal = (value: number) => `${Math.round(value).toLocaleString('es-MX')}`;
 
 const getMealTitle = (meal: ClientDietMeal) => {
   const names = meal.recipes.length
@@ -125,7 +126,7 @@ const getMealTitle = (meal: ClientDietMeal) => {
 
 const getMacroLine = (meal: ClientDietMeal) => {
   const nutrients = meal.nutrients;
-  if (!nutrients || nutrients.proteinG === null || nutrients.carbsG === null || nutrients.fatG === null) {
+  if (!hasCompleteMacros(nutrients)) {
     return null;
   }
   return `P ${Math.round(nutrients.proteinG)} g · C ${Math.round(nutrients.carbsG)} g · G ${Math.round(nutrients.fatG)} g`;
@@ -233,7 +234,7 @@ const MealRow = ({
   const kcal = meal.nutrients?.kcal ?? meal.totalCalories;
   const macroLine = getMacroLine(meal);
   const mealTitle = getMealTitle(meal);
-  const meta = [kcal ? `${formatKcal(kcal)} kcal` : `${meal.totalEntries} ${meal.totalEntries === 1 ? 'elemento' : 'elementos'}`, macroLine]
+  const meta = [kcal ? `${formatInteger(kcal)} kcal` : `${meal.totalEntries} ${meal.totalEntries === 1 ? 'elemento' : 'elementos'}`, macroLine]
     .filter(Boolean)
     .join(' · ');
 
@@ -426,7 +427,7 @@ const EnergyBar = ({ meal }: { meal: ClientDietMeal }) => {
             <View style={[styles.energySwatch, { backgroundColor: segment.color }]} />
             <Text style={[styles.energyKeyText, auroraFont('bold'), { color: aurora.muted }]}>
               {segment.label}{' '}
-              <Text style={[auroraFont('semibold'), { color: aurora.faint }]}>{formatKcal(segment.kcal)}</Text>
+              <Text style={[auroraFont('semibold'), { color: aurora.faint }]}>{formatInteger(segment.kcal)}</Text>
             </Text>
           </View>
         ))}
@@ -579,7 +580,7 @@ const MainFoodRow = ({ ingredient, onPress }: { ingredient: ClientDietIngredient
       <View style={styles.foodSide}>
         {kcal !== null ? (
           <Text style={[styles.foodKcal, auroraFont('extrabold'), { color: aurora.text }]}>
-            {formatKcal(kcal)}
+            {formatInteger(kcal)}
             <Text style={[styles.foodKcalUnit, auroraFont('bold'), { color: aurora.faint }]}> kcal</Text>
           </Text>
         ) : null}
@@ -608,7 +609,7 @@ const MainFoodRow = ({ ingredient, onPress }: { ingredient: ClientDietIngredient
   return swappable ? (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${ingredient.label}${portionLabel ? `, ${portionLabel}` : ''}${kcal !== null ? `, ${formatKcal(kcal)} kilocalorías` : ''}`}
+      accessibilityLabel={`${ingredient.label}${portionLabel ? `, ${portionLabel}` : ''}${kcal !== null ? `, ${formatInteger(kcal)} kilocalorías` : ''}`}
       accessibilityHint="Cambia este alimento por un equivalente de su grupo"
       onPress={onPress}
       style={({ pressed }) => [...rowStyle, { transform: [{ scale: pressed ? 0.98 : 1 }] }]}
@@ -647,7 +648,7 @@ const VegetablesBlock = ({
           </Text>
         </View>
         {kcal !== null && kcal > 0 ? (
-          <Text style={[styles.blockKcal, auroraFont('bold'), { color: aurora.faint }]}>≈ {formatKcal(kcal)} kcal</Text>
+          <Text style={[styles.blockKcal, auroraFont('bold'), { color: aurora.faint }]}>≈ {formatInteger(kcal)} kcal</Text>
         ) : null}
       </View>
       <View style={styles.vegChips}>

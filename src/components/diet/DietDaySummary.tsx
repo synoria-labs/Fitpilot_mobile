@@ -7,6 +7,8 @@ import { toSvgId } from '../aurora/AuroraBackdrop';
 import { useCountUp } from '../../hooks/useCountUp';
 import { auroraFont, useAurora } from '../../theme/aurora';
 import type { ClientDietNutrients } from '../../types';
+import { hasCompleteMacros } from '../../utils/dietNutrients';
+import { formatInteger } from '../../utils/formatters';
 
 // Macro colors from the proposal: protein blue, carbohydrates amber, fat pink.
 const MACRO_COLORS = { protein: '#2563eb', carbs: '#d97706', fat: '#db2777' } as const;
@@ -27,7 +29,7 @@ type DietDaySummaryProps = {
 };
 
 const getMacros = (nutrients: ClientDietNutrients | null | undefined) => {
-  if (!nutrients || nutrients.proteinG === null || nutrients.carbsG === null || nutrients.fatG === null) {
+  if (!hasCompleteMacros(nutrients)) {
     return null;
   }
 
@@ -94,7 +96,7 @@ export const DietDaySummary = ({
       </View>
 
       <Text style={[styles.kcal, auroraFont('extrabold'), { color: aurora.text }]}>
-        {shownKcal === null ? '—' : Math.round(shownKcal).toLocaleString('es-MX')}
+        {shownKcal === null ? '—' : formatInteger(shownKcal)}
         <Text style={[styles.kcalUnit, auroraFont('bold'), { color: aurora.faint }]}> kcal</Text>
       </Text>
       <Text style={[styles.counts, auroraFont('medium'), { color: aurora.faint }]}>
