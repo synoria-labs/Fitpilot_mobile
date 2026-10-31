@@ -4,10 +4,12 @@ import {
   countDailyGoals,
   createEmptyDailyActivity,
   describeActivityCell,
+  describeTrainingCell,
   getActivityLevel,
   getCurrentDailyStreak,
   getCurrentWeeklyStreak,
   getVolumeCuts,
+  getWeeklySessionCounts,
   meetsTwoGoals,
   type DailyActivity,
 } from './activityGrid';
@@ -99,6 +101,28 @@ describe('rachas', () => {
     const model = buildActivityGrid({ todayKey: TODAY, weeks: 4, days, mode: 'entreno' });
 
     expect(getCurrentWeeklyStreak(model)).toBe(2);
+    expect(getWeeklySessionCounts(model)).toEqual([0, 3, 3, 1]);
+  });
+
+  it('una semana completa con menos de 3 sesiones corta la racha', () => {
+    const days: Record<string, DailyActivity> = {};
+    for (const key of ['2026-10-05', '2026-10-07', '2026-10-09', '2026-10-12', '2026-10-14', '2026-10-19', '2026-10-21', '2026-10-23']) {
+      days[key] = day({ sessions: 1 });
+    }
+    const model = buildActivityGrid({ todayKey: TODAY, weeks: 4, days, mode: 'entreno' });
+
+    expect(getWeeklySessionCounts(model)).toEqual([3, 2, 3, 0]);
+    expect(getCurrentWeeklyStreak(model)).toBe(1);
+  });
+
+  it('cuenta las sesiones dobles y deja fuera los días que aún no llegan', () => {
+    const days = {
+      '2026-10-27': day({ sessions: 2 }),
+      '2026-10-30': day({ sessions: 1 }),
+    };
+    const model = buildActivityGrid({ todayKey: TODAY, weeks: 1, days, mode: 'entreno' });
+
+    expect(getWeeklySessionCounts(model)).toEqual([2]);
   });
 });
 
@@ -115,5 +139,25 @@ describe('describeActivityCell', () => {
     expect(detail.title).toBe('Martes 27 de octubre');
     expect(detail.rows[0].value).toBe('Pull A · 58 min · 8.9 t');
     expect(describeActivityCell(model.cells[2]).badge).toBe('Hoy');
+  });
+});
+
+describe('describeTrainingCell', () => {
+  it('resume la sesión, el descanso y los días que no llegan', () => {
+    const model = buildActivityGrid({
+      todayKey: TODAY,
+      weeks: 1,
+      days: {
+        '2026-10-26': day({ sessions: 1, volumeKg: 0, trainingNames: ['Movilidad'] }),
+        '2026-10-27': day({ sessions: 2, minutes: 95, volumeKg: 12400, trainingNames: ['Pull A', 'Cardio'] }),
+      },
+      mode: 'entreno',
+    });
+
+    expect(describeTrainingCell(model.cells[0])).toEqual({ title: 'Lunes 26 de octubre', detail: 'Movilidad' });
+    expect(describeTrainingCell(model.cells[1]).detail).toBe('Pull A y 1 sesión más · 95 min · 12.4 t');
+    expect(describeTrainingCell(model.cells[2]).detail).toBe('Sin sesión todavía');
+    expect(describeTrainingCell({ ...model.cells[2], isToday: false }).detail).toBe('Descanso');
+    expect(describeTrainingCell(model.cells[3]).detail).toBe('Aún no llega');
   });
 });
