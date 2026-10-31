@@ -23,7 +23,7 @@
     "validate:android:host": "powershell -ExecutionPolicy Bypass -File ./scripts/validate-android-host.ps1",
     "lint": "eslint .",
     "typescript": "tsc --noEmit",
-    "test": "vitest run src && node --test scripts/shopping-list.test.cjs scripts/android-deploy.test.cjs",
+    "test": "vitest run src && node --test scripts/shopping-list.test.cjs scripts/android-deploy.test.cjs scripts/test-training-progress.cjs",
     "check:text-encoding": "node scripts/check-mojibake.mjs"
   },
   "dependencies": {
