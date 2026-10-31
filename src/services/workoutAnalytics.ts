@@ -128,6 +128,17 @@ export const getWorkoutAnalyticsModules = async ({
   }
 };
 
+/** Lo último guardado para estos filtros: se pinta al instante mientras llega la respuesta nueva. */
+export const getCachedWorkoutAnalyticsModules = (
+  params: WorkoutAnalyticsModulesParams,
+): Promise<WorkoutAnalyticsModules | null> =>
+  hasCacheUserId(params.cacheUserId)
+    ? readPersistentCache<WorkoutAnalyticsModules>(
+        buildWorkoutModulesCacheKey(params),
+        WORKOUT_MODULES_CACHE_VERSION,
+      )
+    : Promise.resolve(null);
+
 export const listWorkoutMacrocycles = ({
   skip = 0,
   limit = 100,
