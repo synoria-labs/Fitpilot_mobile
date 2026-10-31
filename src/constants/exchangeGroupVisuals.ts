@@ -12,21 +12,12 @@ import {
 } from '../vendor/lucide';
 import type { LucideIcon, LucideIconProps } from '../vendor/lucide';
 import { brandColors } from './colors';
+import { getExchangeGroupKey, type ExchangeGroupKey } from '../utils/exchangeGroups';
 
-export type ExchangeGroupVisualKey =
-  | 'verduras'
-  | 'frutas'
-  | 'cereales_tuberculos'
-  | 'leguminosas'
-  | 'alimentos_origen_animal'
-  | 'leche'
-  | 'grasas'
-  | 'azucares'
-  | 'unknown';
+export type ExchangeGroupVisualKey = ExchangeGroupKey;
 
 type ExchangeGroupVisualDefinition = {
   label: string;
-  aliases: readonly string[];
   icon: LucideIcon;
   renderIcon?: (props: LucideIconProps) => ReactNode;
   iconColor: string;
@@ -38,17 +29,9 @@ export type ExchangeGroupVisual = ExchangeGroupVisualDefinition & {
   key: ExchangeGroupVisualKey;
 };
 
-const normalizeExchangeGroupName = (value: string | null | undefined) =>
-  (value || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-
 export const EXCHANGE_GROUP_VISUALS = {
   verduras: {
     label: 'Verduras',
-    aliases: ['verdura', 'verduras', 'vegetal', 'vegetales'],
     icon: Carrot,
     iconColor: '#15803D',
     backgroundColor: '#DCFCE7',
@@ -56,7 +39,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   frutas: {
     label: 'Frutas',
-    aliases: ['fruta', 'frutas'],
     icon: Apple,
     iconColor: '#EA580C',
     backgroundColor: '#FFEDD5',
@@ -64,17 +46,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   cereales_tuberculos: {
     label: 'Cereales y tuberculos',
-    aliases: [
-      'cereal',
-      'cereales',
-      'cereales y tuberculos',
-      'cereales con grasa',
-      'cereales sin grasa',
-      'tuberculo',
-      'tuberculos',
-      'pan',
-      'arroz',
-    ],
     icon: Wheat,
     iconColor: '#92400E',
     backgroundColor: '#FEF3C7',
@@ -82,7 +53,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   leguminosas: {
     label: 'Leguminosas',
-    aliases: ['leguminosa', 'leguminosas', 'frijol', 'frijoles'],
     icon: Bean,
     iconColor: '#7C3AED',
     backgroundColor: '#EDE9FE',
@@ -90,16 +60,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   alimentos_origen_animal: {
     label: 'Alimentos de origen animal',
-    aliases: [
-      'aoa',
-      'alimentos de origen animal',
-      'alimento de origen animal',
-      'animal',
-      'carne',
-      'pollo',
-      'pescado',
-      'proteina animal',
-    ],
     icon: Beef,
     iconColor: '#1D4ED8',
     backgroundColor: '#DBEAFE',
@@ -107,15 +67,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   leche: {
     label: 'Leche',
-    aliases: [
-      'leche',
-      'lacteo',
-      'lacteos',
-      'leche descremada',
-      'leche semidescremada',
-      'leche entera',
-      'leche con azucar',
-    ],
     icon: Milk,
     iconColor: '#0891B2',
     backgroundColor: '#CFFAFE',
@@ -123,15 +74,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   grasas: {
     label: 'Grasas',
-    aliases: [
-      'grasa',
-      'grasas',
-      'aceite',
-      'aceites',
-      'aceites y grasas',
-      'grasas sin proteina',
-      'grasas con proteina',
-    ],
     icon: Droplets,
     iconColor: '#D97706',
     backgroundColor: '#FEF3C7',
@@ -139,7 +81,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   azucares: {
     label: 'Azucares',
-    aliases: ['azucar', 'azucares', 'azucares con grasa', 'azucares sin grasa', 'dulce', 'dulces'],
     icon: CandyCane,
     iconColor: '#DB2777',
     backgroundColor: '#FCE7F3',
@@ -147,7 +88,6 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
   unknown: {
     label: 'Grupo alimenticio',
-    aliases: [],
     icon: CookingPot,
     iconColor: brandColors.navy,
     backgroundColor: '#E8F0F8',
@@ -155,37 +95,9 @@ export const EXCHANGE_GROUP_VISUALS = {
   },
 } as const satisfies Record<ExchangeGroupVisualKey, ExchangeGroupVisualDefinition>;
 
-const EXCHANGE_GROUP_MATCH_ORDER: readonly ExchangeGroupVisualKey[] = [
-  'verduras',
-  'frutas',
-  'cereales_tuberculos',
-  'leguminosas',
-  'alimentos_origen_animal',
-  'leche',
-  'grasas',
-  'azucares',
-];
-
-const matchesAlias = (groupName: string, aliases: readonly string[]) =>
-  aliases.some((alias) => groupName === alias || groupName.includes(alias));
-
 export const getExchangeGroupVisualKey = (
   groupName: string | null | undefined,
-): ExchangeGroupVisualKey => {
-  const normalizedGroupName = normalizeExchangeGroupName(groupName);
-
-  if (!normalizedGroupName) {
-    return 'unknown';
-  }
-
-  for (const key of EXCHANGE_GROUP_MATCH_ORDER) {
-    if (matchesAlias(normalizedGroupName, EXCHANGE_GROUP_VISUALS[key].aliases)) {
-      return key;
-    }
-  }
-
-  return 'unknown';
-};
+): ExchangeGroupVisualKey => getExchangeGroupKey(groupName);
 
 export const getExchangeGroupVisual = (
   groupName: string | null | undefined,

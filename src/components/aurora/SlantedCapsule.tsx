@@ -35,6 +35,11 @@ export const getSlantedCapsuleBox = (width: number, height: number, angle = AURO
   return { width: width + margin * 2, height: height + Math.ceil(HALO_REACH) * 2 + 8 };
 };
 
+/** Sideways shift that keeps content on the capsule's slant, `dy` px below (or above) its centre. */
+export const slantShift = (dy: number, angle = AURORA_SIGNATURE_ANGLE) => ({
+  transform: [{ translateX: dy * Math.tan((angle * Math.PI) / 180) }],
+});
+
 /**
  * A capsule leaning from top-left to bottom-right. Android ignores `skewX` on views, so the
  * slant is drawn in SVG, where the skew is part of the shape itself.

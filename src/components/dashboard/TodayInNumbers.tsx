@@ -6,6 +6,7 @@ import { AuroraPill, IconBadge, ReadinessRing, Sparkline, type AuroraIconName } 
 import { useCountUp } from '../../hooks/useCountUp';
 import { auroraFont, auroraRadius, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import type { ConnectedHealthReadinessStatus } from '../../types/connectedHealthFeedback';
+import { formatInteger } from '../../utils/formatters';
 import type { AdherenceSummary, StepsSummary } from '../../utils/homeNumbers';
 
 const GAP = 12;
@@ -48,7 +49,6 @@ const READINESS_TONES: Record<ConnectedHealthReadinessStatus, AuroraTone> = {
   unknown: 'slate',
 };
 
-const formatCount = (value: number) => Math.round(value).toLocaleString('es-MX');
 const signed = (value: number, text: string) => `${value >= 0 ? '+' : '−'}${text}`;
 
 /** «Hoy en números»: the week's sessions, adherence, steps and readiness, counting up on arrival. */
@@ -170,14 +170,14 @@ export const TodayInNumbers = ({
           <TileHeader icon="footsteps-outline" tone="emerald">
             {steps.delta != null ? (
               <AuroraPill
-                label={signed(steps.delta, formatCount(Math.abs(steps.delta)))}
+                label={signed(steps.delta, formatInteger(Math.abs(steps.delta)))}
                 tone={steps.delta >= 0 ? 'emerald' : 'amber'}
               />
             ) : null}
           </TileHeader>
           <Text style={[auroraType.label, styles.label, { color: aurora.faint }]}>Pasos</Text>
           <Text style={[styles.value, auroraFont('extrabold'), { color: aurora.text }]}>
-            {stepsToday != null ? formatCount(stepsToday) : '—'}
+            {stepsToday != null ? formatInteger(stepsToday) : '—'}
           </Text>
           {steps.today != null && steps.series.some((value) => value > 0) ? (
             <View style={styles.spark}>

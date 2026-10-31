@@ -938,6 +938,7 @@ export interface ClientRecipeSummary {
 }
 
 export interface ClientDietPortion {
+  display?: import('./menu-view-v2.generated').PortionDisplay[];
   householdLabel: string | null;
   equivalents: number | null;
   grams: number | null;
@@ -949,6 +950,14 @@ export interface ClientDietCourseCategory {
   name: string;
   emoji: string;
   sortOrder: number;
+}
+
+/** Energy and macros from the menu resolver (backend v2); older responses leave them out. */
+export interface ClientDietNutrients {
+  kcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
 }
 
 export interface ClientDietIngredientRow {
@@ -963,6 +972,7 @@ export interface ClientDietIngredientRow {
   originalFoodId?: number | null;
   originalLabel?: string | null;
   portion: ClientDietPortion;
+  nutrients?: ClientDietNutrients | null;
   courseCategoryId: number | null;
   courseCategory: ClientDietCourseCategory | null;
 }
@@ -994,6 +1004,8 @@ export interface ClientFoodSwapCandidate {
 }
 
 export interface ClientDietRecipeCard {
+  menuId?: number;
+  menuMealId?: number;
   id: string;
   recipeId: number;
   title: string;
@@ -1020,6 +1032,7 @@ export interface ClientDietMeal {
   id: string;
   name: string;
   totalCalories: number | null;
+  nutrients?: ClientDietNutrients | null;
   recipes: ClientDietRecipeCard[];
   standaloneFoods: ClientDietFoodRow[];
   totalEntries: number;
@@ -1035,6 +1048,7 @@ export interface ClientDietMenu {
   meals: ClientDietMeal[];
   totalMeals: number;
   totalCalories: number | null;
+  nutrients?: ClientDietNutrients | null;
   totalItems: number;
   totalRecipes: number;
 }

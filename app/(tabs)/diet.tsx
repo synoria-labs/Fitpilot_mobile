@@ -8,31 +8,41 @@ import {
   Text,
   useWindowDimensions,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import {
   Button,
-  Card,
   ProfileShortcutButton,
   Skeleton,
   TabScreenWrapper,
 } from '../../src/components/common';
 import {
   CalendarDatePickerModal,
-  HistoricalNavigator,
   type SharedWeeklyCalendarDay,
 } from '../../src/components/calendar';
+import { AuroraBackdrop, AuroraTopScrim } from '../../src/components/aurora';
 import {
-  DietHero,
-  DietMealCard,
+  DietDaySummary,
+  DietEmptyDay,
+  DietMealTimeline,
   DietMenuSelectorModal,
+  DietRecipesCarousel,
+  DietShoppingCard,
   DietSourcesCard,
+  DietWeekCard,
   RecipeIngredientSwapModal,
+  type DietRecipeEntry,
 } from '../../src/components/diet';
-import { borderRadius, brandColors, fontSize, spacing, nutritionTheme } from '../../src/constants/colors';
+import { scienceTips } from '../../src/constants/scienceTips';
+import { useWorkoutStore } from '../../src/store/workoutStore';
+import { auroraFont, useAurora } from '../../src/theme/aurora';
+import { getDietMealKinds, getNextDietMealIndex } from '../../src/utils/dietMealVisuals';
+import { buildDietRecipeDetailRoute } from '../../src/utils/dietRecipeRoute';
+import { borderRadius, fontSize, spacing, nutritionTheme } from '../../src/constants/colors';
 import { useAuthStore } from '../../src/store/authStore';
 import { useBottomTabBarContentInset, useBottomTabBarScroll } from '../../src/hooks/useBottomTabBarVisibility';
 import { useAppTheme, useThemedStyles } from '../../src/theme';
@@ -125,6 +135,8 @@ const applyUpdatedMenuToWeekDays = (
 
 const buildDietMenuLabel = (index: number) => `Menú ${index + 1}`;
 
+const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
 type LoadDietOptions = {
   mode?: 'initial' | 'refresh';
   anchorDate: string;
@@ -135,9 +147,24 @@ export default function DietScreen() {
   const { width, height } = useWindowDimensions();
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
   const contentWidth = Math.max(0, getDashboardContentWidth(width) - horizontalPadding * 2);
-  const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const tabBarScroll = useBottomTabBarScroll();
+  const onTabBarScroll = tabBarScroll.onScroll;
+  const [isScrolled, setIsScrolled] = useState(false);
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      onTabBarScroll(event);
+      const scrolled = event.nativeEvent.contentOffset.y > 4;
+      setIsScrolled((current) => (current === scrolled ? current : scrolled));
+    },
+    [onTabBarScroll],
+  );
+  // The vegetable note about hunger only matters while the plan cuts energy.
+  const showHungerHint = useWorkoutStore(
+    (state) => state.dashboardBootstrap?.program?.objective === 'fat_loss',
+  );
   const contentInsetBottom = useBottomTabBarContentInset(spacing.xl);
   const { user } = useAuthStore();
   const [dietDays, setDietDays] = useState<ClientDietWeekDay[]>([]);
@@ -164,7 +191,6 @@ export default function DietScreen() {
   const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
   const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
   const isTablet = isTabletLayout(width, height);
-  const isTabletPortrait = isTablet && height > width;
 
   const selectedIngredient = selectedSwapTarget?.ingredient ?? null;
 
@@ -419,13 +445,22 @@ export default function DietScreen() {
   const visibleMenuLabel = visibleMenu
     ? menuLabelsById.get(visibleMenu.menuId) ?? buildDietMenuLabel(0)
     : 'Sin menú asignado';
-  const firstVisibleMealId = visibleMenu?.meals[0]?.id ?? null;
+  // Today the meal that comes next starts open; other days start with every meal closed.
+  const nextMealIndex = useMemo(
+    () =>
+      selectedDay?.isToday && visibleMenu
+        ? getNextDietMealIndex(visibleMenu.meals.map((meal) => meal.name), new Date().getHours())
+        : null,
+    [selectedDay?.isToday, visibleMenu],
+  );
+  const defaultExpandedMealId =
+    nextMealIndex !== null ? visibleMenu?.meals[nextMealIndex]?.id ?? null : null;
   const visibleMenuExchangeSystem = visibleMenu?.exchangeSystem ?? null;
   const visibleMenuSourceCitations = visibleMenuExchangeSystem?.citations ?? [];
 
   useEffect(() => {
-    setExpandedMealId(firstVisibleMealId);
-  }, [firstVisibleMealId, selectedDate, visibleMenu?.menuId]);
+    setExpandedMealId(defaultExpandedMealId);
+  }, [defaultExpandedMealId, selectedDate, visibleMenu?.menuId]);
 
   const handleToggleMeal = useCallback((mealId: string) => {
     setExpandedMealId((currentMealId) => (
@@ -437,19 +472,6 @@ export default function DietScreen() {
   const hasAvailableMenuOptions = Boolean(selectedDay) && (
     selectorMenus.length > 0 || Boolean(selectedDay?.backendPrimaryMenuId) || !hasHydratedOptionsForSelectedDate
   );
-  const selectorSubtitle = !selectedDay
-    ? 'No hay menús disponibles para esta fecha.'
-    : isPreviewingMenu
-        ? 'Estás revisando un cambio pendiente para este día.'
-    : menuOptionsErrorByDate[selectedDate]
-        ? menuOptionsErrorByDate[selectedDate] || 'No se pudieron cargar los menús.'
-      : menuOptionsLoadingByDate[selectedDate]
-          ? 'Cargando menús visibles.'
-        : hasHydratedOptionsForSelectedDate
-            ? selectorMenus.length > 0
-              ? `${selectorMenus.length} opción${selectorMenus.length === 1 ? '' : 'es'} disponible${selectorMenus.length === 1 ? '' : 's'}`
-              : 'Sin menús visibles para este día.'
-            : 'Cargando menús visibles.';
   const previewBannerDateLabel = selectedDay ? formatLongDate(selectedDay.assignedDate) : '';
   useEffect(() => {
     if (selectedPreviewMenuId !== null && !previewMenu) {
@@ -472,7 +494,7 @@ export default function DietScreen() {
         isToday: day.isToday,
         isDisabled: false,
         statusText: day.isToday ? 'Hoy' : '',
-        variant: 'diet',
+        variant: getDietSelectableMenus(day).length > 0 || day.backendPrimaryMenuId ? 'diet' : 'rest',
         onPress: () => {
           clearPreviewMenuCandidates();
           setIsMenuSelectorVisible(false);
@@ -494,18 +516,6 @@ export default function DietScreen() {
       { month: 'short', day: 'numeric' },
     )}`;
   }, [dietDays]);
-  const selectedDateLabel = useMemo(
-    () => (
-      selectedDay
-        ? formatLocalDate(selectedDay.assignedDate, {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-          })
-        : 'Semana visible'
-    ),
-    [selectedDay],
-  );
 
   const handleShiftWeek = useCallback((direction: -1 | 1) => {
     const nextAnchorDate = addDaysToDateKey(anchorDate, direction * 7);
@@ -701,13 +711,13 @@ export default function DietScreen() {
 
   const handleOpenRecipeIngredientSwap = useCallback(
     (recipe: ClientDietRecipeCard, ingredient: ClientDietIngredientRow) => {
-      if (!ingredient.exchangeGroupId || !ingredient.recipeIngredientId) {
+      if (!ingredient.exchangeGroupId || !ingredient.menuItemId || !recipe.menuId) {
         return;
       }
 
       setSelectedSwapTarget({
-        type: 'recipe',
-        recipeId: recipe.recipeId,
+        type: 'standalone',
+        menuId: recipe.menuId!,
         ingredient,
       });
       setSwapFoods([]);
@@ -844,6 +854,65 @@ export default function DietScreen() {
     }
   }, [applyUpdatedMenu, reloadAfterRecipeSwap, selectedDate, selectedIngredient, selectedSwapTarget]);
 
+  const nutritionTip = useMemo(
+    () => scienceTips.find((tip) => tip.category === 'nutrition') ?? null,
+    [],
+  );
+  const recipeEntries = useMemo<DietRecipeEntry[]>(() => {
+    if (!visibleMenu) {
+      return [];
+    }
+
+    const seenRecipeIds = new Set<number>();
+    const mealKinds = getDietMealKinds(visibleMenu.meals.map((meal) => meal.name));
+    return visibleMenu.meals.flatMap((meal, index) =>
+      meal.recipes
+        .filter((recipe) => {
+          if (seenRecipeIds.has(recipe.recipeId)) {
+            return false;
+          }
+          seenRecipeIds.add(recipe.recipeId);
+          return true;
+        })
+        .map((recipe) => ({ recipe, mealId: meal.id, mealName: meal.name, mealKind: mealKinds[index] })),
+    );
+  }, [visibleMenu]);
+  const handleOpenRecipeEntry = useCallback(
+    (entry: DietRecipeEntry) => {
+      if (!visibleMenu || !selectedDay) {
+        return;
+      }
+
+      router.push(
+        buildDietRecipeDetailRoute(entry.recipe.recipeId, {
+          menuId: visibleMenu.menuId,
+          assignedDate: selectedDay.assignedDate,
+          mealId: entry.mealId,
+        }),
+      );
+    },
+    [selectedDay, visibleMenu],
+  );
+  const handleOpenShoppingList = useCallback(() => {
+    router.push('/diet/shopping-list');
+  }, []);
+  const handleOpenChat = useCallback(() => {
+    router.push('/(tabs)/chat');
+  }, []);
+  const monthLabel = capitalize(
+    formatLocalDate(selectedDay?.assignedDate ?? selectedDate, { month: 'long' }),
+  );
+  const rangeLabel = currentWeekLabel ? currentWeekLabel.replace(' - ', ' – ') : null;
+  const summaryDateLabel = selectedDay
+    ? capitalize(
+        formatLocalDate(selectedDay.assignedDate, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+        }).replace(',', ''),
+      )
+    : '';
+
   if (!user) {
     return null;
   }
@@ -851,15 +920,16 @@ export default function DietScreen() {
   if (showInitialLoadingState) {
     return (
       <TabScreenWrapper>
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: contentInsetBottom },
+              { paddingTop: insets.top, paddingBottom: contentInsetBottom },
             ]}
             showsVerticalScrollIndicator={false}
           >
+            <AuroraBackdrop width={width} height={560 + insets.top} palette="nutrition" />
             <View style={[styles.skeletonHeader, { maxWidth: contentWidth }]}>
               <View style={styles.headerCopy}>
                 <Skeleton width={92} height={18} />
@@ -868,30 +938,33 @@ export default function DietScreen() {
               <ProfileShortcutButton />
             </View>
             <View style={[styles.skeletonBlock, { maxWidth: contentWidth }]}>
-              <Skeleton width="100%" height={156} borderRadius={borderRadius.lg} />
+              <Skeleton width="100%" height={132} borderRadius={24} />
             </View>
             <View style={[styles.skeletonBlock, { maxWidth: contentWidth }]}>
-              <Skeleton width="100%" height={166} borderRadius={borderRadius.lg} />
+              <Skeleton width="100%" height={236} borderRadius={28} />
             </View>
             {[1, 2, 3, 4].map((item) => (
               <View key={item} style={[styles.skeletonBlock, { maxWidth: contentWidth }]}>
-                <Skeleton width="100%" height={72} borderRadius={borderRadius.lg} />
+                <Skeleton width="100%" height={80} borderRadius={22} />
               </View>
             ))}
           </ScrollView>
-        </SafeAreaView>
+        </View>
       </TabScreenWrapper>
     );
   }
 
   return (
     <TabScreenWrapper>
-      <SafeAreaView style={styles.container} edges={['top']}>
+      {/* The backdrop runs under the status bar; the scrim takes over once content scrolls there. */}
+      <View style={styles.container}>
         <ScrollView
           style={styles.scrollView}
-          contentInsetAdjustmentBehavior="automatic"
-          onScroll={tabBarScroll.onScroll}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: contentInsetBottom }]}
+          onScroll={handleScroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top, paddingBottom: contentInsetBottom },
+          ]}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -903,21 +976,26 @@ export default function DietScreen() {
                   selectedDate,
                 });
               }}
-              tintColor={brandColors.navy}
+              tintColor={aurora.tones.emerald.tone}
+              progressViewOffset={insets.top}
             />
           }
           scrollEventThrottle={tabBarScroll.scrollEventThrottle}
           showsVerticalScrollIndicator={false}
         >
+          <AuroraBackdrop width={width} height={560 + insets.top} palette="nutrition" />
+
           <Animated.View
             entering={getEntryAnimation(0)}
-            style={[styles.header, { paddingHorizontal: horizontalPadding }]}
+            style={[styles.header, { paddingHorizontal: horizontalPadding + 4 }]}
           >
             <View style={styles.headerCopy}>
-              <Text style={styles.eyebrow}>Nutrición</Text>
-              <Text style={styles.title}>Dieta</Text>
-              <Text numberOfLines={1} style={styles.subtitle}>
-                Tu menú y comidas del día.
+              <Text style={[styles.eyebrow, auroraFont('extrabold'), { color: aurora.tones.emerald.ink }]}>
+                Nutrición
+              </Text>
+              <Text style={[styles.title, auroraFont('extrabold'), { color: aurora.text }]}>Dieta</Text>
+              <Text numberOfLines={1} style={[styles.subtitle, auroraFont('medium'), { color: aurora.muted }]}>
+                Tu menú de hoy y la semana.
               </Text>
             </View>
             <ProfileShortcutButton />
@@ -927,149 +1005,142 @@ export default function DietScreen() {
             <>
               <Animated.View
                 entering={getEntryAnimation(80)}
-                style={{ paddingHorizontal: horizontalPadding }}
+                style={[styles.section, { paddingHorizontal: horizontalPadding }]}
               >
-                <HistoricalNavigator
-                  title={selectedDateLabel}
-                  weekLabel={currentWeekLabel}
+                <DietWeekCard
                   days={navigatorDays}
-                  contentWidth={contentWidth}
-                  isTabletPortrait={isTabletPortrait}
+                  monthLabel={monthLabel}
+                  rangeLabel={rangeLabel}
                   showWeekButtons={isTablet}
-                  accentColor={theme.isDark ? nutritionTheme.accentLight : nutritionTheme.accentStrong}
-                  datePickerLabel="Fecha"
                   onShiftWeek={handleShiftWeek}
                   onOpenDatePicker={handleOpenDatePicker}
                 />
               </Animated.View>
 
-              <Animated.View
-                entering={getEntryAnimation(110)}
-                style={[styles.heroSection, { paddingHorizontal: horizontalPadding }]}
-              >
-                <DietHero
-                  menu={visibleMenu}
-                  menuLabel={visibleMenuLabel}
-                  assignedDate={selectedDay.assignedDate}
-                  isToday={selectedDay.isToday}
-                  isPreview={isPreviewingMenu}
-                  supportingText={
-                    isPreviewingMenu
-                      ? 'Revisa este menú antes de confirmar el cambio.'
-                      : hasPersistedOverride
-                        ? 'Elegiste una opción distinta para este día.'
-                        : selectorSubtitle
-                  }
-                  canChangeMenu={hasAvailableMenuOptions}
-                  isLoadingMenuOptions={Boolean(menuOptionsLoadingByDate[selectedDate])}
-                  onChangeMenu={() => {
-                    void handleOpenMenuSelector();
-                  }}
-                  onOpenWeeklyPlan={() => router.push('/diet/weekly-plan')}
-                />
-              </Animated.View>
-
-              <Animated.View entering={getEntryAnimation(160)} style={styles.mealsSection}>
-                <View style={[styles.sectionHeader, { paddingHorizontal: horizontalPadding }]}>
-                  <Text style={styles.sectionTitle}>Comidas del día</Text>
-                  <View style={styles.sectionCountPill}>
-                    <Text style={styles.sectionCountText}>
-                      {visibleMenu
-                        ? `${visibleMenu.totalMeals} ${visibleMenu.totalMeals === 1 ? 'bloque' : 'bloques'}`
-                        : 'Sin comidas'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={[styles.mealList, { paddingHorizontal: horizontalPadding }]}>
-                  {visibleMenu ? (
-                    visibleMenu.meals.length > 0 ? (
-                      visibleMenu.meals.map((meal, index) => (
-                        <Animated.View
-                          key={`${selectedDay.assignedDate}-${visibleMenu.menuId}-${renderVersion}-${meal.id}`}
-                          entering={FadeInDown.delay(220 + index * 50).duration(300)}
-                        >
-                          <DietMealCard
-                            meal={meal}
-                            menuId={visibleMenu.menuId}
-                            assignedDate={selectedDay.assignedDate}
-                            expanded={expandedMealId === meal.id}
-                            onToggleExpanded={() => handleToggleMeal(meal.id)}
-                            onRecipeIngredientPress={
-                              isPreviewingMenu ? undefined : handleOpenRecipeIngredientSwap
-                            }
-                            onStandaloneFoodPress={
-                              !isPreviewingMenu && visibleMenu
-                                ? handleVisibleMenuStandaloneFoodPress
-                                : undefined
-                            }
-                          />
-                        </Animated.View>
-                      ))
-                    ) : (
-                      <Card style={styles.noMealsCard}>
-                        <Text style={styles.noMealsTitle}>Sin comidas cargadas</Text>
-                        <Text style={styles.noMealsText}>
-                          Tu menú fue encontrado, pero este día todavía no contiene bloques de comida visibles.
-                        </Text>
-                      </Card>
-                    )
-                  ) : (
-                    <Card style={styles.noMealsCard}>
-                      <Text style={styles.noMealsTitle}>Sin menú asignado</Text>
-                      <Text style={styles.noMealsText}>
-                        No tienes un menú cargado para {formatLongDate(selectedDay.assignedDate)}.
-                      </Text>
-                    </Card>
-                  )}
-                </View>
-              </Animated.View>
-
               {visibleMenu ? (
+                <>
+                  <Animated.View
+                    entering={getEntryAnimation(120)}
+                    style={[styles.section, { paddingHorizontal: horizontalPadding }]}
+                  >
+                    <DietDaySummary
+                      dateLabel={summaryDateLabel}
+                      badgeLabel={isPreviewingMenu ? 'Vista previa' : visibleMenuLabel}
+                      note={
+                        isPreviewingMenu
+                          ? 'Revisa este menú antes de confirmar el cambio.'
+                          : hasPersistedOverride
+                            ? 'Elegiste una opción distinta para este día.'
+                            : null
+                      }
+                      kcal={visibleMenu.nutrients?.kcal ?? visibleMenu.totalCalories}
+                      mealCount={visibleMenu.totalMeals}
+                      recipeCount={visibleMenu.totalRecipes}
+                      nutrients={visibleMenu.nutrients}
+                      canChangeMenu={hasAvailableMenuOptions}
+                      isLoadingMenuOptions={Boolean(menuOptionsLoadingByDate[selectedDate])}
+                      onChangeMenu={() => {
+                        void handleOpenMenuSelector();
+                      }}
+                      onOpenWeeklyPlan={() => router.push('/diet/weekly-plan')}
+                    />
+                  </Animated.View>
+
+                  <Animated.View
+                    entering={getEntryAnimation(160)}
+                    style={[styles.sectionLarge, { paddingHorizontal: horizontalPadding }]}
+                  >
+                    {visibleMenu.meals.length > 0 ? (
+                      <DietMealTimeline
+                        key={`${selectedDay.assignedDate}-${visibleMenu.menuId}-${renderVersion}`}
+                        meals={visibleMenu.meals}
+                        title={selectedDay.isToday ? 'Comidas de hoy' : 'Comidas del día'}
+                        nextMealIndex={nextMealIndex}
+                        expandedMealId={expandedMealId}
+                        onToggleMeal={handleToggleMeal}
+                        menuId={visibleMenu.menuId}
+                        assignedDate={selectedDay.assignedDate}
+                        onRecipeIngredientPress={
+                          isPreviewingMenu ? undefined : handleOpenRecipeIngredientSwap
+                        }
+                        onStandaloneFoodPress={
+                          isPreviewingMenu ? undefined : handleVisibleMenuStandaloneFoodPress
+                        }
+                        showHungerHint={showHungerHint}
+                      />
+                    ) : (
+                      <DietEmptyDay
+                        icon="restaurant-outline"
+                        title="Sin comidas cargadas"
+                        message="Tu menú existe, pero este día todavía no tiene comidas visibles."
+                      />
+                    )}
+                  </Animated.View>
+
+                  <Animated.View
+                    entering={getEntryAnimation(220)}
+                    style={[styles.section, { paddingHorizontal: horizontalPadding }]}
+                  >
+                    <DietShoppingCard onOpenList={handleOpenShoppingList} />
+                  </Animated.View>
+
+                  <Animated.View entering={getEntryAnimation(260)} style={styles.sectionLarge}>
+                    <DietRecipesCarousel
+                      entries={recipeEntries}
+                      horizontalPadding={horizontalPadding}
+                      onOpenRecipe={handleOpenRecipeEntry}
+                    />
+                  </Animated.View>
+
+                  <Animated.View
+                    entering={getEntryAnimation(300)}
+                    style={[styles.section, { paddingHorizontal: horizontalPadding }]}
+                  >
+                    <DietSourcesCard
+                      exchangeSystemName={visibleMenuExchangeSystem?.name}
+                      citations={visibleMenuSourceCitations}
+                      isExpanded={isSourcesExpanded}
+                      onToggleExpanded={handleToggleSources}
+                      onOpenCitation={handleOpenCitation}
+                    />
+                  </Animated.View>
+                </>
+              ) : (
                 <Animated.View
-                  entering={getEntryAnimation(300)}
-                  style={[styles.sourcesSection, { paddingHorizontal: horizontalPadding }]}
+                  entering={getEntryAnimation(120)}
+                  style={[styles.section, { paddingHorizontal: horizontalPadding }]}
                 >
-                  <DietSourcesCard
-                    exchangeSystemName={visibleMenuExchangeSystem?.name}
-                    citations={visibleMenuSourceCitations}
-                    isExpanded={isSourcesExpanded}
-                    onToggleExpanded={handleToggleSources}
-                    onOpenCitation={handleOpenCitation}
+                  <DietEmptyDay
+                    icon="restaurant-outline"
+                    title={selectedDay.isToday ? 'Tu menú de hoy aún no está listo' : 'Este día aún no tiene menú'}
+                    message={`Todavía no se publica el menú del ${formatLongDate(selectedDay.assignedDate)}. Cuando llegue, lo verás aquí.`}
+                    primaryLabel="Enviar un mensaje"
+                    primaryIcon="chatbubble-outline"
+                    onPrimary={handleOpenChat}
+                    tip={nutritionTip}
                   />
                 </Animated.View>
-              ) : null}
+              )}
             </>
           ) : (
             <Animated.View
               entering={getEntryAnimation(80)}
-              style={[styles.emptyStateWrapper, { paddingHorizontal: horizontalPadding }]}
+              style={[styles.section, { paddingHorizontal: horizontalPadding }]}
             >
-              <Card style={styles.emptyCard}>
-                <View style={styles.emptyIcon}>
-                  <Ionicons name={error ? 'alert-circle-outline' : 'restaurant-outline'} size={30} color={nutritionTheme.accentStrong} />
-                </View>
-                <Text style={styles.emptyTitle}>
-                  {error ? 'No pudimos cargar tu dieta' : 'Todavía no tienes una dieta asignada'}
-                </Text>
-                <Text style={styles.emptyText}>
-                  {error
-                    ? error
-                    : 'Cuando tu nutriólogo publique un plan, aparecerá aquí con sus comidas y recetas.'}
-                </Text>
-                <Button
-                  title="Reintentar"
-                  onPress={() => void loadDiet({
-                    anchorDate,
-                    selectedDate,
-                  })}
-                  variant="primary"
-                  style={styles.retryButton}
-                />
-              </Card>
+              <DietEmptyDay
+                icon={error ? 'alert-circle-outline' : 'restaurant-outline'}
+                title={error ? 'No pudimos cargar tu dieta' : 'Todavía no tienes una dieta asignada'}
+                message={
+                  error ?? 'Cuando tu plan de nutrición esté listo, aparecerá aquí con sus comidas y recetas.'
+                }
+                primaryLabel="Reintentar"
+                primaryIcon="refresh"
+                onPrimary={() => void loadDiet({ anchorDate, selectedDate })}
+              />
             </Animated.View>
           )}
         </ScrollView>
+        <AuroraTopScrim height={insets.top} visible={isScrolled} />
 
         <CalendarDatePickerModal
           visible={isDatePickerVisible}
@@ -1148,7 +1219,7 @@ export default function DietScreen() {
           onSelectFood={handleSelectSwapFood}
           onReset={handleResetSwap}
         />
-      </SafeAreaView>
+      </View>
     </TabScreenWrapper>
   );
 }
@@ -1174,81 +1245,46 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       justifyContent: 'space-between',
       gap: spacing.md,
       paddingHorizontal: spacing.lg,
-      paddingTop: spacing.md,
+      paddingTop: 26,
     },
     skeletonBlock: {
       width: '100%',
       alignSelf: 'center',
       paddingHorizontal: spacing.lg,
+      marginTop: spacing.md,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
       gap: spacing.md,
-      paddingTop: spacing.md,
+      paddingTop: 26,
     },
     headerCopy: {
       flex: 1,
       minWidth: 0,
     },
     eyebrow: {
-      color: nutritionTheme.accentStrong,
-      fontSize: fontSize.xs,
-      fontWeight: '800',
+      fontSize: 11,
+      letterSpacing: 1.8,
       textTransform: 'uppercase',
-      letterSpacing: 1.2,
     },
     title: {
-      marginTop: spacing.xs,
-      color: theme.colors.textPrimary,
+      marginTop: 6,
       fontSize: 32,
-      fontWeight: '800',
+      lineHeight: 36,
+      letterSpacing: -1,
     },
     subtitle: {
-      marginTop: spacing.xs,
-      color: theme.colors.textMuted,
-      fontSize: fontSize.sm,
+      marginTop: 6,
+      fontSize: 14.5,
       lineHeight: 20,
     },
-    heroSection: {
-      marginTop: spacing.md,
+    section: {
+      marginTop: 16,
     },
-    sourcesSection: {
-      marginTop: spacing.md,
-    },
-    sectionHeader: {
-      marginTop: spacing.lg,
-      marginBottom: spacing.sm,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: spacing.sm,
-    },
-    sectionTitle: {
-      color: theme.colors.textPrimary,
-      fontSize: fontSize.lg,
-      fontWeight: '800',
-    },
-    sectionCountPill: {
-      minHeight: 30,
-      justifyContent: 'center',
-      borderRadius: borderRadius.full,
-      paddingHorizontal: spacing.sm,
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    sectionCountText: {
-      fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.textMuted,
-    },
-    mealsSection: {
-      marginTop: spacing.lg,
-    },
-    mealList: {
-      gap: spacing.sm,
+    sectionLarge: {
+      marginTop: 28,
     },
     previewActionBar: {
       borderTopWidth: 1,
@@ -1293,56 +1329,5 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     previewPrimaryButton: {
       flex: 1,
-    },
-    emptyStateWrapper: {
-      flex: 1,
-      paddingTop: spacing.xxl,
-    },
-    emptyCard: {
-      alignItems: 'center',
-      paddingVertical: spacing.xxl,
-      paddingHorizontal: spacing.lg,
-    },
-    emptyIcon: {
-      width: 64,
-      height: 64,
-      borderRadius: borderRadius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: nutritionTheme.accentSoft,
-    },
-    emptyTitle: {
-      marginTop: spacing.lg,
-      color: theme.colors.textPrimary,
-      fontSize: fontSize.xl,
-      fontWeight: '800',
-      textAlign: 'center',
-    },
-    emptyText: {
-      marginTop: spacing.sm,
-      color: theme.colors.textMuted,
-      fontSize: fontSize.base,
-      lineHeight: 22,
-      textAlign: 'center',
-    },
-    retryButton: {
-      marginTop: spacing.lg,
-      minWidth: 180,
-    },
-    noMealsCard: {
-      paddingVertical: spacing.xl,
-    },
-    noMealsTitle: {
-      color: theme.colors.textPrimary,
-      fontSize: fontSize.lg,
-      fontWeight: '800',
-      textAlign: 'center',
-    },
-    noMealsText: {
-      marginTop: spacing.sm,
-      color: theme.colors.textMuted,
-      fontSize: fontSize.base,
-      lineHeight: 22,
-      textAlign: 'center',
     },
   });
