@@ -155,7 +155,7 @@ const SummaryCell = ({ card, previous, weeks, periodDays, plannedSessions, sessi
         </Text>
         {pill ? <AuroraPill label={pill.label} tone={pill.tone} /> : null}
       </View>
-      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.value, auroraFont('extrabold'), { color: aurora.text }]}>
+      <Text numberOfLines={1} style={[styles.value, auroraFont('extrabold'), { color: aurora.text }]}>
         {value}
         {unit ? <Text style={[styles.unit, auroraFont('bold'), { color: aurora.faint }]}>{unit}</Text> : null}
       </Text>

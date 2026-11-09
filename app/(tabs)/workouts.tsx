@@ -1299,61 +1299,46 @@ export default function WorkoutsScreen() {
   );
 
   const renderOverviewSection = ({ item, index }: { item: WorkoutAnalyticsSection; index: number }) => {
-    const entering = getDataEntryAnimation(120 + index * 70);
+    let large = false;
+    let content: React.ReactNode;
 
     if (item.kind === 'snapshot') {
-      return (
-        <Animated.View entering={entering} style={[shell, styles.block, modulesDimStyle]}>
-          <WorkoutAnalyticsSnapshotCard section={item} />
-        </Animated.View>
-      );
-    }
-
-    if (item.kind === 'trend_series') {
+      content = <WorkoutAnalyticsSnapshotCard section={item} />;
+    } else if (item.kind === 'trend_series') {
       const trendSection = item as WorkoutAnalyticsTrendSeriesSection;
-      return (
-        <Animated.View entering={entering} style={[shell, styles.block, modulesDimStyle]}>
-          {trendSection.chart_variant === 'stacked_rep_ranges' ? (
-            <RepRangeVolumeChart
-              points={trendSection.rep_range_points}
-              repRanges={trendSection.rep_ranges}
-              selectedBucketId={selectedRepBucketId}
-              onSelectBucket={analyticsScopeKind === 'range' ? setSelectedRepBucketId : undefined}
-              onEditRanges={() => setIsRangeEditorVisible(true)}
-            />
-          ) : (
-            <AuroraCard padding={18} radius={24}>
-              <Text style={[auroraType.headline, { color: aurora.text }]}>{trendSection.title}</Text>
-              {trendSection.subtitle ? (
-                <Text style={[auroraType.caption, styles.cardSubtitle, { color: aurora.faint }]}>
-                  {trendSection.subtitle}
-                </Text>
-              ) : null}
-              <View style={styles.cardChart}>
-                {trendSection.semantic_kind === 'daily_session_comparison' ? (
-                  <WorkoutAnalyticsDailySessionComparisonChart section={trendSection} contentWidth={chartWidth} />
-                ) : (
-                  <WorkoutAnalyticsLineTrendChart section={trendSection} contentWidth={chartWidth} />
-                )}
-              </View>
-            </AuroraCard>
-          )}
-        </Animated.View>
-      );
-    }
-
-    if (item.kind === 'comparison_group') {
-      return (
-        <Animated.View entering={entering} style={[shell, styles.block, modulesDimStyle]}>
-          <WorkoutAnalyticsComparisonGroup section={item as WorkoutAnalyticsComparisonGroupSection} />
-        </Animated.View>
-      );
-    }
-
-    if (item.kind === 'exercise_highlights') {
+      content =
+        trendSection.chart_variant === 'stacked_rep_ranges' ? (
+          <RepRangeVolumeChart
+            points={trendSection.rep_range_points}
+            repRanges={trendSection.rep_ranges}
+            selectedBucketId={selectedRepBucketId}
+            onSelectBucket={analyticsScopeKind === 'range' ? setSelectedRepBucketId : undefined}
+            onEditRanges={() => setIsRangeEditorVisible(true)}
+          />
+        ) : (
+          <AuroraCard padding={18} radius={24}>
+            <Text style={[auroraType.headline, { color: aurora.text }]}>{trendSection.title}</Text>
+            {trendSection.subtitle ? (
+              <Text style={[auroraType.caption, styles.cardSubtitle, { color: aurora.faint }]}>
+                {trendSection.subtitle}
+              </Text>
+            ) : null}
+            <View style={styles.cardChart}>
+              {trendSection.semantic_kind === 'daily_session_comparison' ? (
+                <WorkoutAnalyticsDailySessionComparisonChart section={trendSection} contentWidth={chartWidth} />
+              ) : (
+                <WorkoutAnalyticsLineTrendChart section={trendSection} contentWidth={chartWidth} />
+              )}
+            </View>
+          </AuroraCard>
+        );
+    } else if (item.kind === 'comparison_group') {
+      content = <WorkoutAnalyticsComparisonGroup section={item as WorkoutAnalyticsComparisonGroupSection} />;
+    } else if (item.kind === 'exercise_highlights') {
       const exerciseHighlights = item as WorkoutAnalyticsExerciseHighlightsSection;
-      return (
-        <Animated.View entering={entering} style={[shell, styles.blockLarge, modulesDimStyle]}>
+      large = true;
+      content = (
+        <>
           <SectionHeading
             title="Ejercicios clave"
             actionLabel={exerciseHighlights.items.length ? 'Ver todos' : undefined}
@@ -1382,43 +1367,54 @@ export default function WorkoutsScreen() {
               }
             />
           )}
-        </Animated.View>
+        </>
+      );
+    } else {
+      const recentSection = item as WorkoutAnalyticsRecentSessionsSection;
+      large = true;
+      content = (
+        <>
+          <SectionHeading
+            title="Sesiones recientes"
+            actionLabel={analyticsScopeKind === 'range' && recentSection.items.length ? 'Historial' : undefined}
+            onActionPress={
+              analyticsScopeKind === 'range' && recentSection.items.length
+                ? () => handleTabChange('history')
+                : undefined
+            }
+          />
+          {recentSection.items.length ? (
+            <ProgressListGroup>
+              {recentSection.items.slice(0, 3).map((workout) => (
+                <ProgressSessionRow
+                  key={workout.workout_log_id}
+                  workout={workout}
+                  onPress={() => router.push(`/workout/${workout.workout_log_id}`)}
+                />
+              ))}
+            </ProgressListGroup>
+          ) : (
+            <EmptyStateCard
+              icon="barbell-outline"
+              title="Sin sesiones recientes"
+              description={
+                selectedRepBucketLabel
+                  ? `No hay sesiones con series de ${selectedRepBucketLabel} reps en este periodo.`
+                  : 'Tus sesiones aparecerán aquí en cuanto registres entrenamientos.'
+              }
+            />
+          )}
+        </>
       );
     }
 
-    const recentSection = item as WorkoutAnalyticsRecentSessionsSection;
+    // La entrada anima la opacidad de su vista, así que el atenuado va en una vista aparte.
     return (
-      <Animated.View entering={entering} style={[shell, styles.blockLarge, modulesDimStyle]}>
-        <SectionHeading
-          title="Sesiones recientes"
-          actionLabel={analyticsScopeKind === 'range' && recentSection.items.length ? 'Historial' : undefined}
-          onActionPress={
-            analyticsScopeKind === 'range' && recentSection.items.length
-              ? () => handleTabChange('history')
-              : undefined
-          }
-        />
-        {recentSection.items.length ? (
-          <ProgressListGroup>
-            {recentSection.items.slice(0, 3).map((workout) => (
-              <ProgressSessionRow
-                key={workout.workout_log_id}
-                workout={workout}
-                onPress={() => router.push(`/workout/${workout.workout_log_id}`)}
-              />
-            ))}
-          </ProgressListGroup>
-        ) : (
-          <EmptyStateCard
-            icon="barbell-outline"
-            title="Sin sesiones recientes"
-            description={
-              selectedRepBucketLabel
-                ? `No hay sesiones con series de ${selectedRepBucketLabel} reps en este periodo.`
-                : 'Tus sesiones aparecerán aquí en cuanto registres entrenamientos.'
-            }
-          />
-        )}
+      <Animated.View
+        entering={getDataEntryAnimation(120 + index * 70)}
+        style={[shell, large ? styles.blockLarge : styles.block]}
+      >
+        <Animated.View style={modulesDimStyle}>{content}</Animated.View>
       </Animated.View>
     );
   };

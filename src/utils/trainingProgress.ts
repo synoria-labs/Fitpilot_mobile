@@ -1,5 +1,5 @@
 import type { MuscleVolumeItem, MuscleVolumeResponse, WorkoutAnalyticsMetricCard } from '../types';
-import { formatSigned } from './formatters';
+import { formatInteger, formatSigned } from './formatters';
 
 /**
  * Cambio de un indicador frente al periodo anterior: en minutos para la duración y en porcentaje
@@ -16,7 +16,7 @@ export const getMetricChange = (
       ? Math.round(difference)
       : Math.round((difference / previous.value) * 100);
   return {
-    label: formatSigned(value, `${Math.abs(value)}${card.id === 'avg_duration' ? ' min' : '%'}`),
+    label: formatSigned(value, `${formatInteger(Math.abs(value))}${card.id === 'avg_duration' ? ' min' : '%'}`),
     value,
   };
 };

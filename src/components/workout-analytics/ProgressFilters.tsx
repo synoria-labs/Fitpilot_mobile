@@ -186,7 +186,9 @@ const styles = StyleSheet.create({
   period: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 1,
+    // El periodo se lee entero; el nombre del programa es el que se recorta.
+    flexShrink: 0,
+    maxWidth: '72%',
     gap: 8,
     height: 44,
     paddingHorizontal: 14,
@@ -199,6 +201,7 @@ const styles = StyleSheet.create({
   },
   program: {
     flexShrink: 1,
+    minWidth: 0,
     height: 32,
     justifyContent: 'center',
     paddingHorizontal: 11,

@@ -21,6 +21,7 @@ describe('getMetricChange', () => {
     expect(getMetricChange(card('sessions', 21), card('sessions', 19))?.label).toBe('+11%');
     expect(getMetricChange(card('avg_duration', 52), card('avg_duration', 55))?.label).toBe('−3 min');
     expect(getMetricChange(card('sessions', 5), card('sessions', 5))?.label).toBe('0%');
+    expect(getMetricChange(card('avg_duration', 18504), card('avg_duration', 24211))?.label).toBe('−5,707 min');
   });
 
   it('no compara sin una base útil', () => {
