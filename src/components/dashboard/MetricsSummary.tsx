@@ -15,6 +15,7 @@ import {
 } from '../../store/measurementPreferenceStore';
 import { useWorkoutStore } from '../../store/workoutStore';
 import { convertMeasurementUnitValue } from '../../utils/measurementUnits';
+import { formatSigned } from '../../utils/formatters';
 import {
   formatMeasurementDate,
   formatMeasurementNumber,
@@ -186,7 +187,7 @@ const MetricTile: React.FC<MetricTileProps> = ({
   // A change in body-fat percentage is in points, not in percent of the value.
   const changeUnit = convertedChange?.unit === '%' ? 'pts' : convertedChange?.unit ?? '';
   const changeLabel = hasChange
-    ? `${change > 0 ? '+' : '−'}${formatMeasurementNumber(convertedChange.value, 1)} ${changeUnit}`
+    ? formatSigned(change, `${formatMeasurementNumber(convertedChange.value, 1)} ${changeUnit}`)
     : null;
   const history = metric.history.map(
     (value) => convertMeasurementUnitValue(value, metric.unit, measurementPreference).value,

@@ -142,6 +142,10 @@ export const formatLocalShortWeekday = (
   return formattedValue.charAt(0).toUpperCase() + formattedValue.slice(1);
 };
 
+/** Day and short month without the abbreviation's dot: "28 oct". */
+export const formatLocalShortDate = (value: LocalDateInput, locale: Intl.LocalesArgument = 'es-MX') =>
+  formatLocalDate(value, { day: 'numeric', month: 'short' }, locale).replace('.', '');
+
 export const addDaysToDateKey = (value: LocalDateInput, days: number) => {
   const parsedDate = parseLocalDate(value);
   if (!parsedDate) {

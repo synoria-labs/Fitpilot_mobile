@@ -6,7 +6,7 @@ import { AuroraPill, IconBadge, ReadinessRing, Sparkline, type AuroraIconName } 
 import { useCountUp } from '../../hooks/useCountUp';
 import { auroraFont, auroraRadius, auroraType, useAurora, type AuroraTone } from '../../theme/aurora';
 import type { ConnectedHealthReadinessStatus } from '../../types/connectedHealthFeedback';
-import { formatInteger } from '../../utils/formatters';
+import { formatInteger, formatSigned } from '../../utils/formatters';
 import type { AdherenceSummary, StepsSummary } from '../../utils/homeNumbers';
 
 const GAP = 12;
@@ -49,7 +49,6 @@ const READINESS_TONES: Record<ConnectedHealthReadinessStatus, AuroraTone> = {
   unknown: 'slate',
 };
 
-const signed = (value: number, text: string) => `${value >= 0 ? '+' : '−'}${text}`;
 
 /** «Hoy en números»: the week's sessions, adherence, steps and readiness, counting up on arrival. */
 export const TodayInNumbers = ({
@@ -142,7 +141,7 @@ export const TodayInNumbers = ({
           <TileHeader icon="trending-up" tone="violet">
             {adherence.delta != null ? (
               <AuroraPill
-                label={signed(adherence.delta, `${Math.abs(adherence.delta)} pts`)}
+                label={formatSigned(adherence.delta, `${Math.abs(adherence.delta)} pts`)}
                 tone={adherence.delta >= 0 ? 'emerald' : 'rose'}
               />
             ) : null}
@@ -170,7 +169,7 @@ export const TodayInNumbers = ({
           <TileHeader icon="footsteps-outline" tone="emerald">
             {steps.delta != null ? (
               <AuroraPill
-                label={signed(steps.delta, formatInteger(Math.abs(steps.delta)))}
+                label={formatSigned(steps.delta, formatInteger(Math.abs(steps.delta)))}
                 tone={steps.delta >= 0 ? 'emerald' : 'amber'}
               />
             ) : null}

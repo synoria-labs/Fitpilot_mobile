@@ -3,11 +3,9 @@ import Svg, { G, Path } from 'react-native-svg';
 import { brandColors, colors } from '../../../constants/colors';
 import type { MuscleVolumeItem } from '../../../types';
 import { BODY_MAP_MUSCLE_PATHS, BODY_MAP_OUTLINES, BODY_MAP_VIEWBOX, type BodyMapView } from './bodyMapAtlas';
+import { clamp } from '../../../utils/math';
 
 const SESSION_REFERENCE_MAX = 12;
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
 
 const withAlpha = (hexColor: string, alpha: number) => {
   const normalized = hexColor.replace('#', '');
