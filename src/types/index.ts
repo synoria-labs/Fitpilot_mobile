@@ -163,7 +163,11 @@ export interface DayExercise {
   reps_max: number | null;
   rest_seconds: number;
   effort_type: EffortType;
+  /** Derived by the backend: the end of the prescribed range farthest from failure. */
   effort_value: number;
+  /** Prescribed range (RIR 1–2); equal ends for a fixed value, absent on older backends. */
+  effort_value_min?: number | null;
+  effort_value_max?: number | null;
   tempo?: string | null;
   set_type?: WorkoutSetType | null;
   cardio_subclass?: CardioSubclass | null;

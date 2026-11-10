@@ -10,15 +10,12 @@ import type {
   WorkoutSetSegmentInput,
 } from '../types';
 import {
-  clampEffortValue,
   getCardioEffectiveSets,
   isCardioExercise,
   isMovementExercise,
   isPlyometricExercise,
-  isEditableEffortType,
   isMobilityOrWarmupExercise,
   isTimedStrengthExercise,
-  shouldShowStrengthEffort,
 } from './formatters';
 
 export type WorkoutSetSegmentDraft = {
@@ -174,17 +171,12 @@ export const isMovementExecutionDraft = (
 
 export const getExecutionKeyString = (key: WorkoutExecutionKey) => `${key.dayExerciseId}:${key.setNumber}`;
 
-export const getExerciseEffortDefault = (dayExercise?: DayExercise): number | null => {
-  if (!shouldShowStrengthEffort(dayExercise) || dayExercise?.effort_value == null) {
-    return null;
-  }
-
-  if (isEditableEffortType(dayExercise.effort_type)) {
-    return clampEffortValue(dayExercise.effort_value);
-  }
-
-  return dayExercise.effort_value;
-};
+/**
+ * The effort a client logs is the one they perceived, so a new set starts without it. Prefilling
+ * the prescription (as before) recorded the plan as if it were what happened whenever the client
+ * did not touch the field, and a range has no single value to prefill anyway.
+ */
+const withoutLoggedEffort = <T extends SourceSegment>(segment: T): T => ({ ...segment, effort_value: null });
 
 export const getDayExerciseByProgress = (
   trainingDay: TrainingDay | null | undefined,
@@ -229,7 +221,7 @@ const buildBaseSegmentDraft = (
   reps_completed: sourceSegment?.reps_completed ?? (dayExercise?.reps_min ?? 12),
   duration_seconds: getHoldSecondsDefault(dayExercise, sourceSegment),
   weight_kg: sourceSegment?.weight_kg ?? suggestedWeightKg ?? 0,
-  effort_value: sourceSegment?.effort_value ?? getExerciseEffortDefault(dayExercise),
+  effort_value: sourceSegment?.effort_value ?? null,
 });
 
 const getAdaptiveSuggestedWeight = (
@@ -257,7 +249,7 @@ const normalizeSegmentDrafts = (
       reps_completed: segment.reps_completed ?? (dayExercise?.reps_min ?? 12),
       duration_seconds: getHoldSecondsDefault(dayExercise, segment),
       weight_kg: segment.weight_kg ?? 0,
-      effort_value: segment.effort_value ?? getExerciseEffortDefault(dayExercise),
+      effort_value: segment.effort_value ?? null,
     }));
 
   if (!normalizedSegments.length) {
@@ -269,10 +261,13 @@ const normalizeSegmentDrafts = (
   }
 
   while (normalizedSegments.length < minimumSegments) {
+    // A new segment copies the load to save taps, never how hard the previous one felt.
     normalizedSegments.push(
-      cloneSegmentDraft(
-        normalizedSegments[normalizedSegments.length - 1] ?? buildBaseSegmentDraft(dayExercise),
-        normalizedSegments.length + 1,
+      withoutLoggedEffort(
+        cloneSegmentDraft(
+          normalizedSegments[normalizedSegments.length - 1] ?? buildBaseSegmentDraft(dayExercise),
+          normalizedSegments.length + 1,
+        ),
       ),
     );
   }
@@ -318,8 +313,9 @@ export const getStrengthDraftValues = (
   const adaptiveSuggestedWeight = !preferredSet && !previousCompletedSet
     ? getAdaptiveSuggestedWeight(dayExercise, targetSetNumber ?? 1)
     : null;
+  // Re-editing a logged set keeps its effort; a set prefilled from the previous one does not.
   const templateSegments = preferredSet?.segments
-    ?? previousCompletedSet?.segments
+    ?? previousCompletedSet?.segments.map(withoutLoggedEffort)
     ?? (adaptiveSuggestedWeight != null ? [{ weight_kg: adaptiveSuggestedWeight }] : null);
   const currentSegments = normalizeSegmentDrafts(dayExercise, templateSegments);
 
@@ -515,7 +511,7 @@ export const createNextSegmentDraft = (
   currentSegments: WorkoutSetSegmentDraft[],
 ): WorkoutSetSegmentDraft => {
   const lastSegment = currentSegments[currentSegments.length - 1] ?? buildBaseSegmentDraft(dayExercise);
-  return cloneSegmentDraft(lastSegment, currentSegments.length + 1);
+  return withoutLoggedEffort(cloneSegmentDraft(lastSegment, currentSegments.length + 1));
 };
 
 export const normalizeWorkoutSetDraft = (

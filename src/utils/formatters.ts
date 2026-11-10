@@ -109,6 +109,43 @@ export function formatEffortValue(
     : `${effortType} ${formattedValue}`;
 }
 
+/** Ends of the prescribed effort; a day exercise from before ranges reads as its fixed value. */
+export function getPrescribedEffortBounds(
+  dayExercise: Partial<DayExercise> | null | undefined,
+): { min: number | null; max: number | null } {
+  const value = dayExercise?.effort_value ?? null;
+  return {
+    min: dayExercise?.effort_value_min ?? value,
+    max: dayExercise?.effort_value_max ?? value,
+  };
+}
+
+/** The target, never a logged value: "RIR 1–2", "RIR 2" or "75%". */
+export function formatPrescribedEffort(dayExercise: Partial<DayExercise> | null | undefined): string {
+  const effortType = dayExercise?.effort_type ?? 'RIR';
+  const { min, max } = getPrescribedEffortBounds(dayExercise);
+  if (min == null || max == null) {
+    return formatEffortValue(effortType, null);
+  }
+  const amount = min === max
+    ? formatCompactNumber(min)
+    : `${formatCompactNumber(min)}–${formatCompactNumber(max)}`;
+  return effortType === 'percentage' ? `${amount}%` : `${effortType} ${amount}`;
+}
+
+/**
+ * First value of an empty effort stepper. The client says how hard the set felt, so nothing is
+ * prefilled; the first tap lands on the edge of the target the client is moving toward.
+ */
+export function getEffortSeed(
+  dayExercise: Partial<DayExercise> | null | undefined,
+  delta: number,
+): number | null {
+  const { min, max } = getPrescribedEffortBounds(dayExercise);
+  const seed = delta >= 0 ? (max ?? min) : (min ?? max);
+  return seed == null ? null : clampEffortValue(seed);
+}
+
 export function formatZoneLabel(zone: number | null | undefined): string | null {
   if (zone == null || Number.isNaN(zone)) {
     return null;

@@ -25,9 +25,11 @@ import {
   formatDistanceMeters,
   formatDurationSeconds,
   formatEffortValue,
+  formatPrescribedEffort,
   formatZoneLabel,
   getCardioIntensityLabel,
   getCardioSummaryLabel,
+  getEffortSeed,
   getMovementMetricLabel,
   getMovementSummaryLabel,
   isEditableEffortType,
@@ -291,6 +293,8 @@ const EditableMetric = ({
   styles,
   accentColor,
   placeholderColor,
+  placeholder,
+  emptySeed,
 }: {
   field: WorkoutMetricField;
   metricId: string;
@@ -303,6 +307,9 @@ const EditableMetric = ({
   styles: ReturnType<typeof createStyles>;
   accentColor: string;
   placeholderColor: string;
+  placeholder?: string;
+  /** First value when the metric is still empty (perceived effort is never prefilled). */
+  emptySeed?: (delta: number) => number | null;
 }) => {
   const [draftValue, setDraftValue] = useState(() => formatWorkoutMetricValue(field, value));
   const [isFocused, setIsFocused] = useState(false);
@@ -335,11 +342,23 @@ const EditableMetric = ({
     [draftValue, field, onCommitValue, value],
   );
 
+  const handleAdjust = (delta: number) => {
+    if (emptySeed && normalizeWorkoutMetricValue(field, value) == null) {
+      const seeded = emptySeed(delta);
+      if (seeded != null) {
+        onCommitValue?.(seeded);
+        setDraftValue(formatWorkoutMetricValue(field, seeded));
+      }
+      return;
+    }
+    onAdjust?.(delta);
+  };
+
   return (
     <View style={styles.metricCard}>
       <Text style={styles.metricCardLabel}>{label}</Text>
       <View style={styles.metricStepperRow}>
-        <TouchableOpacity style={styles.metricButton} disabled={disabled} onPress={() => onAdjust?.(-step)}>
+        <TouchableOpacity style={styles.metricButton} disabled={disabled} onPress={() => handleAdjust(-step)}>
           <Ionicons name="remove" size={16} color={accentColor} />
         </TouchableOpacity>
         <TextInput
@@ -359,9 +378,10 @@ const EditableMetric = ({
           editable={!disabled}
           selectTextOnFocus
           style={styles.metricInput}
+          placeholder={placeholder}
           placeholderTextColor={placeholderColor}
         />
-        <TouchableOpacity style={styles.metricButton} disabled={disabled} onPress={() => onAdjust?.(step)}>
+        <TouchableOpacity style={styles.metricButton} disabled={disabled} onPress={() => handleAdjust(step)}>
           <Ionicons name="add" size={16} color={accentColor} />
         </TouchableOpacity>
       </View>
@@ -396,6 +416,8 @@ const EditableStepperMetric = ({
   styles,
   accentColor,
   placeholderColor,
+  placeholder,
+  emptySeed,
 }: {
   field: WorkoutMetricField;
   metricId: string;
@@ -408,6 +430,9 @@ const EditableStepperMetric = ({
   styles: ReturnType<typeof createStyles>;
   accentColor: string;
   placeholderColor: string;
+  placeholder?: string;
+  /** First value when the metric is still empty (perceived effort is never prefilled). */
+  emptySeed?: (delta: number) => number | null;
 }) => {
   const [draftValue, setDraftValue] = useState(() => formatWorkoutMetricValue(field, value));
   const [isFocused, setIsFocused] = useState(false);
@@ -447,6 +472,11 @@ const EditableStepperMetric = ({
         normalizeWorkoutMetricValue(field, value);
 
       if (baseValue == null) {
+        const seeded = emptySeed?.(delta);
+        if (seeded != null) {
+          onCommitValue?.(seeded);
+          setDraftValue(formatWorkoutMetricValue(field, seeded));
+        }
         return;
       }
 
@@ -459,7 +489,7 @@ const EditableStepperMetric = ({
 
       setDraftValue(formatWorkoutMetricValue(field, nextValue));
     },
-    [draftValue, field, isFocused, onAdjust, onCommitValue, value],
+    [draftValue, emptySeed, field, isFocused, onAdjust, onCommitValue, value],
   );
 
   return (
@@ -495,6 +525,7 @@ const EditableStepperMetric = ({
             editable={!disabled}
             selectTextOnFocus
             style={styles.inlineMetricInput}
+            placeholder={placeholder}
             placeholderTextColor={placeholderColor}
           />
         </View>
@@ -560,10 +591,14 @@ const StrengthExerciseBody = ({
   const showStrengthEffort = shouldShowStrengthEffort(dayExercise);
   const isEffortEditable = showStrengthEffort && isEditableEffortType(dayExercise.effort_type);
   const primarySegment = draft.currentSegments[0];
-  const currentEffortLabel = formatEffortValue(
-    dayExercise.effort_type,
-    primarySegment?.effort_value ?? dayExercise.effort_value,
-  );
+  // Like "Reps 8-12", the label carries the target ("RIR 1–2") and the value what the client logged.
+  const prescribedEffortLabel = formatPrescribedEffort(dayExercise);
+  const loggedEffort = primarySegment?.effort_value;
+  const effortMetricLabel = isEffortEditable ? prescribedEffortLabel : 'Intensidad';
+  const effortMetricValue = isEffortEditable
+    ? (loggedEffort != null ? formatCompact(loggedEffort) : '—')
+    : prescribedEffortLabel;
+  const seedEffort = useCallback((delta: number) => getEffortSeed(dayExercise, delta), [dayExercise]);
   // A hold (plank) is prescribed and logged in seconds per set instead of repetitions.
   const isHold = isTimedStrengthExercise(dayExercise);
   const holdTargetSeconds = dayExercise.duration_seconds ?? 0;
@@ -594,7 +629,7 @@ const StrengthExerciseBody = ({
             {showStrengthEffort ? (
               <>
                 <View style={styles.inlineDivider} />
-                <InlineStaticMetric styles={styles} label="Intensidad" value={currentEffortLabel} />
+                <InlineStaticMetric styles={styles} label={effortMetricLabel} value={effortMetricValue} />
               </>
             ) : null}
           </View>
@@ -657,8 +692,8 @@ const StrengthExerciseBody = ({
               <EditableStepperMetric
                 field="effort"
                 metricId={`strength-effort-${draft.currentSetNumber}`}
-                label={dayExercise.effort_type}
-                value={primarySegment?.effort_value ?? dayExercise.effort_value}
+                label={prescribedEffortLabel}
+                value={loggedEffort}
                 onAdjust={(delta) => onStrengthMetricChange(0, 'effort', delta)}
                 onCommitValue={(value) => onStrengthMetricCommit(0, 'effort', value)}
                 step={0.5}
@@ -666,12 +701,14 @@ const StrengthExerciseBody = ({
                 styles={styles}
                 accentColor={accentColor}
                 placeholderColor={placeholderColor}
+                placeholder="—"
+                emptySeed={seedEffort}
               />
             </>
           ) : (
             <>
               <View style={styles.inlineDivider} />
-              <InlineStaticMetric styles={styles} label="Intensidad" value={currentEffortLabel} />
+              <InlineStaticMetric styles={styles} label={effortMetricLabel} value={effortMetricValue} />
             </>
           )
         ) : null}
@@ -737,6 +774,8 @@ const StrengthSegmentEditor = ({
   const setTypeDefinition = getWorkoutSetTypeDefinition(dayExercise.set_type);
   const showStrengthEffort = shouldShowStrengthEffort(dayExercise);
   const isEffortEditable = showStrengthEffort && isEditableEffortType(dayExercise.effort_type);
+  const prescribedEffortLabel = formatPrescribedEffort(dayExercise);
+  const seedEffort = useCallback((delta: number) => getEffortSeed(dayExercise, delta), [dayExercise]);
 
   return (
     <View style={styles.segmentEditor}>
@@ -797,8 +836,8 @@ const StrengthSegmentEditor = ({
                 <EditableMetric
                   field="effort"
                   metricId={`segment-effort-${draft.currentSetNumber}-${segmentIndex}`}
-                  label={dayExercise.effort_type}
-                  value={segment.effort_value ?? dayExercise.effort_value}
+                  label={prescribedEffortLabel}
+                  value={segment.effort_value}
                   onAdjust={(delta) => onStrengthMetricChange(segmentIndex, 'effort', delta)}
                   onCommitValue={(value) => onStrengthMetricCommit(segmentIndex, 'effort', value)}
                   step={0.5}
@@ -806,12 +845,14 @@ const StrengthSegmentEditor = ({
                   styles={styles}
                   accentColor={accentColor}
                   placeholderColor={placeholderColor}
+                  placeholder="—"
+                  emptySeed={seedEffort}
                 />
               ) : (
                 <StaticMetric
                   styles={styles}
                   label="Intensidad"
-                  value={formatEffortValue(dayExercise.effort_type, segment.effort_value ?? dayExercise.effort_value)}
+                  value={prescribedEffortLabel}
                 />
               )
             ) : null}
@@ -1206,12 +1247,10 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
 
       const setGroup = (props.progress.sets_data ?? []).find((item) => item.set_number === setNumber);
       if (!setGroup) {
+        // A set still to do shows its target; a logged one, what the client reported.
         return usesSegmentedWorkoutCapture(props.dayExercise.set_type)
           ? setTypeDefinition.shortLabel
-          : formatEffortValue(
-              props.dayExercise.effort_type,
-              props.draft.currentSegments[0]?.effort_value ?? props.dayExercise.effort_value,
-            );
+          : formatPrescribedEffort(props.dayExercise);
       }
       if ((setGroup.total_duration_seconds ?? 0) > 0) {
         return formatDurationSeconds(setGroup.total_duration_seconds ?? 0);
@@ -1219,10 +1258,7 @@ export const ExerciseCard: React.FC<ExerciseCardProps> = (props) => {
       if (setGroup.segment_count > 1) {
         return `${setGroup.segment_count} seg`;
       }
-      return formatEffortValue(
-        props.dayExercise.effort_type,
-        setGroup.segments[0]?.effort_value ?? props.dayExercise.effort_value,
-      );
+      return formatEffortValue(props.dayExercise.effort_type, setGroup.segments[0]?.effort_value);
     },
     [isCardio, isMovement, props, setTypeDefinition.shortLabel],
   );
