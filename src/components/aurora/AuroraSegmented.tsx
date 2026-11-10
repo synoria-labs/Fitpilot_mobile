@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
-import { auroraFont, useAurora } from '../../theme/aurora';
+import { auroraFont, useAurora, type AuroraTone } from '../../theme/aurora';
 
 export type AuroraSegmentOption<T extends string> = {
   key: T;
@@ -14,6 +15,7 @@ type AuroraSegmentedProps<T extends string> = {
   value: T;
   onChange: (value: T) => void;
   accessibilityLabel?: string;
+  tone?: AuroraTone;
 };
 
 const SPRING = { damping: 18, stiffness: 220, mass: 0.7 };
@@ -25,6 +27,7 @@ export const AuroraSegmented = <T extends string>({
   value,
   onChange,
   accessibilityLabel,
+  tone,
 }: AuroraSegmentedProps<T>) => {
   const aurora = useAurora();
   const layouts = useRef<Partial<Record<T, { x: number; width: number }>>>({});
@@ -71,7 +74,16 @@ export const AuroraSegmented = <T extends string>({
           },
           thumbStyle,
         ]}
-      />
+      >
+        {tone ? (
+          <LinearGradient
+            colors={aurora.tones[tone].gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: 10 }]}
+          />
+        ) : null}
+      </Animated.View>
       {options.map((option) => {
         const selected = option.key === value;
         return (
@@ -99,7 +111,7 @@ export const AuroraSegmented = <T extends string>({
               style={[
                 styles.label,
                 auroraFont(selected ? 'extrabold' : 'bold'),
-                { color: selected ? aurora.text : aurora.faint },
+                { color: selected ? (tone ? aurora.onTone : aurora.text) : aurora.faint },
               ]}
             >
               {option.label}
