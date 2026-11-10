@@ -9,17 +9,20 @@ import {
   TouchableOpacity,
   View,
   ViewStyle,
+  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import {
   borderRadius,
-  brandColors,
   fontSize,
   spacing,
 } from '../../constants/colors';
 import { useAppTheme, useThemedStyles } from '../../theme';
+import { AuroraBackdrop } from '../aurora';
+import { auroraFont, getAuroraTokens } from '../../theme/aurora';
+import { getPrimaryScreenHorizontalPadding } from '../../utils/layout';
 
 interface ProfileDetailScreenProps {
   title: string;
@@ -40,20 +43,25 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
 }) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
+  const { width, height } = useWindowDimensions();
+  const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <AuroraBackdrop width={width} height={height} palette="home" />
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
             style={styles.backButton}
             activeOpacity={0.9}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={20} color={theme.colors.icon} />
+            <Ionicons name="chevron-back" size={20} color={theme.colors.icon} />
           </TouchableOpacity>
 
           <View style={styles.headerContent}>
@@ -67,6 +75,7 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
             style={styles.scrollView}
             contentContainerStyle={[
               styles.scrollContent,
+              { paddingHorizontal: horizontalPadding },
               footer ? styles.scrollContentWithFooter : null,
               contentStyle,
             ]}
@@ -79,6 +88,7 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
           <View
             style={[
               styles.staticContent,
+              { paddingHorizontal: horizontalPadding },
               footer ? styles.staticContentWithFooter : null,
               contentStyle,
             ]}
@@ -87,17 +97,18 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
           </View>
         )}
 
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
+        {footer ? <View style={[styles.footer, { paddingHorizontal: horizontalPadding }]}>{footer}</View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
-const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
-  StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) => {
+  const aurora = getAuroraTokens(theme.isDark);
+  return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: aurora.ground,
     },
     keyboardContainer: {
       flex: 1,
@@ -115,18 +126,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderRadius: borderRadius.full,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.isDark
-        ? 'rgba(255,255,255,0.05)'
-        : 'rgba(255,255,255,0.94)',
+      backgroundColor: aurora.glass,
       borderWidth: 1,
-      borderColor: theme.isDark
-        ? 'rgba(255,255,255,0.08)'
-        : 'rgba(24, 47, 80, 0.12)',
-      shadowColor: theme.isDark ? '#000000' : brandColors.navy,
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: theme.isDark ? 0.22 : 0.1,
-      shadowRadius: 16,
-      elevation: 4,
+      borderColor: aurora.glassBorder,
     },
     headerContent: {
       flex: 1,
@@ -134,13 +136,14 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     title: {
       fontSize: fontSize['2xl'],
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('extrabold'),
+      color: aurora.text,
     },
     subtitle: {
+      ...auroraFont('medium'),
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       lineHeight: 20,
     },
     scrollView: {
@@ -165,17 +168,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingHorizontal: spacing.lg,
       paddingTop: spacing.lg,
       paddingBottom: spacing.xl,
-      backgroundColor: theme.isDark
-        ? 'rgba(8, 17, 31, 0.96)'
-        : 'rgba(248, 251, 255, 0.98)',
+      backgroundColor: aurora.glass,
       borderTopWidth: 1,
-      borderTopColor: theme.isDark
-        ? 'rgba(255,255,255,0.08)'
-        : 'rgba(24, 47, 80, 0.08)',
-      shadowColor: theme.isDark ? '#000000' : brandColors.navy,
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: theme.isDark ? 0.2 : 0.08,
-      shadowRadius: 18,
-      elevation: 10,
+      borderTopColor: aurora.border,
     },
   });
+};

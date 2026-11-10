@@ -3,16 +3,12 @@ import {
   Alert,
   Image,
   Linking,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
 import { toast } from '../../src/store/toastStore';
@@ -28,16 +24,14 @@ import {
   useMeasurementPreferenceStore,
 } from '../../src/store/measurementPreferenceStore';
 import {
-  borderRadius,
-  brandColors,
-  fontSize,
-  shadows,
   spacing,
 } from '../../src/constants/colors';
 import {
   ProfileImagePreviewModal,
 } from '../../src/components/common';
-import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
+import { ProfileDetailScreen } from '../../src/components/profile/ProfileDetailScreen';
+import { AuroraCard, AuroraPill, IconBadge } from '../../src/components/aurora';
+import { auroraFont, getAuroraTokens, type AuroraTone } from '../../src/theme/aurora';
 import { hapticError, hapticSuccess } from '../../src/utils/haptics';
 import { pickProfileImageFromLibrary } from '../../src/utils/profileImagePicker';
 import {
@@ -54,6 +48,7 @@ type MenuItemProps = {
   onPress?: () => void;
   showChevron?: boolean;
   danger?: boolean;
+  tone?: AuroraTone;
 };
 
 const MenuItem = ({
@@ -63,6 +58,7 @@ const MenuItem = ({
   onPress,
   showChevron = true,
   danger = false,
+  tone = 'blue',
 }: MenuItemProps) => {
   const { theme } = useAppTheme();
   const styles = useThemedStyles(createStyles);
@@ -73,19 +69,10 @@ const MenuItem = ({
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !onPress }}
     >
-      <View
-        style={[
-          styles.menuIconContainer,
-          danger ? styles.menuIconContainerDanger : null,
-        ]}
-      >
-        <Ionicons
-          name={icon}
-          size={20}
-          color={danger ? theme.colors.error : theme.colors.icon}
-        />
-      </View>
+      <IconBadge icon={icon} tone={danger ? 'rose' : tone} size={40} />
       <View style={styles.menuContent}>
         <Text style={[styles.menuLabel, danger ? styles.menuLabelDanger : null]}>
           {label}
@@ -118,8 +105,6 @@ const formatAccountDeletionDate = (dateValue: string | null | undefined) => {
 };
 
 export default function ProfileScreen() {
-  const { width, height } = useWindowDimensions();
-  const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
   const { user, logout, uploadAvatar } = useAuthStore();
   const {
     assignedCount,
@@ -391,43 +376,22 @@ export default function ProfileScreen() {
           onError={() => setHasProfileImageError(true)}
         />
       ) : (
-        <Ionicons name="person" size={40} color={theme.colors.primary} />
+        <Ionicons name="person" size={40} color={getAuroraTokens(theme.isDark).tones.violet.ink} />
       )}
     </View>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-            activeOpacity={0.85}
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={20} color={theme.colors.icon} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Perfil</Text>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingHorizontal: horizontalPadding,
-              paddingBottom: spacing.xxl,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.userCard}>
+    <>
+      <ProfileDetailScreen title="Perfil" subtitle="Tu cuenta, tus preferencias y tu equipo.">
+          <AuroraCard style={styles.userCard} padding={24}>
             <View style={styles.avatarContainer}>
               <TouchableOpacity
                 activeOpacity={0.88}
                 onPress={() => setIsProfileImagePreviewVisible(true)}
                 style={styles.avatarPressable}
+                accessibilityRole="button"
+                accessibilityLabel="Ver foto de perfil"
               >
                 {avatarContent}
               </TouchableOpacity>
@@ -441,19 +405,22 @@ export default function ProfileScreen() {
                   void handleCameraPress();
                 }}
                 disabled={isProfileImageUploading}
+                accessibilityRole="button"
+                accessibilityLabel="Cambiar foto de perfil"
+                accessibilityState={{ disabled: isProfileImageUploading, busy: isProfileImageUploading }}
               >
-                <Ionicons name="camera" size={14} color="#ffffff" />
+                <Ionicons name="camera" size={18} color={getAuroraTokens(theme.isDark).onTone} />
               </TouchableOpacity>
             </View>
             <Text style={styles.userName}>{user?.displayName || 'Usuario'}</Text>
             <Text style={styles.userEmail}>{user?.email}</Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>Cliente</Text>
+              <AuroraPill label="Cliente" tone="violet" icon="person-outline" />
             </View>
-          </View>
+          </AuroraCard>
 
           <Text style={styles.sectionTitle}>Cuenta</Text>
-          <View style={styles.menuSection}>
+          <AuroraCard padding={0} style={styles.menuSection}>
             <MenuItem
               icon="people-outline"
               label="Tus profesionales"
@@ -482,44 +449,50 @@ export default function ProfileScreen() {
               onPress={handleAccountDeletionPress}
               danger
             />
-          </View>
+          </AuroraCard>
 
           <Text style={styles.sectionTitle}>Preferencias</Text>
-          <View style={styles.menuSection}>
+          <AuroraCard padding={0} style={styles.menuSection}>
             <MenuItem
               icon="moon-outline"
               label="Tema"
+              tone="violet"
               value={getThemePreferenceLabel(preference)}
               onPress={() => router.push('/profile/theme-settings')}
             />
             <MenuItem
               icon="fitness-outline"
               label="Unidades de medida"
+              tone="violet"
               value={MEASUREMENT_PREFERENCE_LABELS[measurementPreference]}
               onPress={handleMeasurementPreferencePress}
             />
             <MenuItem
               icon="heart-outline"
               label="Salud conectada"
+              tone="violet"
               onPress={() => router.push('/profile/connected-health' as never)}
             />
-          </View>
+          </AuroraCard>
 
           <Text style={styles.sectionTitle}>Soporte</Text>
-          <View style={styles.menuSection}>
+          <AuroraCard padding={0} style={styles.menuSection}>
             <MenuItem
               icon="help-circle-outline"
               label="Ayuda"
+              tone="slate"
               onPress={() => router.push('/profile/help')}
             />
             <MenuItem
               icon="chatbubble-outline"
               label="Contactar soporte"
+              tone="slate"
               onPress={() => router.push('/profile/contact-support')}
             />
             <MenuItem
               icon="document-text-outline"
               label="Términos y condiciones"
+              tone="slate"
               onPress={() => {
                 const url =
                   process.env.EXPO_PUBLIC_TERMS_URL ||
@@ -535,6 +508,7 @@ export default function ProfileScreen() {
             <MenuItem
               icon="shield-checkmark-outline"
               label="Política de privacidad"
+              tone="slate"
               onPress={() => {
                 const url =
                   process.env.EXPO_PUBLIC_PRIVACY_URL ||
@@ -547,9 +521,9 @@ export default function ProfileScreen() {
                 }
               }}
             />
-          </View>
+          </AuroraCard>
 
-          <View style={styles.menuSection}>
+          <AuroraCard padding={0} style={styles.menuSection}>
             <MenuItem
               icon="log-out-outline"
               label="Cerrar sesión"
@@ -557,10 +531,10 @@ export default function ProfileScreen() {
               showChevron={false}
               danger
             />
-          </View>
+          </AuroraCard>
 
           <Text style={styles.versionText}>FitPilot v1.0.0</Text>
-        </ScrollView>
+      </ProfileDetailScreen>
 
         <ProfileImagePreviewModal
           visible={isProfileImagePreviewVisible}
@@ -570,185 +544,46 @@ export default function ProfileScreen() {
           onChangeImage={handleAvatarChange}
           isUploading={isProfileImageUploading}
         />
-      </SafeAreaView>
+    </>
   );
 }
 
-const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: borderRadius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    title: {
-      flex: 1,
-      fontSize: fontSize['2xl'],
-      fontWeight: 'bold',
-      color: theme.colors.textPrimary,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: spacing.xxl,
-    },
-    userCard: {
-      backgroundColor: theme.isDark ? theme.colors.primarySoft : theme.colors.surface,
-      borderRadius: borderRadius.lg,
-      padding: spacing.xl,
-      alignItems: 'center',
-      marginBottom: spacing.lg,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
-      borderColor:
-        Platform.OS === 'android' && theme.isDark
-          ? 'transparent'
-          : theme.isDark
-            ? theme.colors.primaryBorder
-            : theme.colors.border,
-      ...(Platform.OS === 'android' && theme.isDark
-        ? {
-            shadowColor: 'transparent',
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 0,
-          }
-        : shadows.md),
-    },
-    avatarContainer: {
-      position: 'relative',
-      marginBottom: spacing.md,
-    },
+const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) => {
+  const aurora = getAuroraTokens(theme.isDark);
+  return StyleSheet.create({
+    userCard: { alignItems: 'center', marginBottom: spacing.xl },
+    avatarContainer: { position: 'relative', marginBottom: spacing.md },
     avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: theme.isDark ? theme.colors.surfaceAlt : theme.colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
+      width: 96, height: 96, borderRadius: 48, overflow: 'hidden',
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: aurora.tones.violet.soft,
+      borderWidth: 3, borderColor: aurora.tones.violet.line,
     },
-    avatarPressable: {
-      borderRadius: 40,
-    },
-    avatarImage: {
-      width: '100%',
-      height: '100%',
-    },
+    avatarPressable: { borderRadius: 48 },
+    avatarImage: { width: '100%', height: '100%' },
     editAvatarButton: {
-      position: 'absolute',
-      right: 0,
-      bottom: 0,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: brandColors.navy,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: theme.isDark ? theme.colors.primarySoft : theme.colors.surface,
+      position: 'absolute', right: -8, bottom: -4, width: 44, height: 44,
+      borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: aurora.tones.blue.gradient[0], borderWidth: 3, borderColor: aurora.surface,
     },
-    editAvatarButtonDisabled: {
-      opacity: 0.6,
-    },
-    userName: {
-      fontSize: fontSize.xl,
-      fontWeight: 'bold',
-      color: theme.colors.textPrimary,
-    },
-    userEmail: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    roleBadge: {
-      backgroundColor: theme.isDark ? theme.colors.surface : theme.colors.primarySoft,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.full,
-      marginTop: spacing.sm,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-    },
-    roleText: {
-      fontSize: fontSize.xs,
-      fontWeight: '500',
-      color: theme.colors.primary,
-    },
+    editAvatarButtonDisabled: { opacity: 0.6 },
+    userName: { ...auroraFont('extrabold'), fontSize: 24, color: aurora.text, textAlign: 'center' },
+    userEmail: { ...auroraFont('medium'), fontSize: 13, color: aurora.faint, marginTop: 6, textAlign: 'center' },
+    roleBadge: { marginTop: 12 },
     sectionTitle: {
-      fontSize: fontSize.sm,
-      fontWeight: '600',
-      color: theme.colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: spacing.sm,
+      ...auroraFont('bold'), fontSize: 11, color: aurora.faint,
+      textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10, marginLeft: 4,
     },
-    menuSection: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: borderRadius.lg,
-      marginBottom: spacing.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...shadows.sm,
-    },
+    menuSection: { marginBottom: spacing.lg, overflow: 'hidden' },
     menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      minHeight: 72, flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 16, paddingVertical: 14, gap: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: aurora.border,
     },
-    menuIconContainer: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceAlt,
-    },
-    menuIconContainerDanger: {
-      backgroundColor: `${theme.colors.error}18`,
-    },
-    menuContent: {
-      flex: 1,
-      marginLeft: spacing.md,
-    },
-    menuLabel: {
-      fontSize: fontSize.base,
-      color: theme.colors.textPrimary,
-      fontWeight: '500',
-    },
-    menuLabelDanger: {
-      color: theme.colors.error,
-    },
-    menuValue: {
-      marginTop: 2,
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    versionText: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      marginTop: spacing.sm,
-    },
+    menuContent: { flex: 1, minWidth: 0 },
+    menuLabel: { ...auroraFont('semibold'), fontSize: 14, color: aurora.text },
+    menuLabelDanger: { color: theme.colors.error },
+    menuValue: { ...auroraFont('medium'), marginTop: 4, fontSize: 12, color: aurora.faint },
+    versionText: { ...auroraFont('medium'), fontSize: 11, color: aurora.faint, textAlign: 'center', marginTop: spacing.sm },
   });
+};
