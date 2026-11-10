@@ -25,7 +25,9 @@ import { auroraFont, getAuroraTokens } from '../../theme/aurora';
 import { getPrimaryScreenHorizontalPadding } from '../../utils/layout';
 
 interface ProfileDetailScreenProps {
-  title: string;
+  title?: string;
+  headerRight?: React.ReactNode;
+  overview?: boolean;
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -36,6 +38,8 @@ interface ProfileDetailScreenProps {
 export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
   title,
   subtitle,
+  headerRight,
+  overview = false,
   children,
   footer,
   scrollEnabled = true,
@@ -48,26 +52,27 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <AuroraBackdrop width={width} height={height} palette="home" />
+      <AuroraBackdrop width={width} height={overview ? 520 : height} palette={overview ? "profile" : "home"} />
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
+        <View style={[styles.header, overview ? styles.overviewHeader : null, { paddingHorizontal: horizontalPadding }]}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Volver"
-            style={styles.backButton}
+            style={[styles.backButton, overview ? styles.overviewBack : null]}
             activeOpacity={0.9}
-            onPress={() => router.back()}
+            onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}
           >
             <Ionicons name="chevron-back" size={20} color={theme.colors.icon} />
           </TouchableOpacity>
 
           <View style={styles.headerContent}>
-            <Text style={styles.title}>{title}</Text>
+            {title ? <Text style={styles.title}>{title}</Text> : null}
             {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
           </View>
+          {headerRight}
         </View>
 
         {scrollEnabled ? (
@@ -120,6 +125,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) => {
       paddingTop: spacing.sm,
       paddingBottom: spacing.md,
     },
+    overviewHeader: { paddingTop: 18, paddingBottom: 20, alignItems: 'center' },
+    overviewBack: { width: 44, height: 44, borderRadius: 14 },
     backButton: {
       width: 48,
       height: 48,

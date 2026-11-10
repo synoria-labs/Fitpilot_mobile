@@ -11,6 +11,7 @@ import {
   getVolumeCuts,
   getWeeklySessionCounts,
   meetsTwoGoals,
+  summarizeAnnualActivity,
   type DailyActivity,
 } from './activityGrid';
 
@@ -159,5 +160,32 @@ describe('describeTrainingCell', () => {
     expect(describeTrainingCell(model.cells[2]).detail).toBe('Sin sesión todavía');
     expect(describeTrainingCell({ ...model.cells[2], isToday: false }).detail).toBe('Descanso');
     expect(describeTrainingCell(model.cells[3]).detail).toBe('Aún no llega');
+  });
+});
+
+
+describe('resumen anual de Perfil', () => {
+  it('cuenta sesiones y días activos sin duplicar días con varias sesiones', () => {
+    const stats = summarizeAnnualActivity({
+      '2026-10-25': day({ sessions: 2 }),
+      '2026-10-26': day({ steps: 8000 }),
+      '2026-10-27': day({ steps: 500 }),
+      '2026-10-28': day({ sessions: 1, steps: 9000 }),
+    }, TODAY);
+    expect(stats).toEqual({ sessions: 3, active: 3, best: 2 });
+  });
+
+  it('excluye días futuros y la parte de la cuadrícula anterior al año', () => {
+    const stats = summarizeAnnualActivity({
+      '2025-10-28': day({ sessions: 9 }),
+      '2025-10-29': day({ sessions: 1 }),
+      '2026-10-28': day({ sessions: 2 }),
+      '2026-10-29': day({ sessions: 9 }),
+    }, TODAY);
+    expect(stats).toEqual({ sessions: 3, active: 2, best: 1 });
+  });
+
+  it('muestra cero con un historial vacío', () => {
+    expect(summarizeAnnualActivity({}, TODAY)).toEqual({ sessions: 0, active: 0, best: 0 });
   });
 });
