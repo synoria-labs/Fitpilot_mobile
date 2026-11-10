@@ -14,13 +14,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAurora } from '../../theme/aurora';
 
-export type AuroraPalette = 'home' | 'training' | 'nutrition' | 'body';
+export type AuroraPalette = 'home' | 'training' | 'nutrition' | 'body' | 'chat';
 
 const PALETTES: Record<AuroraPalette, readonly [string, string, string]> = {
   home: ['#3b82f6', '#10b981', '#8b5cf6'],
   training: ['#3b82f6', '#6366f1', '#06b6d4'],
   nutrition: ['#10b981', '#14b8a6', '#84cc16'],
   body: ['#8b5cf6', '#d946ef', '#3b82f6'],
+  chat: ['#3b82f6', '#8b5cf6', '#10b981'],
 };
 
 // Position and size are fractions of the backdrop width; each glow drifts on its own period
@@ -120,8 +121,8 @@ export const AuroraBackdrop = ({ width, height, palette = 'home' }: AuroraBackdr
             key={index}
             color={colors[index]}
             size={width * glow.size}
-            left={width * glow.left}
-            top={width * glow.top}
+            left={palette === 'chat' ? width * [0.4, -0.3, 0.4][index] : width * glow.left}
+            top={palette === 'chat' ? height * [-0.1, 0.3, 0.65][index] : width * glow.top}
             strength={glow.strength}
             duration={glow.duration}
             still={reduceMotion}
@@ -130,8 +131,19 @@ export const AuroraBackdrop = ({ width, height, palette = 'home' }: AuroraBackdr
       </View>
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         <Defs>
-          <Pattern id={gridId} x="0" y="0" width={30} height={30} patternUnits="userSpaceOnUse">
-            <Path d="M 30 0 L 0 0 0 30" stroke={aurora.gridLine} strokeWidth={1} fill="none" />
+          <Pattern
+            id={gridId}
+            x="0"
+            y="0"
+            width={palette === 'chat' ? 18 : 30}
+            height={palette === 'chat' ? 18 : 30}
+            patternUnits="userSpaceOnUse"
+          >
+            {palette === 'chat' ? (
+              <Circle cx={1} cy={1} r={0.8} fill={aurora.gridLine} />
+            ) : (
+              <Path d="M 30 0 L 0 0 0 30" stroke={aurora.gridLine} strokeWidth={1} fill="none" />
+            )}
           </Pattern>
           <RadialGradient id={fadeId} cx="78%" cy="0%" rx="85%" ry="70%">
             <Stop offset="0.1" stopColor="#ffffff" stopOpacity={1} />

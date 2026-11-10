@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -12,8 +12,10 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { borderRadius, fontSize, spacing } from '../../constants/colors';
 import { useAppTheme, useThemedStyles } from '../../theme';
+import { auroraFont, getAuroraTokens, useAurora } from '../../theme/aurora';
 
 export type ChatComposerFile = {
   id: string;
@@ -32,6 +34,7 @@ type ChatComposerProps = {
   recordingDuration: number;
   recordingLevel: number;
   bottomPadding: number;
+  showSuggestions?: boolean;
   onChangeDraft: (value: string) => void;
   onPickImage: () => void;
   onPickDocument: () => void;
@@ -65,6 +68,7 @@ export function ChatComposer({
   recordingDuration,
   recordingLevel,
   bottomPadding,
+  showSuggestions = true,
   onChangeDraft,
   onPickImage,
   onPickDocument,
@@ -75,7 +79,9 @@ export function ChatComposer({
   onSend,
 }: ChatComposerProps) {
   const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
+  const inputRef = useRef<TextInput>(null);
   const [isAttachmentMenuVisible, setIsAttachmentMenuVisible] = useState(false);
   const showSendButton = canSend || isSending;
 
@@ -95,6 +101,42 @@ export function ChatComposer({
 
   return (
     <>
+      {showSuggestions && !disabled && !isRecording && !draft.trim() && !pendingFiles.length ? (
+        <ScrollView
+          horizontal
+          style={styles.suggestionsScroll}
+          contentContainerStyle={styles.suggestions}
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          accessibilityLabel="Sugerencias de mensaje"
+        >
+          {[
+            { label: '¿Puedo cambiar un ejercicio?', draft: '¿Puedo cambiar un ejercicio?' },
+            { label: 'Enviar foto de progreso', draft: null },
+            { label: 'Dudas del menú', draft: 'Tengo una duda sobre mi menú.' },
+          ].map((suggestion) => (
+            <Pressable
+              key={suggestion.label}
+              accessibilityRole="button"
+              accessibilityLabel={suggestion.label}
+              accessibilityHint={suggestion.draft
+                ? 'Prepara un borrador para que lo revises antes de enviarlo'
+                : 'Abre el selector de imágenes'}
+              onPress={() => {
+                if (suggestion.draft) {
+                  onChangeDraft(suggestion.draft);
+                  inputRef.current?.focus();
+                } else {
+                  onPickImage();
+                }
+              }}
+              style={({ pressed }) => [styles.suggestion, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.suggestionText}>{suggestion.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
       {pendingFiles.length ? (
         <ScrollView
           horizontal
@@ -124,7 +166,7 @@ export function ChatComposer({
                           : 'document-text'
                     }
                     size={17}
-                    color={theme.colors.primary}
+                    color={aurora.tones.blue.ink}
                   />
                 </View>
                 <View style={styles.pendingFileCopy}>
@@ -229,12 +271,13 @@ export function ChatComposer({
 
           <View style={styles.inputShell}>
             <TextInput
+              ref={inputRef}
               accessibilityLabel="Mensaje"
               value={draft}
               editable={!disabled}
               onChangeText={onChangeDraft}
               placeholder="Mensaje"
-              placeholderTextColor={theme.colors.textMuted}
+              placeholderTextColor={aurora.faint}
               style={styles.input}
               multiline
               maxLength={4000}
@@ -254,13 +297,20 @@ export function ChatComposer({
                 pressed ? styles.buttonPressed : null,
               ]}
             >
+              <LinearGradient
+                pointerEvents="none"
+                colors={aurora.tones.blue.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[StyleSheet.absoluteFill, styles.actionGradient]}
+              />
               {isSending ? (
-                <ActivityIndicator size="small" color="#08111f" />
+                <ActivityIndicator size="small" color={aurora.onTone} />
               ) : (
                 <Ionicons
                   name="send"
                   size={19}
-                  color={canSend ? '#08111f' : theme.colors.iconMuted}
+                  color={aurora.onTone}
                 />
               )}
             </Pressable>
@@ -272,15 +322,22 @@ export function ChatComposer({
               disabled={disabled}
               onPress={onStartRecording}
               style={({ pressed }) => [
-                styles.iconButton,
+                styles.sendButton,
                 pressed ? styles.buttonPressed : null,
                 disabled ? styles.buttonDisabled : null,
               ]}
             >
+              <LinearGradient
+                pointerEvents="none"
+                colors={aurora.tones.blue.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[StyleSheet.absoluteFill, styles.actionGradient]}
+              />
               <Ionicons
                 name="mic-outline"
                 size={22}
-                color={disabled ? theme.colors.iconMuted : theme.colors.icon}
+                color={aurora.onTone}
               />
             </Pressable>
           )}
@@ -320,7 +377,7 @@ export function ChatComposer({
                 <Ionicons
                   name="image-outline"
                   size={22}
-                  color={theme.colors.primary}
+                  color={aurora.tones.blue.ink}
                 />
               </View>
               <View style={styles.attachmentOptionCopy}>
@@ -342,7 +399,7 @@ export function ChatComposer({
                 <Ionicons
                   name="document-attach-outline"
                   size={22}
-                  color={theme.colors.primary}
+                  color={aurora.tones.blue.ink}
                 />
               </View>
               <View style={styles.attachmentOptionCopy}>
@@ -369,14 +426,28 @@ export function ChatComposer({
   );
 }
 
-const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
-  StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) => {
+  const aurora = getAuroraTokens(theme.isDark);
+  return StyleSheet.create({
+    suggestionsScroll: { flexGrow: 0, flexShrink: 0 },
+    suggestions: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 10, gap: 8 },
+    suggestion: {
+      minHeight: 44,
+      paddingHorizontal: 13,
+      justifyContent: 'center',
+      borderRadius: 24,
+      backgroundColor: aurora.glass,
+      borderWidth: 1,
+      borderColor: aurora.tones.blue.line,
+    },
+    suggestionText: { ...auroraFont('bold'), fontSize: 12, color: aurora.tones.blue.ink },
+    actionGradient: { borderRadius: 999 },
     pendingFilesScroller: {
       minHeight: 58,
       maxHeight: 68,
       flexGrow: 0,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
+      borderTopColor: aurora.border,
     },
     pendingFiles: {
       alignItems: 'center',
@@ -391,15 +462,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       gap: spacing.xs,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
       paddingLeft: spacing.xs,
       paddingRight: 2,
     },
     pendingAudioFileChip: {
-      borderColor: theme.colors.primaryBorder,
-      backgroundColor: theme.colors.primarySoft,
+      borderColor: aurora.tones.blue.line,
+      backgroundColor: aurora.tones.blue.soft,
     },
     pendingFileIcon: {
       width: 34,
@@ -407,22 +478,22 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: aurora.tones.blue.soft,
     },
     pendingFileCopy: {
       minWidth: 0,
       flex: 1,
     },
     pendingFileText: {
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.xs,
-      fontWeight: '800',
+      ...auroraFont('bold'),
     },
     pendingFileMeta: {
       marginTop: 1,
-      color: theme.colors.primary,
+      color: aurora.tones.blue.ink,
       fontSize: 10,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
     },
     pendingFileRemoveButton: {
       width: 44,
@@ -436,8 +507,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'flex-end',
       gap: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
-      backgroundColor: theme.colors.background,
+      borderTopColor: aurora.border,
+      backgroundColor: aurora.glass,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.sm,
     },
@@ -447,8 +518,8 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       gap: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
-      backgroundColor: theme.colors.background,
+      borderTopColor: aurora.border,
+      backgroundColor: aurora.glass,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.sm,
     },
@@ -459,9 +530,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
     },
     buttonPressed: {
       opacity: 0.66,
@@ -475,16 +546,17 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       flex: 1,
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: theme.colors.inputBorder,
+      borderColor: aurora.borderStrong,
       borderRadius: 22,
-      backgroundColor: theme.colors.inputBackground,
+      backgroundColor: aurora.surface,
       paddingHorizontal: spacing.md,
       paddingVertical: Platform.OS === 'ios' ? 10 : 0,
     },
     input: {
+      ...auroraFont('medium'),
       minHeight: 40,
       maxHeight: 96,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.base,
       padding: 0,
       textAlignVertical: 'center',
@@ -496,13 +568,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
     },
     sendButtonEnabled: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primary,
+      borderColor: aurora.tones.blue.ink,
+      backgroundColor: aurora.tones.blue.ink,
     },
     recordingStatus: {
       minWidth: 0,
@@ -512,9 +584,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       gap: spacing.sm,
       borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
+      borderColor: aurora.tones.blue.line,
       borderRadius: 23,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: aurora.tones.blue.soft,
       paddingHorizontal: spacing.sm,
     },
     recordingDot: {
@@ -536,13 +608,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     recordingWaveBar: {
       width: 4,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: aurora.tones.blue.ink,
     },
     recordingTime: {
       minWidth: 42,
-      color: theme.colors.primary,
+      color: aurora.tones.blue.ink,
       fontSize: fontSize.xs,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       textAlign: 'right',
     },
     stopButton: {
@@ -566,7 +638,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       gap: spacing.sm,
       borderTopLeftRadius: borderRadius.xl,
       borderTopRightRadius: borderRadius.xl,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
       padding: spacing.md,
       paddingTop: spacing.sm,
     },
@@ -575,13 +647,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       height: 4,
       alignSelf: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.borderStrong,
+      backgroundColor: aurora.borderStrong,
     },
     sheetTitle: {
       marginVertical: spacing.xs,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.lg,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
     },
     attachmentOption: {
       minHeight: 62,
@@ -589,13 +661,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       gap: spacing.sm,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: aurora.surface2,
       padding: spacing.sm,
     },
     attachmentOptionPressed: {
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: aurora.tones.blue.soft,
     },
     attachmentOptionIcon: {
       width: 42,
@@ -603,20 +675,20 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: aurora.tones.blue.soft,
     },
     attachmentOptionCopy: {
       minWidth: 0,
       flex: 1,
     },
     attachmentOptionTitle: {
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.sm,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
     },
     attachmentOptionText: {
       marginTop: 2,
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       fontSize: fontSize.xs,
     },
     cancelButton: {
@@ -626,8 +698,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       borderRadius: borderRadius.lg,
     },
     cancelButtonText: {
-      color: theme.colors.textSecondary,
+      color: aurora.muted,
       fontSize: fontSize.sm,
-      fontWeight: '800',
+      ...auroraFont('bold'),
     },
   });
+};

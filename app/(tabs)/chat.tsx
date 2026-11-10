@@ -8,7 +8,9 @@ import React, {
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -42,7 +44,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { io, type Socket } from 'socket.io-client';
 import { AudioMessagePlayer } from '../../src/components/chat/AudioMessagePlayer';
 import { ChatComposer } from '../../src/components/chat/ChatComposer';
-import { ListItemSkeleton, TabScreenWrapper } from '../../src/components/common';
+import { ListItemSkeleton, ProfileShortcutButton, TabScreenWrapper } from '../../src/components/common';
+import { AuroraBackdrop } from '../../src/components/aurora';
+import { auroraFont, getAuroraTokens, useAurora } from '../../src/theme/aurora';
+import { mergeDistinctText } from '../../src/utils/careTeam';
 import {
   borderRadius,
   fontSize,
@@ -409,7 +414,7 @@ const AttachmentPreview = ({
         onDownload(attachment);
       }}
     >
-      <Ionicons name={icon} size={16} color={theme.colors.primary} />
+      <Ionicons name={icon} size={16} color={getAuroraTokens(theme.isDark).tones.blue.ink} />
       <Text style={styles.fileAttachmentText} numberOfLines={1}>
         {label}
       </Text>
@@ -517,6 +522,15 @@ const MessageBubble = React.memo(function MessageBubble({
           isHighlighted ? styles.messageBubbleHighlighted : null,
         ]}
       >
+        {isMine ? (
+          <LinearGradient
+            pointerEvents="none"
+            colors={getAuroraTokens(theme.isDark).tones.blue.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, styles.messageGradient]}
+          />
+        ) : null}
         {message.reply_to ? (
           <TouchableOpacity
             activeOpacity={0.78}
@@ -613,10 +627,10 @@ const MessageBubble = React.memo(function MessageBubble({
                 size={15}
                 color={
                   isFailedSend
-                    ? theme.colors.error
+                    ? getAuroraTokens(theme.isDark).onTone
                     : message.delivery_status === 'READ'
-                      ? theme.colors.success
-                      : 'rgba(8,17,31,0.52)'
+                      ? (theme.isDark ? '#075985' : '#a5f3fc')
+                      : getAuroraTokens(theme.isDark).onTone
                 }
               />
             </View>
@@ -646,26 +660,38 @@ const ConversationAvatar = ({
   conversation: ChatConversation;
   variant?: 'list' | 'thread';
 }) => {
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
   const displayName = buildDisplayName(conversation.participant);
   const imageUri = conversation.participant.profile_picture;
+  const initials = [conversation.participant.name, conversation.participant.lastname]
+    .map((part) => part?.trim().charAt(0) ?? '')
+    .join('')
+    .slice(0, 2) || displayName.charAt(0);
 
   return (
-    <View style={[styles.avatar, variant === 'thread' ? styles.threadAvatar : null]}>
+    <LinearGradient
+      colors={aurora.tones.blue.gradient}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[styles.avatar, variant === 'thread' ? styles.threadAvatar : null]}
+    >
       {imageUri ? (
         <Image source={{ uri: imageUri }} style={styles.avatarImage} />
       ) : (
         <Text style={[styles.avatarText, variant === 'thread' ? styles.threadAvatarText : null]}>
-          {displayName.slice(0, 1)}
+          {initials}
         </Text>
       )}
-    </View>
+    </LinearGradient>
   );
 };
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
+  const aurora = useAurora();
+  const { width, height } = useWindowDimensions();
   const styles = useThemedStyles(createStyles);
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const isFocused = useIsFocused();
@@ -699,6 +725,7 @@ export default function ChatScreen() {
   );
   const [messages, setMessages] = useState<LocalChatMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(() => Keyboard.isVisible());
   const [replyToMessage, setReplyToMessage] = useState<ChatMessage | null>(null);
   const [pendingFiles, setPendingFiles] = useState<PendingChatFile[]>([]);
   const [previewAttachment, setPreviewAttachment] = useState<ChatAttachment | null>(null);
@@ -737,21 +764,11 @@ export default function ChatScreen() {
       !activeConversation.contact_request_scheduled_appointment_id,
   );
   const isThreadOpen = Boolean(activeConversation);
-  const chatBackgroundGradient = useMemo(
-    () =>
-      theme.isDark
-        ? (['#08111f', '#050b14', '#0d1624'] as const)
-        : ([
-            theme.colors.background,
-            theme.colors.surfaceAlt,
-            theme.colors.background,
-          ] as const),
-    [
-      theme.colors.background,
-      theme.colors.surfaceAlt,
-      theme.isDark,
-    ],
-  );
+  const professionalRole = mergeDistinctText(
+    ...Object.values(careTeam.summaries)
+      .filter((summary) => summary?.status === 'assigned' && Number(summary.id) === activeConversation?.professional_id)
+      .map((summary) => summary?.roleLabel),
+  ) ?? 'Profesional FitPilot';
 
   useEffect(() => {
     if (isFocused) {
@@ -774,9 +791,30 @@ export default function ChatScreen() {
   );
 
   const closeThread = useCallback(() => {
+    Keyboard.dismiss();
     setActiveConversationId(null);
     setHasAutoSelectedConversation(true);
   }, []);
+
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!isThreadOpen) return;
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        closeThread();
+        return true;
+      });
+      return () => subscription.remove();
+    }, [closeThread, isThreadOpen]),
+  );
 
   const professionalOptions = useMemo(() => {
     const rawOptions = [
@@ -1613,10 +1651,10 @@ export default function ChatScreen() {
         : 0;
   const composerBottomPadding =
     CHAT_COMPOSER_PADDING +
-    Math.max(
+    (isKeyboardVisible ? 0 : Math.max(
       insets.bottom,
       Platform.OS === 'android' ? ANDROID_NAV_BAR_FALLBACK_INSET : 0,
-    );
+    ));
 
   const previewModal = (
     <Modal
@@ -1655,7 +1693,7 @@ export default function ChatScreen() {
               }
             }}
           >
-            <Ionicons name="download-outline" size={22} color={theme.colors.primary} />
+            <Ionicons name="download-outline" size={22} color={getAuroraTokens(theme.isDark).tones.blue.ink} />
           </TouchableOpacity>
         </View>
         <View style={styles.previewBody}>
@@ -1681,22 +1719,25 @@ export default function ChatScreen() {
     return (
       <TabScreenWrapper>
         {previewModal}
-        <LinearGradient colors={chatBackgroundGradient} style={styles.stage}>
+        <View style={styles.stage}>
+          <AuroraBackdrop width={width} height={height} palette="chat" />
           <StatusBar style={theme.statusBarStyle} />
           <SafeAreaView style={styles.safeAreaTransparent} edges={['top', 'left', 'right']}>
             <KeyboardAvoidingView
               style={styles.threadShell}
-              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
               <View style={styles.threadHeader}>
                 <TouchableOpacity
                   activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel="Volver a conversaciones"
                   onPress={closeThread}
                   style={styles.threadIconButton}
                 >
                   <Ionicons
-                    name="arrow-back"
-                    size={21}
+                    name="chevron-back"
+                    size={22}
                     color={theme.colors.icon}
                   />
                 </TouchableOpacity>
@@ -1706,12 +1747,30 @@ export default function ChatScreen() {
                     {buildDisplayName(activeConversation.participant)}
                   </Text>
                   <Text numberOfLines={1} style={styles.threadSubtitle}>
-                    {activeConversation.participant.email || 'Profesional FitPilot'}
+                    {professionalRole}
                   </Text>
                 </View>
                 {isRefreshing ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
-                ) : null}
+                  <ActivityIndicator size="small" color={aurora.tones.blue.tone} />
+                ) : (
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel="Opciones de conversación"
+                    style={styles.threadIconButton}
+                    onPress={() => Alert.alert(
+                      'Conversación',
+                      buildDisplayName(activeConversation.participant),
+                      [
+                        { text: 'Actualizar mensajes', onPress: () => { void handleRefresh(); } },
+                        { text: 'Ver conversaciones', onPress: closeThread },
+                        { text: 'Cancelar', style: 'cancel' },
+                      ],
+                      { cancelable: true },
+                    )}
+                  >
+                    <Ionicons name="ellipsis-horizontal" size={22} color={aurora.text} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <ScrollView
@@ -1721,6 +1780,11 @@ export default function ChatScreen() {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
                 onScroll={handleMessagesScroll}
+                onLayout={() => {
+                  if (isNearBottomRef.current) {
+                    scrollRef.current?.scrollToEnd({ animated: false });
+                  }
+                }}
                 scrollEventThrottle={16}
                 refreshControl={
                   <RefreshControl
@@ -1732,7 +1796,7 @@ export default function ChatScreen() {
               >
                 {isLoadingMessages ? (
                   <View style={styles.messagesLoading}>
-                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                    <ActivityIndicator size="small" color={getAuroraTokens(theme.isDark).tones.blue.ink} />
                   </View>
                 ) : messages.length ? (
                   messages.map((message, index) => {
@@ -1746,11 +1810,9 @@ export default function ChatScreen() {
                       <React.Fragment key={message.id}>
                         {showDateSeparator ? (
                           <View style={styles.dateSeparator}>
-                            <View style={styles.dateSeparatorLine} />
                             <Text style={styles.dateSeparatorText}>
                               {formatMessageDateLabel(message.created_at)}
                             </Text>
-                            <View style={styles.dateSeparatorLine} />
                           </View>
                         ) : null}
                         <View
@@ -1805,7 +1867,7 @@ export default function ChatScreen() {
                     <Ionicons
                       name="arrow-down"
                       size={16}
-                      color="#08111f"
+                      color={aurora.onTone}
                     />
                     <Text style={styles.newMessagesButtonText}>
                       {pendingNewMessageCount === 1
@@ -1818,7 +1880,7 @@ export default function ChatScreen() {
 
               {replyToMessage ? (
                 <View style={styles.replyComposer}>
-                  <Ionicons name="return-up-back" size={17} color={theme.colors.primary} />
+                  <Ionicons name="return-up-back" size={17} color={getAuroraTokens(theme.isDark).tones.blue.ink} />
                   <View style={styles.replyComposerContent}>
                     <Text style={styles.replyComposerTitle} numberOfLines={1}>
                       Respondiendo a {getSenderLabel(replyToMessage.sender_id)}
@@ -1840,7 +1902,7 @@ export default function ChatScreen() {
               {canConfirmScheduleProposal && pendingProposalLabel ? (
                 <View style={styles.scheduleProposalCard}>
                   <View style={styles.scheduleProposalIcon}>
-                    <Ionicons name="calendar-outline" size={18} color="#08111f" />
+                    <Ionicons name="calendar-outline" size={18} color={aurora.onTone} />
                   </View>
                   <View style={styles.scheduleProposalContent}>
                     <Text style={styles.scheduleProposalTitle}>Nuevo horario propuesto</Text>
@@ -1856,7 +1918,7 @@ export default function ChatScreen() {
                     ]}
                   >
                     {isConfirmingProposal ? (
-                      <ActivityIndicator size="small" color="#08111f" />
+                      <ActivityIndicator size="small" color={aurora.onTone} />
                     ) : (
                       <Text style={styles.scheduleProposalButtonText}>Confirmar</Text>
                     )}
@@ -1874,6 +1936,7 @@ export default function ChatScreen() {
               ) : null}
 
               <ChatComposer
+                showSuggestions={!replyToMessage}
                 draft={draft}
                 pendingFiles={pendingFiles}
                 disabled={isInputDisabled}
@@ -1910,7 +1973,7 @@ export default function ChatScreen() {
               />
             </KeyboardAvoidingView>
           </SafeAreaView>
-        </LinearGradient>
+        </View>
       </TabScreenWrapper>
     );
   }
@@ -1918,7 +1981,8 @@ export default function ChatScreen() {
   return (
     <TabScreenWrapper>
       {previewModal}
-      <LinearGradient colors={chatBackgroundGradient} style={styles.stage}>
+      <View style={styles.stage}>
+        <AuroraBackdrop width={width} height={height} palette="chat" />
         <StatusBar style={theme.statusBarStyle} />
         <SafeAreaView style={styles.safeAreaTransparent} edges={['top', 'left', 'right']}>
           <ScrollView
@@ -1930,16 +1994,11 @@ export default function ChatScreen() {
           >
             <View style={styles.listHeader}>
               <View>
-                <Text style={styles.brand}>FitPilot</Text>
+                <Text style={styles.brand}>TU EQUIPO</Text>
                 <Text style={styles.title}>Chat</Text>
+                <Text style={styles.listSubtitle}>Conversa con tus profesionales.</Text>
               </View>
-              <View style={styles.headerIcon}>
-                <Ionicons
-                  name="chatbubble-ellipses"
-                  size={22}
-                  color={theme.colors.primary}
-                />
-              </View>
+              <ProfileShortcutButton />
             </View>
 
             {isLoadingConversations ? (
@@ -1990,7 +2049,7 @@ export default function ChatScreen() {
                       onPress={() => startConversation(professional.id)}
                     >
                       <View style={styles.avatar}>
-                        <Ionicons name="person" size={20} color={theme.colors.primary} />
+                        <Ionicons name="person" size={20} color={getAuroraTokens(theme.isDark).tones.blue.ink} />
                       </View>
                       <View style={styles.conversationContent}>
                         <Text style={styles.conversationName} numberOfLines={1}>
@@ -2030,15 +2089,17 @@ export default function ChatScreen() {
             ) : null}
           </ScrollView>
         </SafeAreaView>
-      </LinearGradient>
+      </View>
     </TabScreenWrapper>
   );
 }
 
-const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
-  StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) => {
+  const aurora = getAuroraTokens(theme.isDark);
+  return StyleSheet.create({
     stage: {
       flex: 1,
+      backgroundColor: aurora.ground,
     },
     safeAreaTransparent: {
       flex: 1,
@@ -2047,12 +2108,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       flex: 1,
     },
     threadHeader: {
+      backgroundColor: aurora.glass,
       minHeight: 70,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: aurora.border,
       paddingHorizontal: 10,
       paddingVertical: 12,
     },
@@ -2068,15 +2130,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       minWidth: 0,
     },
     threadTitle: {
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: 17,
-      fontWeight: '800',
+      ...auroraFont('extrabold'),
     },
     threadSubtitle: {
       marginTop: 2,
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       fontSize: 13,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
     },
     listScreenContent: {
       flexGrow: 1,
@@ -2090,27 +2152,17 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       marginBottom: spacing.lg,
     },
     brand: {
-      color: theme.colors.primary,
+      color: aurora.tones.blue.tone,
       fontSize: 13,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       letterSpacing: 1.8,
       textTransform: 'uppercase',
     },
     title: {
       marginTop: 2,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: 30,
-      fontWeight: '900',
-    },
-    headerIcon: {
-      width: 46,
-      height: 46,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-      borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      ...auroraFont('extrabold'),
     },
     loadingState: {
       minHeight: 220,
@@ -2121,14 +2173,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       gap: 10,
     },
     conversationItem: {
+      boxShadow: aurora.shadow,
       minHeight: 74,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
       padding: 14,
     },
     avatar: {
@@ -2138,24 +2191,24 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       justifyContent: 'center',
       overflow: 'hidden',
       borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
+      borderColor: aurora.tones.blue.line,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: aurora.tones.blue.soft,
     },
     threadAvatar: {
-      width: 48,
-      height: 48,
-      borderColor: theme.colors.primaryBorder,
-      backgroundColor: theme.colors.primarySoft,
+      width: 44,
+      height: 44,
+      borderColor: aurora.tones.blue.line,
+      backgroundColor: aurora.tones.blue.soft,
     },
     avatarImage: {
       width: '100%',
       height: '100%',
     },
     avatarText: {
-      color: theme.colors.textPrimary,
+      color: aurora.onTone,
       fontSize: fontSize.base,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       textTransform: 'uppercase',
     },
     threadAvatarText: {
@@ -2172,13 +2225,14 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     conversationName: {
       flex: 1,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.base,
-      fontWeight: '800',
+      ...auroraFont('extrabold'),
     },
     conversationPreview: {
+      ...auroraFont('medium'),
       marginTop: 4,
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       fontSize: fontSize.sm,
       lineHeight: 18,
     },
@@ -2188,39 +2242,44 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 11,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: aurora.tones.blue.tone,
       paddingHorizontal: spacing.xs,
     },
     unreadBadgeText: {
-      color: '#08111f',
+      color: aurora.onTone,
       fontSize: 11,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
     },
     messagesScroll: {
       flex: 1,
     },
     messagesContent: {
       flexGrow: 1,
+      justifyContent: 'flex-end',
       gap: 12,
       padding: spacing.md,
       paddingBottom: spacing.lg,
     },
     dateSeparator: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      marginVertical: spacing.xs,
-    },
-    dateSeparatorLine: {
-      height: StyleSheet.hairlineWidth,
-      flex: 1,
-      backgroundColor: theme.colors.border,
+      alignSelf: 'center',
+      marginVertical: 2,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: aurora.glassBorder,
+      backgroundColor: aurora.glass,
     },
     dateSeparatorText: {
-      color: theme.colors.textMuted,
+      color: aurora.muted,
       fontSize: 11,
-      fontWeight: '800',
-      textTransform: 'capitalize',
+      ...auroraFont('bold'),
+    },
+    listSubtitle: {
+      ...auroraFont('medium'),
+      color: aurora.faint,
+      fontSize: 12,
+      marginTop: 6,
     },
     messagesLoading: {
       flex: 1,
@@ -2234,9 +2293,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       gap: spacing.sm,
       marginTop: spacing.xl,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
       padding: spacing.xl,
     },
     emptyThread: {
@@ -2247,13 +2306,14 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       paddingVertical: spacing.xl,
     },
     emptyTitle: {
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.lg,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       textAlign: 'center',
     },
     emptyCopy: {
-      color: theme.colors.textMuted,
+      ...auroraFont('medium'),
+      color: aurora.faint,
       fontSize: fontSize.sm,
       lineHeight: 20,
       textAlign: 'center',
@@ -2266,20 +2326,25 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'flex-end',
     },
     messageBubble: {
-      maxWidth: '84%',
+      boxShadow: aurora.shadow,
+      maxWidth: '82%',
       gap: spacing.xs,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: aurora.border,
       borderRadius: 20,
       borderBottomLeftRadius: borderRadius.sm,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
       padding: 12,
     },
     messageBubbleMine: {
       borderColor: 'rgba(255,255,255,0.24)',
       borderBottomLeftRadius: 20,
       borderBottomRightRadius: borderRadius.sm,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: aurora.tones.blue.tone,
+    },
+    messageGradient: {
+      borderRadius: 20,
+      borderBottomRightRadius: borderRadius.sm,
     },
     messageBubbleSending: {
       opacity: 0.72,
@@ -2289,60 +2354,61 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       backgroundColor: `${theme.colors.error}18`,
     },
     messageBubbleHighlighted: {
-      borderColor: theme.colors.primary,
-      shadowColor: theme.colors.primary,
+      borderColor: aurora.tones.blue.tone,
+      shadowColor: aurora.tones.blue.tone,
       shadowOffset: { width: 0, height: 0 },
       shadowOpacity: 0.34,
       shadowRadius: 8,
       elevation: 3,
     },
     messageBody: {
-      color: theme.colors.textPrimary,
+      ...auroraFont('medium'),
+      color: aurora.text,
       fontSize: 15,
       lineHeight: 21,
     },
     messageBodyMine: {
-      color: '#08111f',
+      color: aurora.onTone,
     },
     messageBodyFailed: {
-      color: theme.colors.error,
+      color: aurora.onTone,
     },
     messageDeleted: {
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       fontSize: 15,
       fontStyle: 'italic',
       lineHeight: 21,
     },
     replyBlock: {
       borderLeftWidth: 3,
-      borderLeftColor: theme.colors.primary,
+      borderLeftColor: aurora.tones.blue.tone,
       borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: aurora.surface2,
       paddingHorizontal: 10,
       paddingVertical: 8,
     },
     replyBlockMine: {
-      borderLeftColor: 'rgba(8,17,31,0.46)',
-      backgroundColor: 'rgba(8,17,31,0.12)',
+      borderLeftColor: aurora.onTone,
+      backgroundColor: theme.isDark ? 'rgba(6,16,31,0.1)' : 'rgba(255,255,255,0.15)',
     },
     replyAuthor: {
-      color: theme.colors.primary,
+      color: aurora.tones.blue.tone,
       fontSize: 10,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       letterSpacing: 1,
       textTransform: 'uppercase',
     },
     replyAuthorMine: {
-      color: 'rgba(8,17,31,0.72)',
+      color: aurora.onTone,
     },
     replyText: {
       marginTop: 2,
-      color: theme.colors.textSecondary,
+      color: aurora.muted,
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
     },
     replyTextMine: {
-      color: '#08111f',
+      color: aurora.onTone,
     },
     messageMeta: {
       alignSelf: 'flex-end',
@@ -2355,15 +2421,15 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignSelf: 'flex-end',
     },
     messageTime: {
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       fontSize: 11,
-      fontWeight: '800',
+      ...auroraFont('medium'),
     },
     messageTimeMine: {
-      color: 'rgba(8,17,31,0.6)',
+      color: aurora.onTone,
     },
     messageTimeFailed: {
-      color: theme.colors.error,
+      color: aurora.onTone,
     },
     messageReceipt: {
       width: 17,
@@ -2372,6 +2438,10 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       justifyContent: 'center',
     },
     messageRetryButton: {
+      backgroundColor: aurora.surface,
+      borderRadius: 8,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
       alignSelf: 'flex-end',
       flexDirection: 'row',
       alignItems: 'center',
@@ -2381,7 +2451,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     messageRetryText: {
       color: theme.colors.error,
       fontSize: 11,
-      fontWeight: '800',
+      ...auroraFont('extrabold'),
     },
     attachmentList: {
       gap: spacing.xs,
@@ -2390,7 +2460,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       width: 220,
       height: 160,
       borderRadius: borderRadius.lg,
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: aurora.surface2,
     },
     fileAttachment: {
       maxWidth: 240,
@@ -2399,19 +2469,19 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       gap: spacing.xs,
       borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.surfaceAlt,
+      backgroundColor: aurora.surface2,
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.xs,
     },
     fileAttachmentText: {
       flex: 1,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.sm,
-      fontWeight: '700',
+      ...auroraFont('bold'),
     },
     previewModal: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: aurora.ground,
     },
     previewHeader: {
       minHeight: 58,
@@ -2419,7 +2489,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       gap: spacing.sm,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      borderBottomColor: aurora.border,
       paddingHorizontal: spacing.md,
     },
     previewHeaderButton: {
@@ -2428,13 +2498,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
     },
     previewTitle: {
       flex: 1,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.base,
-      fontWeight: '800',
+      ...auroraFont('extrabold'),
       textAlign: 'center',
     },
     previewBody: {
@@ -2447,7 +2517,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     previewPdf: {
       flex: 1,
-      backgroundColor: theme.colors.surface,
+      backgroundColor: aurora.surface,
     },
     newMessagesBar: {
       alignItems: 'center',
@@ -2461,13 +2531,13 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       justifyContent: 'center',
       gap: spacing.xs,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: aurora.tones.blue.tone,
       paddingHorizontal: spacing.md,
     },
     newMessagesButtonText: {
-      color: '#08111f',
+      color: aurora.onTone,
       fontSize: fontSize.xs,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
     },
     scheduleProposalCard: {
       minHeight: 76,
@@ -2488,7 +2558,7 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: aurora.tones.blue.tone,
     },
     scheduleProposalContent: {
       flex: 1,
@@ -2497,14 +2567,14 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     scheduleProposalTitle: {
       color: theme.colors.success,
       fontSize: fontSize.xs,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       textTransform: 'uppercase',
     },
     scheduleProposalText: {
       marginTop: 3,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.sm,
-      fontWeight: '800',
+      ...auroraFont('extrabold'),
     },
     scheduleProposalButton: {
       minHeight: 38,
@@ -2512,24 +2582,24 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: aurora.tones.blue.tone,
       paddingHorizontal: spacing.md,
     },
     scheduleProposalButtonDisabled: {
       opacity: 0.64,
     },
     scheduleProposalButtonText: {
-      color: '#08111f',
+      color: aurora.onTone,
       fontSize: fontSize.xs,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
     },
     replyComposer: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: spacing.sm,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
-      backgroundColor: theme.colors.background,
+      borderTopColor: aurora.border,
+      backgroundColor: aurora.glass,
       paddingHorizontal: 12,
       paddingVertical: 10,
     },
@@ -2538,17 +2608,17 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
       minWidth: 0,
     },
     replyComposerTitle: {
-      color: theme.colors.primary,
+      color: aurora.tones.blue.tone,
       fontSize: 10,
-      fontWeight: '900',
+      ...auroraFont('extrabold'),
       letterSpacing: 1.1,
       textTransform: 'uppercase',
     },
     replyComposerText: {
       marginTop: 2,
-      color: theme.colors.textPrimary,
+      color: aurora.text,
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
     },
     lockedNotice: {
       flexDirection: 'row',
@@ -2559,8 +2629,9 @@ const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
     },
     lockedNoticeText: {
       flex: 1,
-      color: theme.colors.textMuted,
+      color: aurora.faint,
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
     },
   });
+};
