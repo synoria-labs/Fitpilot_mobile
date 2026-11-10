@@ -22,7 +22,6 @@ import {
   LoadingSpinner,
   ListItemSkeleton,
   ProfileShortcutButton,
-  SegmentedControl,
   StatCardSkeleton,
   TabScreenWrapper,
 } from '../../src/components/common';
@@ -30,6 +29,9 @@ import {
   GlucoseDetailModal,
   GlucoseFormModal,
 } from '../../src/components/health-metrics';
+import { AuroraBackdrop, AuroraSegmented } from '../../src/components/aurora';
+import { MeasurementOverview } from '../../src/components/measurements/MeasurementOverview';
+import { auroraFont, auroraType, getAuroraTokens, useAurora } from '../../src/theme/aurora';
 import { ConnectedHealthFeedbackDetail } from '../../src/components/connected-health';
 import {
   MeasurementCreateMenuModal,
@@ -182,6 +184,7 @@ export default function MeasurementsScreen() {
   const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
   const isFocused = useIsFocused();
   const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
   const scrollViewRef = useRef<ScrollView>(null);
   const tabBarScroll = useBottomTabBarScroll();
@@ -386,7 +389,7 @@ export default function MeasurementsScreen() {
   ]);
 
   useEffect(() => {
-    if (!isFocused || activeTab !== 'glucose') {
+    if (!isFocused || (activeTab !== 'glucose' && activeTab !== 'summary')) {
       return;
     }
 
@@ -473,7 +476,6 @@ export default function MeasurementsScreen() {
     }[];
   }, [latestMeasurementDetail]);
 
-  const previewCalculations = recentCalculations.slice(0, 3);
   const summaryGlucoseRecord = latestGlucoseRecord;
   const summaryGlucoseContextLabel = summaryGlucoseRecord?.glucose_context
     ? GLUCOSE_CONTEXT_LABELS[summaryGlucoseRecord.glucose_context]
@@ -841,6 +843,7 @@ export default function MeasurementsScreen() {
     return (
       <TabScreenWrapper>
         <SafeAreaView style={styles.container} edges={['top']}>
+          <AuroraBackdrop width={width} height={Math.max(600, height * 0.8)} palette="body" />
           <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
             <View style={styles.headerCopy}>
               <StatCardSkeleton />
@@ -875,27 +878,7 @@ export default function MeasurementsScreen() {
   return (
     <TabScreenWrapper>
       <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>Medidas</Text>
-            <Text style={styles.subtitle}>
-              Tu progreso corporal, de glucosa y de salud.
-            </Text>
-            <Text style={styles.preferenceText}>
-              Unidades: {UNIT_SYSTEM_LABELS[measurementPreference]}
-            </Text>
-          </View>
-          <ProfileShortcutButton />
-        </View>
-
-        <View style={[styles.tabsWrap, { paddingHorizontal: horizontalPadding }]}>
-          <SegmentedControl
-            options={MEASUREMENTS_TABS}
-            value={activeTab}
-            onChange={handleTabChange}
-          />
-        </View>
-
+        <AuroraBackdrop width={width} height={Math.max(600, height * 0.8)} palette="body" />
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
@@ -909,272 +892,57 @@ export default function MeasurementsScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
-              tintColor={theme.colors.primary}
+              tintColor={aurora.tones.violet.tone}
             />
           }
           scrollEventThrottle={tabBarScroll.scrollEventThrottle}
         >
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.eyebrow}>MEDIDAS</Text>
+              <Text style={styles.title}>Tu cuerpo</Text>
+              <Text style={styles.subtitle}>
+                Composición, glucosa y salud
+              </Text>
+              <Text style={styles.preferenceText}>
+                {UNIT_SYSTEM_LABELS[measurementPreference]}
+              </Text>
+            </View>
+            <ProfileShortcutButton />
+          </View>
+
+          <View style={styles.tabsWrap}>
+            <AuroraSegmented
+              variant="tone"
+              tone="violet"
+              accessibilityLabel="Secciones de medidas"
+              options={MEASUREMENTS_TABS}
+              value={activeTab}
+              onChange={handleTabChange}
+            />
+          </View>
+
           {activeTab === 'summary' ? (
             <>
               {measurementErrorCard}
-
-              <Card style={styles.overviewCard}>
-                <View style={styles.overviewHeader}>
-                  <View style={styles.overviewHeaderCopy}>
-                    <Text style={styles.overviewEyebrow}>Corporal</Text>
-                    <Text style={styles.overviewTitle}>Última medición</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.overviewActionPill}
-                    activeOpacity={0.88}
-                    onPress={() => handleTabChange('body')}
-                  >
-                    <Text style={styles.overviewActionText}>Ver corporal</Text>
-                    <Ionicons
-                      name="chevron-forward-outline"
-                      size={14}
-                      color={theme.colors.primary}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {latestMeasurement ? (
-                  <>
-                    <Text
-                      style={[
-                        styles.overviewMeta,
-                        latestMeasurementAge?.isStale ? styles.overviewMetaStale : null,
-                      ]}
-                    >
-                      {latestMeasurementAge ? `${latestMeasurementAge.label} · ` : ''}
-                      {formatMeasurementDate(
-                        getMeasurementDisplayDate(latestMeasurement),
-                        'long',
-                      )}
-                    </Text>
-                    <View style={styles.overviewMetricGrid}>
-                      {visibleSummaryMetrics.slice(0, 3).map((metric) => {
-                        const progressConfig = getMeasurementProgressMetricConfig(metric.key);
-                        const displayValue = getDisplayMeasurement(
-                          metric.value,
-                          metric.unit,
-                          1,
-                        );
-
-                        // Cada cifra lleva su cambio contra la medición anterior y abre su
-                        // gráfica: antes el resumen solo enseñaba el número suelto.
-                        return (
-                          <TouchableOpacity
-                            key={metric.key}
-                            style={[
-                              styles.overviewMetricCard,
-                              progressConfig ? styles.metricCardInteractive : null,
-                            ]}
-                            activeOpacity={0.88}
-                            disabled={!progressConfig}
-                            accessibilityRole="button"
-                            accessibilityLabel={`${metric.label}: ${displayValue.value}${
-                              displayValue.unit ? ` ${displayValue.unit}` : ''
-                            }. Ver progreso`}
-                            onPress={() => {
-                              if (progressConfig) {
-                                handleOpenMeasurementProgress(progressConfig.key);
-                              }
-                            }}
-                          >
-                            <View style={styles.metricChipHeader}>
-                              <Text style={styles.overviewMetricLabel}>{metric.label}</Text>
-                              {progressConfig ? (
-                                <Ionicons
-                                  name="chevron-forward-outline"
-                                  size={14}
-                                  color={theme.colors.iconMuted}
-                                />
-                              ) : null}
-                            </View>
-                            <Text style={styles.overviewMetricValue}>
-                              {displayValue.value}
-                              {displayValue.unit ? (
-                                <Text style={styles.overviewMetricUnit}>
-                                  {' '}
-                                  {displayValue.unit}
-                                </Text>
-                              ) : null}
-                            </Text>
-                            {renderMetricChange(metric)}
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                    {latestMeasurementAge?.isStale ? (
-                      <Text style={styles.overviewHint}>
-                        Han pasado más de 30 días desde tu última medición. Registra una nueva
-                        para seguir tu progreso.
-                      </Text>
-                    ) : null}
-                    <TouchableOpacity
-                      style={styles.inlineAction}
-                      activeOpacity={0.88}
-                      onPress={openCreateMeasurementForm}
-                    >
-                      <Ionicons
-                        name="add-outline"
-                        size={16}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.inlineActionText}>
-                        Registrar nueva medición
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.overviewEmptyText}>
-                      Aún no tienes mediciones corporales registradas.
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.inlineAction}
-                      activeOpacity={0.88}
-                      onPress={openCreateMeasurementForm}
-                    >
-                      <Ionicons
-                        name="add-outline"
-                        size={16}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.inlineActionText}>
-                        Registrar mi primera medición
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </Card>
-
-              {previewCalculations.length > 0 ? (
-                <Card style={styles.overviewCard}>
-                  <View style={styles.overviewHeader}>
-                    <View style={styles.overviewHeaderCopy}>
-                      <Text style={styles.overviewEyebrow}>Indicadores</Text>
-                      <Text style={styles.overviewTitle}>Cálculos recientes</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.overviewActionPill}
-                      activeOpacity={0.88}
-                      onPress={() => handleTabChange('body')}
-                    >
-                      <Text style={styles.overviewActionText}>Ver detalle</Text>
-                      <Ionicons
-                        name="chevron-forward-outline"
-                        size={14}
-                        color={theme.colors.primary}
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.overviewMetricGrid}>
-                    {previewCalculations.map((calculation) => {
-                      const displayValue = getDisplayMeasurement(
-                        calculation.value,
-                        calculation.unit,
-                        calculation.unit ? 2 : 3,
-                      );
-
-                      return (
-                        <View key={calculation.code} style={styles.overviewMetricCard}>
-                          <Text style={styles.overviewMetricLabel}>
-                            {calculation.label}
-                          </Text>
-                          <Text style={styles.overviewMetricValue}>
-                            {displayValue.value}
-                            {displayValue.unit ? (
-                              <Text style={styles.overviewMetricUnit}>
-                                {' '}
-                                {displayValue.unit}
-                              </Text>
-                            ) : null}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </Card>
-              ) : null}
-
-              <Card style={styles.overviewCard}>
-                <View style={styles.overviewHeader}>
-                  <View style={styles.overviewHeaderCopy}>
-                    <Text style={styles.overviewEyebrow}>Glucosa</Text>
-                    <Text style={styles.overviewTitle}>Última lectura</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.overviewActionPill}
-                    activeOpacity={0.88}
-                    onPress={() => handleTabChange('glucose')}
-                  >
-                    <Text style={styles.overviewActionText}>Ver glucosa</Text>
-                    <Ionicons
-                      name="chevron-forward-outline"
-                      size={14}
-                      color={theme.colors.primary}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {isLoadingLatestGlucose && !summaryGlucoseRecord ? (
-                  <Text style={styles.loadingLabel}>Cargando última lectura...</Text>
-                ) : summaryGlucoseRecord ? (
-                  <>
-                    <Text style={styles.glucoseSummaryValue}>
-                      {formatMeasurementNumber(summaryGlucoseRecord.glucose_mg_dl, 0)}
-                      <Text style={styles.glucoseSummaryUnit}> mg/dL</Text>
-                    </Text>
-                    <Text style={styles.overviewMeta}>
-                      {summaryGlucoseContextLabel ?? 'Sin contexto'} ·{' '}
-                      {formatGlucoseRecordedAt(summaryGlucoseRecord.recorded_at, 'short')}
-                    </Text>
-                    {summaryGlucoseIsMixed ? (
-                      <Text style={styles.overviewHint}>
-                        Este registro incluye otras métricas clínicas y ya está visible para tu
-                        nutriólogo.
-                      </Text>
-                    ) : null}
-                    <TouchableOpacity
-                      style={styles.inlineAction}
-                      activeOpacity={0.88}
-                      onPress={openCreateGlucoseForm}
-                    >
-                      <Ionicons
-                        name="add-outline"
-                        size={16}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.inlineActionText}>
-                        Registrar nueva glucosa
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.overviewEmptyText}>
-                      {glucoseLatestError ??
-                        'Aún no tienes glucosas registradas en tu seguimiento.'}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.inlineAction}
-                      activeOpacity={0.88}
-                      onPress={openCreateGlucoseForm}
-                    >
-                      <Ionicons
-                        name="add-outline"
-                        size={16}
-                        color={theme.colors.primary}
-                      />
-                      <Text style={styles.inlineActionText}>
-                        Registrar mi primera glucosa
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </Card>
+              <MeasurementOverview
+                measurements={measurements}
+                pagination={pagination}
+                preference={measurementPreference}
+                weightPreference={weightChangePreference}
+                measurementError={error}
+                glucose={summaryGlucoseRecord}
+                glucoseRecords={glucoseRecords}
+                glucoseLoading={isLoadingLatestGlucose}
+                glucoseError={glucoseLatestError}
+                onRetryGlucose={() => void loadLatestGlucosePreview()}
+                onCreateBody={openCreateMeasurementForm}
+                onCreateGlucose={openCreateGlucoseForm}
+                onOpenMetric={handleOpenMeasurementProgress}
+                onBody={() => handleTabChange('body')}
+                onGlucose={() => handleTabChange('glucose')}
+                onHealth={() => handleTabChange('health')}
+              />
             </>
           ) : null}
 
@@ -1716,9 +1484,10 @@ export default function MeasurementsScreen() {
         {activeTab === 'body' || activeTab === 'glucose' ? (
           <FloatingButton
             accessibilityLabel="Registrar nueva medida"
-            icon={<Ionicons name="add-outline" size={28} color="#ffffff" />}
+            icon={<Ionicons name="add-outline" size={28} color={aurora.onTone} />}
             onPress={() => setIsCreateMenuVisible(true)}
             bottomOffset={100}
+            gradientColors={aurora.tones.violet.gradient}
           />
         ) : null}
 
@@ -1776,7 +1545,7 @@ const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: getAuroraTokens(theme.isDark).ground,
     },
     header: {
       flexDirection: 'row',
@@ -1784,26 +1553,37 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.md,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm,
-      backgroundColor: theme.colors.background,
+      backgroundColor: 'transparent',
     },
     headerCopy: {
       flex: 1,
       minWidth: 0,
     },
+    eyebrow: {
+      ...auroraType.label,
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
+      marginBottom: 5,
+    },
     title: {
-      fontSize: fontSize['2xl'],
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraType.display,
+      color: getAuroraTokens(theme.isDark).text,
     },
     subtitle: {
+      ...auroraFont('medium'),
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     preferenceText: {
+      ...auroraFont('bold'),
+      alignSelf: 'flex-start',
+      paddingVertical: 4,
+      paddingHorizontal: 8,
+      borderRadius: 8,
+      backgroundColor: getAuroraTokens(theme.isDark).tones.violet.soft,
       marginTop: spacing.xs,
       fontSize: fontSize.xs,
-      color: theme.colors.iconMuted,
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
     },
     tabsWrap: {
       paddingBottom: spacing.md,
@@ -1814,7 +1594,7 @@ const createStyles = (theme: AppTheme) =>
     },
     scrollView: {
       flex: 1,
-      backgroundColor: theme.colors.background,
+      backgroundColor: 'transparent',
     },
     scrollContent: {
       paddingBottom: spacing.xxl,
@@ -1825,8 +1605,8 @@ const createStyles = (theme: AppTheme) =>
     },
     errorTitle: {
       fontSize: fontSize.lg,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
+      ...auroraFont('semibold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     errorText: {
       marginTop: spacing.sm,
@@ -1859,25 +1639,25 @@ const createStyles = (theme: AppTheme) =>
     },
     overviewEyebrow: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.primary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
     overviewTitle: {
       marginTop: spacing.xs,
       fontSize: fontSize.lg,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     overviewMeta: {
       marginTop: spacing.sm,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     overviewMetaStale: {
       color: theme.colors.warning,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
     },
     overviewHint: {
       marginTop: spacing.sm,
@@ -1898,14 +1678,14 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: getAuroraTokens(theme.isDark).tones.violet.soft,
       borderWidth: 1,
       borderColor: theme.colors.primaryBorder,
     },
     overviewActionText: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.primary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
     },
     overviewMetricGrid: {
       flexDirection: 'row',
@@ -1926,18 +1706,18 @@ const createStyles = (theme: AppTheme) =>
     },
     overviewMetricLabel: {
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     overviewMetricValue: {
       marginTop: spacing.xs,
       fontSize: fontSize.lg,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     overviewMetricUnit: {
       fontSize: fontSize.sm,
       fontWeight: '400',
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     inlineAction: {
       flexDirection: 'row',
@@ -1948,28 +1728,28 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: spacing.sm,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: getAuroraTokens(theme.isDark).tones.violet.soft,
     },
     inlineActionText: {
       fontSize: fontSize.sm,
-      fontWeight: '700',
-      color: theme.colors.primary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
     },
     glucoseSummaryValue: {
       marginTop: spacing.md,
       fontSize: 30,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     glucoseSummaryUnit: {
       fontSize: fontSize.base,
-      fontWeight: '500',
-      color: theme.colors.textMuted,
+      ...auroraFont('medium'),
+      color: getAuroraTokens(theme.isDark).faint,
     },
     loadingLabel: {
       marginTop: spacing.md,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     emptyCard: {
       alignItems: 'center',
@@ -1978,13 +1758,13 @@ const createStyles = (theme: AppTheme) =>
     },
     emptyTitle: {
       fontSize: fontSize.xl,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
       textAlign: 'center',
     },
     emptyText: {
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
       textAlign: 'center',
       marginBottom: spacing.sm,
     },
@@ -1994,13 +1774,14 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.sm,
     },
     summaryCard: {
+      borderRadius: 22,
+      backgroundColor: getAuroraTokens(theme.isDark).surface,
+      borderColor: getAuroraTokens(theme.isDark).border,
+      boxShadow: getAuroraTokens(theme.isDark).shadow,
       // Crece para llenar la fila ahora que las métricas sin dato no se pintan.
       flexGrow: 1,
       flexBasis: '45%',
-      backgroundColor: theme.colors.surface,
-      borderRadius: borderRadius.lg,
       borderWidth: 1,
-      borderColor: theme.colors.border,
       padding: spacing.md,
       ...shadows.md,
     },
@@ -2019,7 +1800,7 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: getAuroraTokens(theme.isDark).tones.violet.soft,
     },
     metricCardInteractive: {
       borderColor: theme.colors.primaryBorder,
@@ -2037,28 +1818,28 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: 6,
       borderRadius: borderRadius.full,
-      backgroundColor: theme.colors.primarySoft,
+      backgroundColor: getAuroraTokens(theme.isDark).tones.violet.soft,
     },
     metricActionText: {
       fontSize: 11,
-      fontWeight: '700',
-      color: theme.colors.primary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
     },
     summaryLabel: {
       marginTop: spacing.sm,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     summaryValue: {
       marginTop: spacing.xs,
       fontSize: 30,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     summaryUnit: {
       fontSize: fontSize.base,
       fontWeight: '400',
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     changeRow: {
       marginTop: spacing.sm,
@@ -2069,7 +1850,7 @@ const createStyles = (theme: AppTheme) =>
     },
     changeReference: {
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     changeBadge: {
       flexDirection: 'row',
@@ -2081,7 +1862,7 @@ const createStyles = (theme: AppTheme) =>
     },
     changeText: {
       fontSize: fontSize.xs,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
     },
     noChangeText: {
       marginTop: spacing.sm,
@@ -2091,18 +1872,22 @@ const createStyles = (theme: AppTheme) =>
     summaryHelperText: {
       marginTop: spacing.sm,
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     bodyMeta: {
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     missingMetricsText: {
       fontSize: fontSize.sm,
       lineHeight: 20,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     sectionCard: {
+      borderRadius: 22,
+      backgroundColor: getAuroraTokens(theme.isDark).surface,
+      borderColor: getAuroraTokens(theme.isDark).border,
+      boxShadow: getAuroraTokens(theme.isDark).shadow,
       marginBottom: spacing.md,
     },
     sectionHeader: {
@@ -2122,18 +1907,18 @@ const createStyles = (theme: AppTheme) =>
     },
     sectionTitle: {
       fontSize: fontSize.lg,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
+      ...auroraFont('semibold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     sectionDescription: {
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     sectionLink: {
       fontSize: fontSize.sm,
-      fontWeight: '600',
-      color: theme.colors.primary,
+      ...auroraFont('semibold'),
+      color: getAuroraTokens(theme.isDark).tones.violet.ink,
     },
     calculationGrid: {
       flexDirection: 'row',
@@ -2150,18 +1935,18 @@ const createStyles = (theme: AppTheme) =>
     },
     calculationChipLabel: {
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     calculationChipValue: {
       marginTop: spacing.xs,
       fontSize: fontSize.lg,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     calculationChipUnit: {
       fontSize: fontSize.sm,
       fontWeight: '400',
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     analysisMeta: {
       marginTop: spacing.md,
@@ -2172,7 +1957,7 @@ const createStyles = (theme: AppTheme) =>
     },
     analysisMetaText: {
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     perimeterGrid: {
       flexDirection: 'row',
@@ -2190,12 +1975,12 @@ const createStyles = (theme: AppTheme) =>
     perimeterLabel: {
       marginTop: spacing.xs,
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     perimeterValue: {
       marginTop: 2,
       fontSize: fontSize.lg,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: theme.colors.textSecondary,
     },
     perimeterUnit: {
@@ -2208,11 +1993,12 @@ const createStyles = (theme: AppTheme) =>
       marginBottom: spacing.md,
     },
     historyCard: {
+      borderRadius: 22,
+      backgroundColor: getAuroraTokens(theme.isDark).surface,
+      borderColor: getAuroraTokens(theme.isDark).border,
+      boxShadow: getAuroraTokens(theme.isDark).shadow,
       padding: spacing.md,
-      borderRadius: borderRadius.md,
-      backgroundColor: theme.colors.surfaceAlt,
       borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     historyHeader: {
       flexDirection: 'row',
@@ -2221,18 +2007,18 @@ const createStyles = (theme: AppTheme) =>
     },
     historyDate: {
       fontSize: fontSize.sm,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: theme.colors.textSecondary,
     },
     historyValue: {
       fontSize: fontSize.lg,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     historyMeta: {
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     historyMetricsRow: {
       flexDirection: 'row',
@@ -2250,23 +2036,23 @@ const createStyles = (theme: AppTheme) =>
     },
     historyMetricLabel: {
       fontSize: 10,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     historyMetricValue: {
       marginTop: 2,
       fontSize: fontSize.sm,
-      fontWeight: '600',
-      color: theme.colors.textPrimary,
+      ...auroraFont('semibold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     historyMetricUnit: {
       fontSize: fontSize.xs,
       fontWeight: '400',
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     historyNote: {
       marginTop: spacing.sm,
       fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     historyBadge: {
       alignSelf: 'flex-start',
@@ -2278,20 +2064,22 @@ const createStyles = (theme: AppTheme) =>
     },
     historyBadgeText: {
       fontSize: fontSize.xs,
-      fontWeight: '700',
+      ...auroraFont('bold'),
       color: theme.colors.warning,
     },
     historyEmpty: {
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     loadingCard: {
       minHeight: 180,
       justifyContent: 'center',
     },
     glucoseHeroCard: {
-      backgroundColor: theme.colors.primarySoft,
-      borderColor: theme.colors.primaryBorder,
+      borderRadius: 22,
+      backgroundColor: getAuroraTokens(theme.isDark).surface,
+      borderColor: getAuroraTokens(theme.isDark).border,
+      boxShadow: getAuroraTokens(theme.isDark).shadow,
     },
     glucoseHeroHeader: {
       flexDirection: 'row',
@@ -2302,32 +2090,32 @@ const createStyles = (theme: AppTheme) =>
     glucoseHeroEyebrow: {
       marginTop: spacing.md,
       fontSize: fontSize.xs,
-      fontWeight: '700',
-      color: theme.colors.textMuted,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).faint,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
     glucoseHeroValue: {
       marginTop: spacing.sm,
       fontSize: 34,
-      fontWeight: '700',
-      color: theme.colors.textPrimary,
+      ...auroraFont('bold'),
+      color: getAuroraTokens(theme.isDark).text,
     },
     glucoseHeroUnit: {
       fontSize: fontSize.lg,
-      fontWeight: '500',
-      color: theme.colors.textMuted,
+      ...auroraFont('medium'),
+      color: getAuroraTokens(theme.isDark).faint,
     },
     glucoseHeroContext: {
       marginTop: spacing.sm,
       fontSize: fontSize.base,
-      fontWeight: '600',
+      ...auroraFont('semibold'),
       color: theme.colors.textSecondary,
     },
     glucoseHeroDate: {
       marginTop: spacing.xs,
       fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
+      color: getAuroraTokens(theme.isDark).faint,
     },
     glucoseHeroNote: {
       marginTop: spacing.md,
