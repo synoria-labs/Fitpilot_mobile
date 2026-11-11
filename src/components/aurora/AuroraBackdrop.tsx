@@ -14,12 +14,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAurora } from '../../theme/aurora';
 
-export type AuroraPalette = 'home' | 'training' | 'nutrition' | 'body' | 'profile';
+export type AuroraPalette = 'home' | 'training' | 'nutrition' | 'body' | 'profile' | 'chat';
+
+type GlowPlacement = { left: number; top: number };
 
 type AuroraPaletteConfig = {
   colors: readonly [string, string, string];
-  /** `lines`: the faint grid that fades out from the top-right corner; `none` where the design has no grid. */
-  grid?: 'lines' | 'none';
+  /**
+   * `lines`: the faint grid that fades out from the top-right corner; `dots`: the same fade over a
+   * dotted grid; `none` where the design has no grid.
+   */
+  grid?: 'lines' | 'dots' | 'none';
+  /** Glow positions as fractions of the width (left) and height (top), to spread them down a full screen. */
+  placements?: readonly [GlowPlacement, GlowPlacement, GlowPlacement];
 };
 
 const PALETTES: Record<AuroraPalette, AuroraPaletteConfig> = {
@@ -28,6 +35,15 @@ const PALETTES: Record<AuroraPalette, AuroraPaletteConfig> = {
   nutrition: { colors: ['#10b981', '#14b8a6', '#84cc16'] },
   body: { colors: ['#8b5cf6', '#d946ef', '#3b82f6'] },
   profile: { colors: ['#ec4899', '#10b981', '#6366f1'], grid: 'none' },
+  chat: {
+    colors: ['#3b82f6', '#8b5cf6', '#10b981'],
+    grid: 'dots',
+    placements: [
+      { left: 0.4, top: -0.1 },
+      { left: -0.3, top: 0.3 },
+      { left: 0.4, top: 0.65 },
+    ],
+  },
 };
 
 // Position and size are fractions of the backdrop width; each glow drifts on its own period
@@ -113,7 +129,7 @@ export const AuroraBackdrop = ({ width, height, palette = 'home' }: AuroraBackdr
   const gridId = toSvgId(useId());
   const fadeId = toSvgId(useId());
   const maskId = toSvgId(useId());
-  const { colors, grid = 'lines' } = PALETTES[palette];
+  const { colors, grid = 'lines', placements } = PALETTES[palette];
 
   if (width <= 0 || height <= 0) {
     return null;
@@ -127,18 +143,29 @@ export const AuroraBackdrop = ({ width, height, palette = 'home' }: AuroraBackdr
             key={index}
             color={colors[index]}
             size={width * glow.size}
-            left={width * glow.left}
-            top={width * glow.top}
+            left={width * (placements ? placements[index].left : glow.left)}
+            top={placements ? height * placements[index].top : width * glow.top}
             strength={glow.strength}
             duration={glow.duration}
             still={reduceMotion}
           />
         ))}
       </View>
-      {grid === 'lines' ? <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+      {grid !== 'none' ? <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         <Defs>
-          <Pattern id={gridId} x="0" y="0" width={30} height={30} patternUnits="userSpaceOnUse">
-            <Path d="M 30 0 L 0 0 0 30" stroke={aurora.gridLine} strokeWidth={1} fill="none" />
+          <Pattern
+            id={gridId}
+            x="0"
+            y="0"
+            width={grid === 'dots' ? 18 : 30}
+            height={grid === 'dots' ? 18 : 30}
+            patternUnits="userSpaceOnUse"
+          >
+            {grid === 'dots' ? (
+              <Circle cx={1} cy={1} r={0.8} fill={aurora.gridLine} />
+            ) : (
+              <Path d="M 30 0 L 0 0 0 30" stroke={aurora.gridLine} strokeWidth={1} fill="none" />
+            )}
           </Pattern>
           <RadialGradient id={fadeId} cx="78%" cy="0%" rx="85%" ry="70%">
             <Stop offset="0.1" stopColor="#ffffff" stopOpacity={1} />
