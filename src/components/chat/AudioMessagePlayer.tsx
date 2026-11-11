@@ -60,6 +60,11 @@ export function AudioMessagePlayer({
   );
   const status = useAudioPlayerStatus(player);
 
+  // A different recording starts at normal speed, like the player that loads it.
+  useEffect(() => {
+    setPlaybackRate(1);
+  }, [attachment.url]);
+
   const duration = useMemo(() => {
     if (Number.isFinite(status.duration) && status.duration > 0) {
       return status.duration;
