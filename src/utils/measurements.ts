@@ -28,6 +28,21 @@ export const getWeightChangePreference = (
   return 'neutral';
 };
 
+/**
+ * El color de un cambio: verde si va hacia donde conviene, ámbar si va en contra y gris si casi no
+ * se movió o no hay una dirección preferida.
+ */
+export const getMeasurementChangeTone = (
+  change: number | null,
+  preference: MeasurementChangePreference,
+): 'emerald' | 'amber' | 'slate' => {
+  if (change === null || Math.abs(change) < 0.05 || preference === 'neutral') {
+    return 'slate';
+  }
+
+  return (preference === 'decrease' ? change < 0 : change > 0) ? 'emerald' : 'amber';
+};
+
 const longDateFormatter = new Intl.DateTimeFormat('es-MX', {
   day: 'numeric',
   month: 'long',

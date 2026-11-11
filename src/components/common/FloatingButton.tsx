@@ -20,6 +20,7 @@ interface FloatingButtonProps {
   bottomOffset?: number;
   rightOffset?: number;
   style?: StyleProp<ViewStyle>;
+  gradientColors?: readonly [string, string];
 }
 
 export const FloatingButton: React.FC<FloatingButtonProps> = ({
@@ -32,6 +33,7 @@ export const FloatingButton: React.FC<FloatingButtonProps> = ({
   bottomOffset = -10,
   rightOffset = 25,
   style,
+  gradientColors = [brandColors.navy, brandColors.sky],
 }) => {
   const insets = useSafeAreaInsets();
   const isDisabled = disabled || isLoading;
@@ -57,7 +59,7 @@ export const FloatingButton: React.FC<FloatingButtonProps> = ({
       ]}
     >
       <LinearGradient
-        colors={[brandColors.navy, brandColors.sky]}
+        colors={gradientColors}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={[

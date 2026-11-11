@@ -19,6 +19,7 @@ import { formatSigned } from '../../utils/formatters';
 import {
   formatMeasurementDate,
   formatMeasurementNumber,
+  getMeasurementChangeTone,
   getWeightChangePreference,
   type MeasurementChangePreference,
 } from '../../utils/measurements';
@@ -181,9 +182,7 @@ const MetricTile: React.FC<MetricTileProps> = ({
   const preferred: MeasurementChangePreference =
     metric.key === 'weight_kg' ? weightPreference : metric.emphasizeDecrease ? 'decrease' : 'increase';
   const hasChange = change !== null && change !== 0 && convertedChange !== null;
-  const isGood = hasChange && preferred !== 'neutral' && (preferred === 'decrease' ? change < 0 : change > 0);
-  const isBad = hasChange && preferred !== 'neutral' && !isGood;
-  const pillTone = isGood ? aurora.tones.emerald : isBad ? aurora.tones.amber : aurora.tones.slate;
+  const pillTone = aurora.tones[getMeasurementChangeTone(hasChange ? change : null, preferred)];
   // A change in body-fat percentage is in points, not in percent of the value.
   const changeUnit = convertedChange?.unit === '%' ? 'pts' : convertedChange?.unit ?? '';
   const changeLabel = hasChange
