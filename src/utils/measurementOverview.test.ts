@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MeasurementHistoryItem } from '../types/measurements';
 import { buildMeasurementOverviewSeries, selectMeasurementOverviewRange } from './measurementOverview';
+import { getMeasurementChangeTone } from './measurements';
 
 const record = (id: string, date: string, values: Partial<MeasurementHistoryItem> = {}): MeasurementHistoryItem => ({ id, date, user_id: 1, ...values });
 
@@ -44,5 +45,19 @@ describe('measurement overview', () => {
   it('clamps month boundaries to the final day without dropping that day', () => {
     const series = buildMeasurementOverviewSeries([record('before', '2026-02-27', { weight_kg: 70 }), record('boundary', '2026-02-28', { weight_kg: 71 })], 'weight_kg', 'mx', '2026-05-31');
     expect(selectMeasurementOverviewRange(series, '3m', '2026-05-31').map((point) => point.id)).toEqual(['boundary']);
+  });
+});
+
+describe('getMeasurementChangeTone', () => {
+  it('pinta según la dirección que conviene', () => {
+    expect(getMeasurementChangeTone(-1.2, 'decrease')).toBe('emerald');
+    expect(getMeasurementChangeTone(0.8, 'decrease')).toBe('amber');
+    expect(getMeasurementChangeTone(0.6, 'increase')).toBe('emerald');
+  });
+
+  it('deja en gris lo que casi no se movió o no tiene dirección preferida', () => {
+    expect(getMeasurementChangeTone(0.04, 'increase')).toBe('slate');
+    expect(getMeasurementChangeTone(2, 'neutral')).toBe('slate');
+    expect(getMeasurementChangeTone(null, 'decrease')).toBe('slate');
   });
 });

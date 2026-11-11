@@ -19,6 +19,7 @@ import {
   describeMeasurementAge,
   formatMeasurementDate,
   formatMeasurementNumber,
+  getMeasurementChangeTone,
   type MeasurementChangePreference,
 } from '../../utils/measurements';
 import {
@@ -54,12 +55,7 @@ export function MeasurementWeightHero({
   const previous = series.at(-2);
   const age = latest ? describeMeasurementAge(latest.date) : null;
   const change = latest && previous ? latest.value - previous.value : null;
-  const changeTone =
-    change === null || Math.abs(change) < 0.05 || preference === 'neutral'
-      ? aurora.tones.slate
-      : (preference === 'increase' && change > 0) || (preference === 'decrease' && change < 0)
-        ? aurora.tones.emerald
-        : aurora.tones.amber;
+  const changeTone = aurora.tones[getMeasurementChangeTone(change, preference)];
   const visible = useMemo(() => selectMeasurementOverviewRange(series, range), [series, range]);
   const domain = getLineChartDomain(visible.map((point) => point.value));
   const minTime = visible[0]?.timestamp ?? 0;
@@ -131,6 +127,7 @@ export function MeasurementWeightHero({
               setRange(value);
               setSelectedId(null);
             }}
+            variant="tone"
             tone="violet"
             accessibilityLabel="Periodo de la gráfica de peso"
           />

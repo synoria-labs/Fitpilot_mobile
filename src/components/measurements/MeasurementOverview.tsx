@@ -18,6 +18,7 @@ import {
 import {
   formatMeasurementDate,
   formatMeasurementNumber,
+  getMeasurementChangeTone,
   type MeasurementChangePreference,
 } from '../../utils/measurements';
 import { formatGlucoseRecordedAt } from '../../utils/healthMetrics';
@@ -54,9 +55,7 @@ function ChangeBadge({
   if (!current || !previous)
     return <Text style={[styles.small, { color: aurora.faint }]}>Sin comparativo</Text>;
   const change = current.value - previous.value;
-  const neutral = Math.abs(change) < 0.05 || preference === 'neutral';
-  const good = preference === 'increase' ? change > 0 : change < 0;
-  const tone = neutral ? aurora.tones.slate : good ? aurora.tones.emerald : aurora.tones.amber;
+  const tone = aurora.tones[getMeasurementChangeTone(change, preference)];
   return (
     <Text style={[styles.change, { backgroundColor: tone.soft, color: tone.ink }]}>
       {change > 0 ? '+' : ''}
