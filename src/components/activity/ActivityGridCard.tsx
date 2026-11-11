@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { AuroraCard, AuroraSegmented, IconBadge, type AuroraSegmentOption } from '../aurora';
 import { auroraFont, auroraType, useAurora } from '../../theme/aurora';
 import {
   buildActivityGrid,
   describeActivityCell,
   summarizeActivity,
+  summarizeActivityDay,
   type ActivityCell,
   type ActivityMode,
   type DailyActivity,
@@ -35,6 +36,9 @@ const CARD_PADDING = 18;
 const LABEL_COLUMN = 26;
 const LABEL_GAP = 8;
 const GAP = 4;
+// A long range keeps legible cells and scrolls sideways instead of shrinking to fit.
+const SCROLL_CELL = 12;
+const SCROLL_GAP = 3;
 
 type ActivityGridCardProps = {
   days: Record<string, DailyActivity>;
@@ -43,6 +47,18 @@ type ActivityGridCardProps = {
   contentWidth: number;
   horizontalPadding: number;
   weeks?: number;
+  title?: string;
+  subtitle?: string;
+  /** The three figures of the chosen mode; Perfil shows its yearly ones above the card instead. */
+  showStats?: boolean;
+  /** Fixed cells that scroll sideways, starting at the latest week. */
+  scrollable?: boolean;
+  /** `compact`: the chosen day on one line instead of its full breakdown. */
+  inspector?: 'full' | 'compact';
+  /** Part of the history didn't load; with `onRetry` the card offers to load it again. */
+  failed?: boolean;
+  onRetry?: () => void;
+  style?: StyleProp<ViewStyle>;
 };
 
 export const ActivityGridCard = ({
@@ -52,6 +68,14 @@ export const ActivityGridCard = ({
   contentWidth,
   horizontalPadding,
   weeks = 16,
+  title = 'Tu constancia',
+  subtitle,
+  showStats = true,
+  scrollable = false,
+  inspector = 'full',
+  failed = false,
+  onRetry,
+  style,
 }: ActivityGridCardProps) => {
   const aurora = useAurora();
   const [mode, setMode] = useState<ActivityMode>('todo');
@@ -69,7 +93,10 @@ export const ActivityGridCard = ({
   const hasAnyData = Object.keys(days).length > 0;
 
   const gridWidth = Math.max(0, contentWidth - horizontalPadding * 2 - CARD_PADDING * 2 - LABEL_COLUMN - LABEL_GAP);
-  const cellSize = Math.max(9, Math.min(18, Math.floor((gridWidth - GAP * (weeks - 1)) / weeks)));
+  const gap = scrollable ? SCROLL_GAP : GAP;
+  const cellSize = scrollable
+    ? SCROLL_CELL
+    : Math.max(9, Math.min(18, Math.floor((gridWidth - GAP * (weeks - 1)) / weeks)));
   const heat = aurora.heat[mode];
 
   const changeMode = useCallback((next: ActivityMode) => {
@@ -77,13 +104,13 @@ export const ActivityGridCard = ({
   }, []);
 
   return (
-    <View style={{ paddingHorizontal: horizontalPadding }}>
+    <View style={[{ paddingHorizontal: horizontalPadding }, style]}>
       <AuroraCard padding={CARD_PADDING}>
         <View style={styles.header}>
           <IconBadge icon="calendar-clear-outline" tone="violet" />
           <View style={styles.headerText}>
-            <Text style={[auroraType.headline, { color: aurora.text }]}>Tu constancia</Text>
-            <Text style={[auroraType.caption, { color: aurora.faint }]}>Últimas {weeks} semanas</Text>
+            <Text style={[auroraType.headline, { color: aurora.text }]}>{title}</Text>
+            <Text style={[auroraType.caption, { color: aurora.faint }]}>{subtitle ?? `Últimas ${weeks} semanas`}</Text>
           </View>
         </View>
 
@@ -96,32 +123,35 @@ export const ActivityGridCard = ({
           />
         </View>
 
-        <View style={styles.stats}>
-          {stats.map((stat) => (
-            <View key={stat.label} style={[styles.stat, { backgroundColor: aurora.surface2 }]}>
-              <Text style={[auroraType.label, styles.statLabel, { color: aurora.faint }]} numberOfLines={1}>
-                {stat.label}
-              </Text>
-              <Text style={[styles.statValue, auroraFont('extrabold'), { color: aurora.text }]} numberOfLines={1}>
-                {hasLoaded ? stat.value : '—'}
-              </Text>
-              <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
-                {stat.caption}
-              </Text>
-            </View>
-          ))}
-        </View>
+        {showStats ? (
+          <View style={styles.stats}>
+            {stats.map((stat) => (
+              <View key={stat.label} style={[styles.stat, { backgroundColor: aurora.surface2 }]}>
+                <Text style={[auroraType.label, styles.statLabel, { color: aurora.faint }]} numberOfLines={1}>
+                  {stat.label}
+                </Text>
+                <Text style={[styles.statValue, auroraFont('extrabold'), { color: aurora.text }]} numberOfLines={1}>
+                  {hasLoaded ? stat.value : '—'}
+                </Text>
+                <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
+                  {stat.caption}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <ActivityHeatGrid
           model={model}
           mode={mode}
           heat={heat}
           cellSize={cellSize}
-          gap={GAP}
+          gap={gap}
           labelColumn={LABEL_COLUMN}
           labelGap={LABEL_GAP}
           weekdayLabels={WEEKDAY_LABELS}
           showMonths
+          scrollable={scrollable}
           hasLoaded={hasLoaded}
           activeIndex={activeIndex >= 0 ? activeIndex : null}
           onSelect={setSelectedIndex}
@@ -131,7 +161,7 @@ export const ActivityGridCard = ({
 
         <View style={styles.legend}>
           <Text style={[auroraType.caption, styles.legendCaption, { color: aurora.faint }]} numberOfLines={1}>
-            {LEGEND_CAPTION[mode]}
+            {scrollable ? 'Desliza para ver meses anteriores' : LEGEND_CAPTION[mode]}
           </Text>
           <Text style={[auroraType.caption, { color: aurora.faint }]}>Menos</Text>
           {heat.map((color, level) => (
@@ -140,7 +170,29 @@ export const ActivityGridCard = ({
           <Text style={[auroraType.caption, { color: aurora.faint }]}>Más</Text>
         </View>
 
-        {detail ? (
+        {detail && activeCell && inspector === 'compact' ? (
+          <View
+            accessibilityLiveRegion="polite"
+            style={[styles.inspector, styles.compact, { backgroundColor: aurora.surface2, borderColor: aurora.border }]}
+          >
+            <View style={[styles.compactSwatch, { backgroundColor: heat[activeCell.level] }]} />
+            <View style={styles.headerText}>
+              <Text style={[styles.inspectorTitle, auroraFont('extrabold'), { color: aurora.text }]} numberOfLines={1}>
+                {detail.title}
+                {detail.isToday ? ' · hoy' : ''}
+              </Text>
+              <Text style={[auroraType.caption, { color: aurora.faint }]} numberOfLines={1}>
+                {!hasLoaded
+                  ? 'Cargando actividad…'
+                  : activeCell.isFuture
+                    ? 'Aún no llega'
+                    : activeCell.activity
+                      ? summarizeActivityDay(detail)
+                      : 'Sin actividad registrada'}
+              </Text>
+            </View>
+          </View>
+        ) : detail ? (
           <View
             accessibilityLiveRegion="polite"
             style={[styles.inspector, { backgroundColor: aurora.surface2, borderColor: aurora.border }]}
@@ -185,6 +237,14 @@ export const ActivityGridCard = ({
                 : 'Toca un día o desliza el dedo sobre la cuadrícula.'}
             </Text>
           </View>
+        ) : null}
+
+        {failed && onRetry ? (
+          <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
+            <Text style={[auroraType.caption, auroraFont('bold'), { color: aurora.tones.blue.ink }]}>
+              No se pudo cargar todo el historial. Reintentar
+            </Text>
+          </Pressable>
         ) : null}
       </AuroraCard>
     </View>
@@ -289,5 +349,18 @@ const styles = StyleSheet.create({
   },
   hint: {
     marginTop: 12,
+  },
+  compact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  compactSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+  },
+  retry: {
+    paddingTop: 12,
   },
 });

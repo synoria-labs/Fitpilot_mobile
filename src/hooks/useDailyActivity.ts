@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { connectedHealthService } from '../services/connectedHealth';
+import { connectedHealthService, type ConnectedHealthConnection } from '../services/connectedHealth';
 import { getWorkoutAnalyticsHistory } from '../services/workoutAnalytics';
 import { createEmptyDailyActivity, type DailyActivity } from '../utils/activityGrid';
 import { addDaysToDateKey, compareDateKeys, getTodayDateKey, toLocalDateKey } from '../utils/date';
 
 const PAGE_SIZE = 50;
-const MAX_PAGES = 8;
+const MAX_PAGES = 32;
 
 type DailyActivityState = {
   days: Record<string, DailyActivity>;
@@ -15,6 +15,8 @@ type DailyActivityState = {
   hasLoaded: boolean;
   /** El historial de entreno no respondió en la última carga. */
   workoutsFailed: boolean;
+  healthFailed: boolean;
+  healthConnection: ConnectedHealthConnection | null;
 };
 
 const ensureDay = (days: Record<string, DailyActivity>, key: string) => {
@@ -60,6 +62,8 @@ const loadWorkouts = async (sinceKey: string, days: Record<string, DailyActivity
       return;
     }
   }
+  // Never present a capped history as a complete annual total.
+  throw new Error('El historial de actividad está incompleto.');
 };
 
 const loadHealth = async (spanDays: number, days: Record<string, DailyActivity>) => {
@@ -74,6 +78,7 @@ const loadHealth = async (spanDays: number, days: Record<string, DailyActivity>)
     day.sleepMinutes = entry.sleep_minutes;
     day.activeKcal = entry.active_energy_kcal;
   }
+  return summary?.connections?.[0] ?? null;
 };
 
 /**
@@ -96,6 +101,8 @@ export const useDailyActivity = ({
     isLoading: false,
     hasLoaded: false,
     workoutsFailed: false,
+    healthFailed: false,
+    healthConnection: null,
   });
   const requestRef = useRef(0);
 
@@ -109,22 +116,24 @@ export const useDailyActivity = ({
     const sinceKey = addDaysToDateKey(todayKey, -spanDays) ?? todayKey;
     const days: Record<string, DailyActivity> = {};
 
-    const [workouts] = await Promise.allSettled([
+    const [workouts, health] = await Promise.allSettled([
       loadWorkouts(sinceKey, days),
-      includeHealth ? loadHealth(spanDays, days) : Promise.resolve(),
+      includeHealth ? loadHealth(spanDays, days) : Promise.resolve(null),
     ]);
 
     if (request !== requestRef.current) {
       return;
     }
     const workoutsFailed = workouts.status === 'rejected';
+    const healthFailed = health.status === 'rejected';
+    const healthConnection = health.status === 'fulfilled' ? health.value : null;
     setState((current) => {
       // Un refresco fallido no borra la cuadrícula que ya se veía.
       if (workoutsFailed && current.hasLoaded) {
-        return { ...current, isLoading: false, workoutsFailed };
+        return { ...current, isLoading: false, workoutsFailed, healthFailed };
       }
       const keys = Object.keys(days).sort();
-      return { days, startKey: keys[0] ?? null, isLoading: false, hasLoaded: true, workoutsFailed };
+      return { days, startKey: keys[0] ?? null, isLoading: false, hasLoaded: true, workoutsFailed, healthFailed, healthConnection };
     });
   }, [includeHealth, weeks]);
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { PanResponder, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { PanResponder, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Animated, {
   useAnimatedStyle,
@@ -31,6 +31,8 @@ type ActivityHeatGridProps = {
   labelGap: number;
   weekdayLabels: readonly ActivityWeekdayLabel[];
   showMonths?: boolean;
+  /** Scroll long ranges while keeping weekday labels fixed. */
+  scrollable?: boolean;
   hasLoaded: boolean;
   /** Cell under the selection ring; null leaves only the ring around today. */
   activeIndex: number | null;
@@ -53,6 +55,7 @@ export const ActivityHeatGrid = ({
   labelGap,
   weekdayLabels,
   showMonths = false,
+  scrollable = false,
   hasLoaded,
   activeIndex,
   onSelect,
@@ -60,6 +63,7 @@ export const ActivityHeatGrid = ({
   style,
 }: ActivityHeatGridProps) => {
   const aurora = useAurora();
+  const scrollRef = useRef<ScrollView>(null);
   const reduceMotion = useReducedMotion();
   const weeks = model.weeks;
   const step = cellSize + gap;
@@ -82,6 +86,7 @@ export const ActivityHeatGrid = ({
     transform: [{ translateX: ringX.value }, { translateY: ringY.value }],
   }));
 
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const lastPickedRef = useRef<number | null>(null);
   const isScrubbingRef = useRef(false);
   const pickAt = useCallback(
@@ -153,25 +158,7 @@ export const ActivityHeatGrid = ({
   const showTodayRing = todayCell && activeIndex !== model.todayIndex;
   const a11yCell = activeCell ?? todayCell ?? undefined;
 
-  return (
-    <View style={[styles.root, style]}>
-      <View style={{ width: labelColumn, marginRight: labelGap, paddingTop: showMonths ? MONTH_ROW : 0 }}>
-        <View style={{ height: gridHeight }}>
-          {weekdayLabels.map((weekday) => (
-            <Text
-              key={weekday.label}
-              style={[
-                styles.axisLabel,
-                auroraFont('semibold'),
-                { color: aurora.faint, top: weekday.row * step, height: cellSize, lineHeight: cellSize },
-              ]}
-            >
-              {weekday.label}
-            </Text>
-          ))}
-        </View>
-      </View>
-
+  const gridContent = (
       <View>
         {showMonths ? (
           <View style={{ height: MONTH_ROW }}>
@@ -196,7 +183,19 @@ export const ActivityHeatGrid = ({
             shiftSelection(event.nativeEvent.actionName === 'increment' ? 1 : -1);
           }}
           style={{ width: step * weeks - gap, height: gridHeight }}
-          {...panResponder.panHandlers}
+          {...(scrollable ? {
+            onTouchStart: (event) => {
+              touchStartRef.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+            },
+            onTouchEnd: (event) => {
+              const start = touchStartRef.current;
+              touchStartRef.current = null;
+              if (start && Math.abs(event.nativeEvent.pageX - start.x) < 8 && Math.abs(event.nativeEvent.pageY - start.y) < 8) {
+                pickAt(event.nativeEvent.locationX, event.nativeEvent.locationY);
+              }
+            },
+            onTouchCancel: () => { touchStartRef.current = null; },
+          } : panResponder.panHandlers)}
         >
           {model.cells.map((cell) => (
             <Animated.View
@@ -257,6 +256,39 @@ export const ActivityHeatGrid = ({
           ) : null}
         </View>
       </View>
+  );
+
+  return (
+    <View style={[styles.root, style]}>
+      <View style={{ width: labelColumn, marginRight: labelGap, paddingTop: showMonths ? MONTH_ROW : 0 }}>
+        <View style={{ height: gridHeight }}>
+          {weekdayLabels.map((weekday) => (
+            <Text
+              key={weekday.label}
+              style={[
+                styles.axisLabel,
+                auroraFont('semibold'),
+                { color: aurora.faint, top: weekday.row * step, height: cellSize, lineHeight: cellSize },
+              ]}
+            >
+              {weekday.label}
+            </Text>
+          ))}
+        </View>
+      </View>
+
+      {scrollable ? (
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          nestedScrollEnabled
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+          contentContainerStyle={{ padding: 3, paddingBottom: 14 }}
+          style={{ flex: 1, marginTop: -3 }}
+        >
+          {gridContent}
+        </ScrollView>
+      ) : gridContent}
     </View>
   );
 };

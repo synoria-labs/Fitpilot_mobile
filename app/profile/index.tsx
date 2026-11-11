@@ -1,18 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   Linking,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../src/store/authStore';
 import { toast } from '../../src/store/toastStore';
@@ -23,29 +19,28 @@ import {
   useThemedStyles,
 } from '../../src/theme';
 import {
-  MEASUREMENT_PREFERENCE_LABELS,
   type MeasurementPreference,
   useMeasurementPreferenceStore,
 } from '../../src/store/measurementPreferenceStore';
 import {
-  borderRadius,
-  brandColors,
-  fontSize,
-  shadows,
-  spacing,
-} from '../../src/constants/colors';
-import {
   ProfileImagePreviewModal,
 } from '../../src/components/common';
-import { getPrimaryScreenHorizontalPadding } from '../../src/utils/layout';
+import { ProfileDetailScreen } from '../../src/components/profile/ProfileDetailScreen';
+import { AuroraCard, AuroraSegmented, IconBadge } from '../../src/components/aurora';
+import { auroraFont, getAuroraTokens, useAurora, type AuroraTone } from '../../src/theme/aurora';
 import { hapticError, hapticSuccess } from '../../src/utils/haptics';
-import { pickProfileImageFromLibrary } from '../../src/utils/profileImagePicker';
+import { useDailyActivity } from '../../src/hooks/useDailyActivity';
+import { ProfileActivityOverview } from '../../src/components/profile/ProfileActivityOverview';
+import { getConnectedHealthPlatformLabel } from '../../src/utils/connectedHealthAuthorization';
+import type { ThemePreference } from '../../src/store/themeStore';
 import {
   cancelAccountDeletion,
   getAccountDeletionStatus,
   requestAccountDeletion,
   type AccountDeletionStatus,
 } from '../../src/services/account';
+
+const THEME_OPTIONS = (['light', 'dark', 'system'] as const).map(key => ({ key, label: getThemePreferenceLabel(key) }));
 
 type MenuItemProps = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
@@ -54,6 +49,10 @@ type MenuItemProps = {
   onPress?: () => void;
   showChevron?: boolean;
   danger?: boolean;
+  tone?: AuroraTone;
+  variant?: 'solid' | 'soft';
+  inlineValue?: boolean;
+  last?: boolean;
 };
 
 const MenuItem = ({
@@ -63,8 +62,12 @@ const MenuItem = ({
   onPress,
   showChevron = true,
   danger = false,
+  tone = 'blue',
+  variant = 'solid',
+  inlineValue = false,
+  last = false,
 }: MenuItemProps) => {
-  const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -73,30 +76,23 @@ const MenuItem = ({
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !onPress }}
     >
-      <View
-        style={[
-          styles.menuIconContainer,
-          danger ? styles.menuIconContainerDanger : null,
-        ]}
-      >
-        <Ionicons
-          name={icon}
-          size={20}
-          color={danger ? theme.colors.error : theme.colors.icon}
-        />
-      </View>
+      <IconBadge icon={icon} tone={danger ? 'rose' : tone} variant={danger ? 'soft' : variant} size={36} />
       <View style={styles.menuContent}>
         <Text style={[styles.menuLabel, danger ? styles.menuLabelDanger : null]}>
           {label}
         </Text>
-        {value ? <Text style={styles.menuValue}>{value}</Text> : null}
+        {value && !inlineValue ? <Text style={styles.menuValue}>{value}</Text> : null}
       </View>
+      {value && inlineValue ? <Text style={styles.inlineValue}>{value}</Text> : null}
+      {!last ? <View style={styles.separator} /> : null}
       {showChevron ? (
         <Ionicons
           name="chevron-forward"
-          size={20}
-          color={theme.colors.iconMuted}
+          size={17}
+          color={aurora.faint}
         />
       ) : null}
     </TouchableOpacity>
@@ -118,15 +114,16 @@ const formatAccountDeletionDate = (dateValue: string | null | undefined) => {
 };
 
 export default function ProfileScreen() {
-  const { width, height } = useWindowDimensions();
-  const horizontalPadding = getPrimaryScreenHorizontalPadding(width, height);
   const { user, logout, uploadAvatar } = useAuthStore();
   const {
     assignedCount,
+    summaries,
     hasLoaded: hasLoadedCareTeam,
     isLoading: isLoadingCareTeam,
   } = useCareTeam(user?.id ?? null);
-  const { preference, theme } = useAppTheme();
+  const { preference, setPreference } = useAppTheme();
+  const aurora = useAurora();
+  const activity = useDailyActivity({ weeks: 53, enabled: Boolean(user?.id) });
   const styles = useThemedStyles(createStyles);
   const measurementPreference = useMeasurementPreferenceStore(
     (state) => state.preference,
@@ -137,7 +134,6 @@ export default function ProfileScreen() {
   const setMeasurementPreference = useMeasurementPreferenceStore(
     (state) => state.setPreference,
   );
-  const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileImagePreviewVisible, setIsProfileImagePreviewVisible] = useState(false);
   const [isProfileImageUploading, setIsProfileImageUploading] = useState(false);
   const [accountDeletionStatus, setAccountDeletionStatus] =
@@ -147,10 +143,6 @@ export default function ProfileScreen() {
   useEffect(() => {
     void initializeMeasurementPreference();
   }, [initializeMeasurementPreference]);
-
-  useEffect(() => {
-    setHasProfileImageError(false);
-  }, [user?.profilePictureUrl]);
 
   useEffect(() => {
     let isMounted = true;
@@ -197,35 +189,12 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleCameraPress = async () => {
-    if (isProfileImageUploading) {
-      return;
-    }
-
-    try {
-      const result = await pickProfileImageFromLibrary();
-
-      if (result.status === 'permission_denied') {
-        hapticError();
-        toast.error(
-          'Permiso requerido',
-          'Necesitamos acceso a tu galería para actualizar tu foto de perfil.',
-        );
-        return;
-      }
-
-      if (result.status !== 'selected') {
-        return;
-      }
-
-      await handleAvatarChange(result.uri);
-    } catch {
-      hapticError();
-      toast.error(
-        'No se pudo cambiar la foto',
-        'Intenta de nuevo en un momento.',
-      );
-    }
+  const handleEdit = () => {
+    Alert.alert('Editar perfil', 'Elige qué quieres actualizar.', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Información personal', onPress: () => router.push('/profile/personal-info') },
+      { text: 'Foto de perfil', onPress: () => setIsProfileImagePreviewVisible(true) },
+    ]);
   };
 
   const handleLogout = () => {
@@ -371,89 +340,39 @@ export default function ProfileScreen() {
       ? accountDeletionStatus.days_until_deletion !== null
         ? `${accountDeletionStatus.days_until_deletion} días restantes`
         : 'Programada'
-      : 'Automática en 30 días';
+      : 'Se borra todo 30 días después de pedirlo';
 
+  const professionalName = summaries.training?.fullName || summaries.nutrition?.fullName;
   const professionalsValue =
     !hasLoadedCareTeam && isLoadingCareTeam
       ? 'Cargando'
       : assignedCount > 0
-        ? `${assignedCount} asignado${assignedCount > 1 ? 's' : ''}`
+        ? `${assignedCount} asignado${assignedCount > 1 ? 's' : ''}${assignedCount === 1 && professionalName ? ` · ${professionalName}` : ''}`
         : 'Sin asignación';
 
+  const connection = activity.healthConnection;
+  const healthValue = connection
+    ? `${getConnectedHealthPlatformLabel(connection.platform)} · ${connection.status === 'active' ? 'conectado' : 'revisar conexión'}`
+    : activity.healthFailed ? 'No disponible' : !activity.hasLoaded ? 'Cargando' : 'Conecta tu app de salud';
+
   const profileImageUrl = user?.profilePictureUrl ?? undefined;
-  const hasProfileImage = Boolean(profileImageUrl && !hasProfileImageError);
-  const avatarContent = (
-    <View style={styles.avatar}>
-      {hasProfileImage ? (
-        <Image
-          source={{ uri: profileImageUrl }}
-          style={styles.avatarImage}
-          onError={() => setHasProfileImageError(true)}
-        />
-      ) : (
-        <Ionicons name="person" size={40} color={theme.colors.primary} />
-      )}
-    </View>
-  );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Volver"
-            activeOpacity={0.85}
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Ionicons name="arrow-back" size={20} color={theme.colors.icon} />
+    <>
+      <ProfileDetailScreen
+        overview
+        backdrop="profile"
+        headerRight={(
+          <TouchableOpacity style={styles.editButton} accessibilityRole="button" accessibilityLabel="Editar perfil" onPress={handleEdit}>
+            <Ionicons name="pencil-outline" size={16} color={aurora.text} />
+            <Text style={styles.editLabel}>Editar</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Perfil</Text>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              paddingHorizontal: horizontalPadding,
-              paddingBottom: spacing.xxl,
-            },
-          ]}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.userCard}>
-            <View style={styles.avatarContainer}>
-              <TouchableOpacity
-                activeOpacity={0.88}
-                onPress={() => setIsProfileImagePreviewVisible(true)}
-                style={styles.avatarPressable}
-              >
-                {avatarContent}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.editAvatarButton,
-                  isProfileImageUploading ? styles.editAvatarButtonDisabled : null,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  void handleCameraPress();
-                }}
-                disabled={isProfileImageUploading}
-              >
-                <Ionicons name="camera" size={14} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.userName}>{user?.displayName || 'Usuario'}</Text>
-            <Text style={styles.userEmail}>{user?.email}</Text>
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>Cliente</Text>
-            </View>
-          </View>
+        )}
+      >
+          <ProfileActivityOverview {...activity} />
 
           <Text style={styles.sectionTitle}>Cuenta</Text>
-          <View style={styles.menuSection}>
+          <AuroraCard padding={0} radius={22} style={styles.menuSection}>
             <MenuItem
               icon="people-outline"
               label="Tus profesionales"
@@ -463,63 +382,72 @@ export default function ProfileScreen() {
             <MenuItem
               icon="person-outline"
               label="Información personal"
+              tone="violet"
               onPress={() => router.push('/profile/personal-info')}
             />
             <MenuItem
               icon="lock-closed-outline"
-              label="Cambiar contraseña"
+              label="Seguridad y contraseña"
+              tone="slate"
               onPress={() => router.push('/profile/change-password')}
             />
             <MenuItem
               icon="notifications-outline"
               label="Notificaciones"
+              tone="amber"
+              last
               onPress={() => router.push('/profile/notifications-settings')}
             />
-            <MenuItem
-              icon="trash-outline"
-              label="Eliminar cuenta y datos"
-              value={accountDeletionValue}
-              onPress={handleAccountDeletionPress}
-              danger
-            />
-          </View>
+          </AuroraCard>
 
           <Text style={styles.sectionTitle}>Preferencias</Text>
-          <View style={styles.menuSection}>
-            <MenuItem
-              icon="moon-outline"
-              label="Tema"
-              value={getThemePreferenceLabel(preference)}
-              onPress={() => router.push('/profile/theme-settings')}
-            />
+          <AuroraCard padding={0} radius={22} style={styles.menuSection}>
+            <View style={styles.themeSection}>
+              <View style={styles.themeTitle}>
+                <IconBadge icon="moon-outline" tone="violet" variant="solid" />
+                <Text style={styles.menuLabel}>Tema</Text>
+              </View>
+              <AuroraSegmented<ThemePreference> options={THEME_OPTIONS} value={preference} onChange={value => void setPreference(value)} accessibilityLabel="Tema de la app" />
+            </View>
             <MenuItem
               icon="fitness-outline"
-              label="Unidades de medida"
-              value={MEASUREMENT_PREFERENCE_LABELS[measurementPreference]}
+              label="Unidades"
+              tone="emerald"
+              inlineValue
+              value={measurementPreference === 'mx' ? 'kg · cm' : 'lb · in'}
               onPress={handleMeasurementPreferencePress}
             />
             <MenuItem
               icon="heart-outline"
               label="Salud conectada"
+              tone="rose"
+              last
+              value={healthValue}
               onPress={() => router.push('/profile/connected-health' as never)}
             />
-          </View>
+          </AuroraCard>
 
           <Text style={styles.sectionTitle}>Soporte</Text>
-          <View style={styles.menuSection}>
+          <AuroraCard padding={0} radius={22} style={styles.menuSection}>
             <MenuItem
               icon="help-circle-outline"
               label="Ayuda"
+              tone="slate"
+              variant="soft"
               onPress={() => router.push('/profile/help')}
             />
             <MenuItem
               icon="chatbubble-outline"
               label="Contactar soporte"
+              tone="slate"
+              variant="soft"
               onPress={() => router.push('/profile/contact-support')}
             />
             <MenuItem
               icon="document-text-outline"
               label="Términos y condiciones"
+              tone="slate"
+              variant="soft"
               onPress={() => {
                 const url =
                   process.env.EXPO_PUBLIC_TERMS_URL ||
@@ -535,6 +463,9 @@ export default function ProfileScreen() {
             <MenuItem
               icon="shield-checkmark-outline"
               label="Política de privacidad"
+              last
+              tone="slate"
+              variant="soft"
               onPress={() => {
                 const url =
                   process.env.EXPO_PUBLIC_PRIVACY_URL ||
@@ -547,20 +478,25 @@ export default function ProfileScreen() {
                 }
               }}
             />
-          </View>
+          </AuroraCard>
 
-          <View style={styles.menuSection}>
+          <Text style={[styles.sectionTitle, styles.menuLabelDanger]}>Zona sensible</Text>
+          <AuroraCard padding={0} radius={22} style={styles.dangerSection}>
             <MenuItem
-              icon="log-out-outline"
-              label="Cerrar sesión"
-              onPress={handleLogout}
-              showChevron={false}
+              icon="trash-outline"
+              label="Eliminar cuenta y datos"
+              value={accountDeletionValue}
+              onPress={handleAccountDeletionPress}
               danger
+              last
             />
-          </View>
-
-          <Text style={styles.versionText}>FitPilot v1.0.0</Text>
-        </ScrollView>
+          </AuroraCard>
+          <TouchableOpacity style={styles.logoutButton} accessibilityRole="button" onPress={handleLogout}>
+            <Ionicons name="log-out-outline" size={18} color={aurora.tones.rose.ink} />
+            <Text style={styles.logoutLabel}>Cerrar sesión</Text>
+          </TouchableOpacity>
+          <Text style={styles.versionText}>FitPilot {Constants.expoConfig?.version}</Text>
+      </ProfileDetailScreen>
 
         <ProfileImagePreviewModal
           visible={isProfileImagePreviewVisible}
@@ -570,185 +506,42 @@ export default function ProfileScreen() {
           onChangeImage={handleAvatarChange}
           isUploading={isProfileImageUploading}
         />
-      </SafeAreaView>
+    </>
   );
 }
 
-const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
+const createStyles = (theme: ReturnType<typeof useAppTheme>['theme']) => {
+  const aurora = getAuroraTokens(theme.isDark);
+  return StyleSheet.create({
+    editButton: {
+      height: 44, paddingHorizontal: 16, flexDirection: 'row', gap: 8, alignItems: 'center',
+      borderRadius: 14, backgroundColor: aurora.glass, borderWidth: 1, borderColor: aurora.glassBorder,
     },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-      paddingTop: spacing.md,
-      paddingBottom: spacing.sm,
-    },
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: borderRadius.full,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-    },
-    title: {
-      flex: 1,
-      fontSize: fontSize['2xl'],
-      fontWeight: 'bold',
-      color: theme.colors.textPrimary,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: spacing.xxl,
-    },
-    userCard: {
-      backgroundColor: theme.isDark ? theme.colors.primarySoft : theme.colors.surface,
-      borderRadius: borderRadius.lg,
-      padding: spacing.xl,
-      alignItems: 'center',
-      marginBottom: spacing.lg,
-      borderWidth: Platform.OS === 'android' && theme.isDark ? 0 : 1,
-      borderColor:
-        Platform.OS === 'android' && theme.isDark
-          ? 'transparent'
-          : theme.isDark
-            ? theme.colors.primaryBorder
-            : theme.colors.border,
-      ...(Platform.OS === 'android' && theme.isDark
-        ? {
-            shadowColor: 'transparent',
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            shadowOffset: { width: 0, height: 0 },
-            elevation: 0,
-          }
-        : shadows.md),
-    },
-    avatarContainer: {
-      position: 'relative',
-      marginBottom: spacing.md,
-    },
-    avatar: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: theme.isDark ? theme.colors.surfaceAlt : theme.colors.primarySoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    avatarPressable: {
-      borderRadius: 40,
-    },
-    avatarImage: {
-      width: '100%',
-      height: '100%',
-    },
-    editAvatarButton: {
-      position: 'absolute',
-      right: 0,
-      bottom: 0,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: brandColors.navy,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 2,
-      borderColor: theme.isDark ? theme.colors.primarySoft : theme.colors.surface,
-    },
-    editAvatarButtonDisabled: {
-      opacity: 0.6,
-    },
-    userName: {
-      fontSize: fontSize.xl,
-      fontWeight: 'bold',
-      color: theme.colors.textPrimary,
-    },
-    userEmail: {
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    roleBadge: {
-      backgroundColor: theme.isDark ? theme.colors.surface : theme.colors.primarySoft,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.xs,
-      borderRadius: borderRadius.full,
-      marginTop: spacing.sm,
-      borderWidth: 1,
-      borderColor: theme.colors.primaryBorder,
-    },
-    roleText: {
-      fontSize: fontSize.xs,
-      fontWeight: '500',
-      color: theme.colors.primary,
-    },
+    editLabel: { ...auroraFont('bold'), fontSize: 14, color: aurora.text },
     sectionTitle: {
-      fontSize: fontSize.sm,
-      fontWeight: '600',
-      color: theme.colors.textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: spacing.sm,
+      ...auroraFont('extrabold'), fontSize: 11, color: aurora.faint,
+      textTransform: 'uppercase', letterSpacing: 1.54, marginTop: 24, marginBottom: 10, marginLeft: 6,
     },
-    menuSection: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: borderRadius.lg,
-      marginBottom: spacing.lg,
-      overflow: 'hidden',
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      ...shadows.sm,
-    },
+    menuSection: { paddingVertical: 4, overflow: 'hidden' },
     menuItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.md,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      minHeight: 60, flexDirection: 'row', alignItems: 'center',
+      paddingHorizontal: 14, paddingVertical: 8, gap: 14,
     },
-    menuIconContainer: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceAlt,
+    separator: { position: 'absolute', bottom: 0, left: 64, right: 0, height: 1, backgroundColor: aurora.border },
+    menuContent: { flex: 1, minWidth: 0 },
+    menuLabel: { ...auroraFont('bold'), fontSize: 15, color: aurora.text },
+    menuLabelDanger: { color: aurora.tones.rose.ink },
+    menuValue: { ...auroraFont('medium'), marginTop: 1, fontSize: 12, color: aurora.faint },
+    inlineValue: { ...auroraFont('medium'), fontSize: 13, color: aurora.faint },
+    themeSection: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 },
+    themeTitle: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 },
+    dangerSection: { borderColor: aurora.tones.rose.line, overflow: 'hidden' },
+    logoutButton: {
+      marginTop: 24, padding: 16, borderRadius: 16, flexDirection: 'row', gap: 8,
+      justifyContent: 'center', alignItems: 'center', backgroundColor: aurora.tones.rose.soft,
+      borderWidth: 1, borderColor: aurora.tones.rose.line,
     },
-    menuIconContainerDanger: {
-      backgroundColor: `${theme.colors.error}18`,
-    },
-    menuContent: {
-      flex: 1,
-      marginLeft: spacing.md,
-    },
-    menuLabel: {
-      fontSize: fontSize.base,
-      color: theme.colors.textPrimary,
-      fontWeight: '500',
-    },
-    menuLabelDanger: {
-      color: theme.colors.error,
-    },
-    menuValue: {
-      marginTop: 2,
-      fontSize: fontSize.sm,
-      color: theme.colors.textMuted,
-    },
-    versionText: {
-      fontSize: fontSize.xs,
-      color: theme.colors.textMuted,
-      textAlign: 'center',
-      marginTop: spacing.sm,
-    },
+    logoutLabel: { ...auroraFont('bold'), fontSize: 14, color: aurora.tones.rose.ink },
+    versionText: { ...auroraFont('medium'), fontSize: 11, color: aurora.faint, textAlign: 'center', marginTop: 16 },
   });
+};

@@ -273,6 +273,18 @@ export const getCurrentWeeklyStreak = (model: ActivityGridModel, minSessions = 3
   return streak;
 };
 
+/** Fixed annual window, independent of the selected heatmap mode and adjacent grid weeks. */
+export const summarizeAnnualActivity = (days: Record<string, DailyActivity>, todayKey: string, startKey: string | null = null) => {
+  const model = buildActivityGrid({ todayKey, weeks: 53, days, mode: 'todo', startKey });
+  const since = addDaysToDateKey(todayKey, -364) ?? todayKey;
+  const cells = model.cells.filter(cell => cell.dateKey >= since && isTracked(cell));
+  return {
+    sessions: cells.reduce((sum, cell) => sum + (cell.activity?.sessions ?? 0), 0),
+    active: cells.filter(cell => cell.level > 0).length,
+    best: getBestDailyStreak(cells, cell => cell.level > 0),
+  };
+};
+
 export type ActivityStat = { label: string; value: string; caption: string };
 
 const formatDays = (count: number) => formatCount(count, 'día', 'días');
@@ -381,6 +393,20 @@ export const describeActivityCell = (cell: ActivityCell): ActivityDayDetail => {
       { key: 'goals', label: 'Metas', value: blank ? '—' : `${goals} de 4` },
     ],
   };
+};
+
+/** El día en una línea: la sesión o el descanso y los datos de salud que haya, sin los que faltan. */
+export const summarizeActivityDay = (detail: ActivityDayDetail) => {
+  const valueOf = (key: string) => {
+    const value = detail.rows.find((row) => row.key === key)?.value;
+    return value && value !== '—' ? value : null;
+  };
+  const steps = valueOf('steps');
+  const sleep = valueOf('sleep');
+
+  return [valueOf('training'), steps ? `${steps} pasos` : null, sleep ? `${sleep} de sueño` : null]
+    .filter(Boolean)
+    .join(' · ');
 };
 
 /** El día elegido en la cuadrícula de Entreno: la fecha y la sesión, o descanso. */
