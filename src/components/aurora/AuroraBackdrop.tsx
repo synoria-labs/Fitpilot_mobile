@@ -16,12 +16,18 @@ import { useAurora } from '../../theme/aurora';
 
 export type AuroraPalette = 'home' | 'training' | 'nutrition' | 'body' | 'profile';
 
-const PALETTES: Record<AuroraPalette, readonly [string, string, string]> = {
-  home: ['#3b82f6', '#10b981', '#8b5cf6'],
-  training: ['#3b82f6', '#6366f1', '#06b6d4'],
-  nutrition: ['#10b981', '#14b8a6', '#84cc16'],
-  body: ['#8b5cf6', '#d946ef', '#3b82f6'],
-  profile: ['#ec4899', '#10b981', '#6366f1'],
+type AuroraPaletteConfig = {
+  colors: readonly [string, string, string];
+  /** `lines`: the faint grid that fades out from the top-right corner; `none` where the design has no grid. */
+  grid?: 'lines' | 'none';
+};
+
+const PALETTES: Record<AuroraPalette, AuroraPaletteConfig> = {
+  home: { colors: ['#3b82f6', '#10b981', '#8b5cf6'] },
+  training: { colors: ['#3b82f6', '#6366f1', '#06b6d4'] },
+  nutrition: { colors: ['#10b981', '#14b8a6', '#84cc16'] },
+  body: { colors: ['#8b5cf6', '#d946ef', '#3b82f6'] },
+  profile: { colors: ['#ec4899', '#10b981', '#6366f1'], grid: 'none' },
 };
 
 // Position and size are fractions of the backdrop width; each glow drifts on its own period
@@ -107,7 +113,7 @@ export const AuroraBackdrop = ({ width, height, palette = 'home' }: AuroraBackdr
   const gridId = toSvgId(useId());
   const fadeId = toSvgId(useId());
   const maskId = toSvgId(useId());
-  const colors = PALETTES[palette];
+  const { colors, grid = 'lines' } = PALETTES[palette];
 
   if (width <= 0 || height <= 0) {
     return null;
@@ -129,7 +135,7 @@ export const AuroraBackdrop = ({ width, height, palette = 'home' }: AuroraBackdr
           />
         ))}
       </View>
-      {palette !== 'profile' ? <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+      {grid === 'lines' ? <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         <Defs>
           <Pattern id={gridId} x="0" y="0" width={30} height={30} patternUnits="userSpaceOnUse">
             <Path d="M 30 0 L 0 0 0 30" stroke={aurora.gridLine} strokeWidth={1} fill="none" />

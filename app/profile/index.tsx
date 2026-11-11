@@ -27,7 +27,7 @@ import {
 } from '../../src/components/common';
 import { ProfileDetailScreen } from '../../src/components/profile/ProfileDetailScreen';
 import { AuroraCard, AuroraSegmented, IconBadge } from '../../src/components/aurora';
-import { auroraFont, getAuroraTokens, type AuroraTone } from '../../src/theme/aurora';
+import { auroraFont, getAuroraTokens, useAurora, type AuroraTone } from '../../src/theme/aurora';
 import { hapticError, hapticSuccess } from '../../src/utils/haptics';
 import { useDailyActivity } from '../../src/hooks/useDailyActivity';
 import { ProfileActivityOverview } from '../../src/components/profile/ProfileActivityOverview';
@@ -67,7 +67,7 @@ const MenuItem = ({
   inlineValue = false,
   last = false,
 }: MenuItemProps) => {
-  const { theme } = useAppTheme();
+  const aurora = useAurora();
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -92,7 +92,7 @@ const MenuItem = ({
         <Ionicons
           name="chevron-forward"
           size={17}
-          color={theme.colors.iconMuted}
+          color={aurora.faint}
         />
       ) : null}
     </TouchableOpacity>
@@ -122,6 +122,7 @@ export default function ProfileScreen() {
     isLoading: isLoadingCareTeam,
   } = useCareTeam(user?.id ?? null);
   const { preference, setPreference } = useAppTheme();
+  const aurora = useAurora();
   const activity = useDailyActivity({ weeks: 53, enabled: Boolean(user?.id) });
   const styles = useThemedStyles(createStyles);
   const measurementPreference = useMeasurementPreferenceStore(
@@ -360,9 +361,10 @@ export default function ProfileScreen() {
     <>
       <ProfileDetailScreen
         overview
+        backdrop="profile"
         headerRight={(
           <TouchableOpacity style={styles.editButton} accessibilityRole="button" accessibilityLabel="Editar perfil" onPress={handleEdit}>
-            <Ionicons name="pencil-outline" size={16} color={styles.menuLabel.color} />
+            <Ionicons name="pencil-outline" size={16} color={aurora.text} />
             <Text style={styles.editLabel}>Editar</Text>
           </TouchableOpacity>
         )}
@@ -490,7 +492,7 @@ export default function ProfileScreen() {
             />
           </AuroraCard>
           <TouchableOpacity style={styles.logoutButton} accessibilityRole="button" onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={18} color={styles.menuLabelDanger.color} />
+            <Ionicons name="log-out-outline" size={18} color={aurora.tones.rose.ink} />
             <Text style={styles.logoutLabel}>Cerrar sesión</Text>
           </TouchableOpacity>
           <Text style={styles.versionText}>FitPilot {Constants.expoConfig?.version}</Text>

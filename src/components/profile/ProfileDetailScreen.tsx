@@ -20,7 +20,7 @@ import {
   spacing,
 } from '../../constants/colors';
 import { useAppTheme, useThemedStyles } from '../../theme';
-import { AuroraBackdrop } from '../aurora';
+import { AuroraBackdrop, type AuroraPalette } from '../aurora';
 import { auroraFont, getAuroraTokens } from '../../theme/aurora';
 import { getPrimaryScreenHorizontalPadding } from '../../utils/layout';
 
@@ -28,6 +28,8 @@ interface ProfileDetailScreenProps {
   title?: string;
   headerRight?: React.ReactNode;
   overview?: boolean;
+  /** Aurora glows behind the header. Off unless asked: this screen also hosts Dieta's and Entreno's subscreens. */
+  backdrop?: AuroraPalette;
   subtitle?: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -40,6 +42,7 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
   subtitle,
   headerRight,
   overview = false,
+  backdrop,
   children,
   footer,
   scrollEnabled = true,
@@ -52,7 +55,7 @@ export const ProfileDetailScreen: React.FC<ProfileDetailScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <AuroraBackdrop width={width} height={overview ? 520 : height} palette={overview ? "profile" : "home"} />
+      {backdrop ? <AuroraBackdrop width={width} height={overview ? 520 : height} palette={backdrop} /> : null}
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

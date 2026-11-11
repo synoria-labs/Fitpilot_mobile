@@ -395,6 +395,20 @@ export const describeActivityCell = (cell: ActivityCell): ActivityDayDetail => {
   };
 };
 
+/** El día en una línea: la sesión o el descanso y los datos de salud que haya, sin los que faltan. */
+export const summarizeActivityDay = (detail: ActivityDayDetail) => {
+  const valueOf = (key: string) => {
+    const value = detail.rows.find((row) => row.key === key)?.value;
+    return value && value !== '—' ? value : null;
+  };
+  const steps = valueOf('steps');
+  const sleep = valueOf('sleep');
+
+  return [valueOf('training'), steps ? `${steps} pasos` : null, sleep ? `${sleep} de sueño` : null]
+    .filter(Boolean)
+    .join(' · ');
+};
+
 /** El día elegido en la cuadrícula de Entreno: la fecha y la sesión, o descanso. */
 export const describeTrainingCell = (cell: ActivityCell) => {
   const title = formatActivityDate(cell.dateKey);

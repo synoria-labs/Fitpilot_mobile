@@ -11,6 +11,7 @@ import {
   getVolumeCuts,
   getWeeklySessionCounts,
   meetsTwoGoals,
+  summarizeActivityDay,
   summarizeAnnualActivity,
   type DailyActivity,
 } from './activityGrid';
@@ -187,5 +188,25 @@ describe('resumen anual de Perfil', () => {
 
   it('muestra cero con un historial vacío', () => {
     expect(summarizeAnnualActivity({}, TODAY)).toEqual({ sessions: 0, active: 0, best: 0 });
+  });
+});
+
+describe('summarizeActivityDay', () => {
+  const detailOf = (rows: Record<string, string>) => ({
+    title: 'Miércoles 28 de octubre',
+    badge: '',
+    isToday: false,
+    rows: Object.entries(rows).map(([key, value]) => ({ key, label: key, value })),
+  });
+
+  it('junta la sesión y los datos de salud que hay', () => {
+    expect(summarizeActivityDay(detailOf({ training: 'Pull A · 58 min', steps: '9,000', sleep: '7 h 18 min' }))).toBe(
+      'Pull A · 58 min · 9,000 pasos · 7 h 18 min de sueño',
+    );
+  });
+
+  it('deja fuera lo que falta en lugar de mostrar guiones', () => {
+    expect(summarizeActivityDay(detailOf({ training: 'Descanso', steps: '—', sleep: '—' }))).toBe('Descanso');
+    expect(summarizeActivityDay(detailOf({ training: '—', steps: '4,200', sleep: '—' }))).toBe('4,200 pasos');
   });
 });
